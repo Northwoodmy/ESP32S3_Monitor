@@ -65,9 +65,6 @@ String WebServerManager::getIndexHTML() {
     html += "                    </button>\n";
     html += "                    \n";
     html += "                    <div id=\"networkList\" class=\"network-list hidden\">\n";
-    html += "                        <div class=\"loading\" id=\"scanLoading\">\n";
-    html += "                            <div class=\"spinner\"></div>\n";
-    html += "                        </div>\n";
     html += "                    </div>\n";
     html += "                    \n";
     html += "                    <form id=\"wifiForm\" class=\"wifi-form\">\n";
@@ -889,11 +886,9 @@ String WebServerManager::getJavaScript() {
     js += "async function scanWiFi() {\n";
     js += "    const scanBtn = document.getElementById('scanBtn');\n";
     js += "    const networkList = document.getElementById('networkList');\n";
-    js += "    const scanLoading = document.getElementById('scanLoading');\n";
     js += "    scanBtn.disabled = true;\n";
     js += "    scanBtn.innerHTML = '<div class=\"spinner-sm\"></div> 扫描中...';\n";
     js += "    networkList.classList.remove('hidden');\n";
-    js += "    scanLoading.classList.remove('hidden');\n";
     js += "    try {\n";
     js += "        const response = await fetch('/scan');\n";
     js += "        const data = await response.json();\n";
@@ -906,14 +901,11 @@ String WebServerManager::getJavaScript() {
     js += "    } finally {\n";
     js += "        scanBtn.disabled = false;\n";
     js += "        scanBtn.innerHTML = '扫描WiFi网络';\n";
-    js += "        scanLoading.classList.add('hidden');\n";
     js += "    }\n";
     js += "}\n\n";
     
     js += "function displayNetworks(networks) {\n";
     js += "    const networkList = document.getElementById('networkList');\n";
-    js += "    const scanLoading = document.getElementById('scanLoading');\n";
-    js += "    scanLoading.classList.add('hidden');\n";
     js += "    if (networks.length === 0) {\n";
     js += "        networkList.innerHTML = '<div class=\"loading\">未发现WiFi网络</div>';\n";
     js += "        return;\n";
