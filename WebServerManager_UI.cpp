@@ -104,7 +104,8 @@ String WebServerManager::getIndexHTML() {
     html += "            </div>\n";
     html += "            \n";
     html += "            <div class=\"action-buttons\">\n";
-    html += "                <button onclick=\"rebootDevice()\" class=\"danger-btn\">重启设备</button>\n";
+    html += "                <button onclick=\"resetConfig()\" class=\"danger-btn\">恢复默认配置</button>\n";
+    html += "                <button onclick=\"rebootDevice()\" class=\"warning-btn\">重启设备</button>\n";
     html += "                <button onclick=\"refreshInfo()\" class=\"secondary-btn\">刷新信息</button>\n";
     html += "            </div>\n";
     html += "        </div>\n";
@@ -439,7 +440,7 @@ String WebServerManager::getCSS() {
             gap: 12px;
         }
         
-        .danger-btn, .secondary-btn {
+        .danger-btn, .warning-btn, .secondary-btn {
             flex: 1;
             padding: 10px 16px;
             border: none;
@@ -447,6 +448,7 @@ String WebServerManager::getCSS() {
             font-weight: 500;
             cursor: pointer;
             transition: all 0.2s ease;
+            margin: 0 4px;
         }
         
         .danger-btn {
@@ -456,6 +458,15 @@ String WebServerManager::getCSS() {
         
         .danger-btn:hover {
             background: #dc2626;
+        }
+        
+        .warning-btn {
+            background: #f59e0b;
+            color: white;
+        }
+        
+        .warning-btn:hover {
+            background: #d97706;
         }
         
         .secondary-btn {
@@ -737,6 +748,23 @@ String WebServerManager::getJavaScript() {
     js += "    } else {\n";
     js += "        passwordInput.type = 'password';\n";
     js += "        toggleBtn.textContent = '👁';\n";
+    js += "    }\n";
+    js += "}\n\n";
+    
+    js += "function resetConfig() {\n";
+    js += "    if (confirm('确定要恢复默认配置吗？\\n\\n此操作将：\\n• 清除所有WiFi配置\\n• 清除所有系统设置\\n• 重启设备\\n\\n此操作不可撤销！')) {\n";
+    js += "        showToast('正在重置配置...', 'success');\n";
+    js += "        fetch('/reset').then(response => response.json()).then(data => {\n";
+    js += "            if (data.success) {\n";
+    js += "                showToast(data.message, 'success');\n";
+    js += "                setTimeout(() => { location.reload(); }, 5000);\n";
+    js += "            } else {\n";
+    js += "                showToast(data.message || '配置重置失败', 'error');\n";
+    js += "            }\n";
+    js += "        }).catch(error => {\n";
+    js += "            console.error('配置重置失败:', error);\n";
+    js += "            showToast('配置重置失败', 'error');\n";
+    js += "        });\n";
     js += "    }\n";
     js += "}\n\n";
     

@@ -140,4 +140,38 @@ bool ConfigStorage::loadSystemConfig(String& deviceName, int& refreshRate) {
     
     printf("加载系统配置: 设备名=%s, 刷新率=%d\n", deviceName.c_str(), refreshRate);
     return true;
+}
+
+bool ConfigStorage::resetAllConfig() {
+    printf("重置所有配置到默认值...\n");
+    
+    bool success = true;
+    
+    // 清除WiFi配置
+    if (preferences.begin(WIFI_NAMESPACE, false)) {
+        preferences.clear();
+        preferences.end();
+        printf("WiFi配置已清除\n");
+    } else {
+        printf("清除WiFi配置失败\n");
+        success = false;
+    }
+    
+    // 清除系统配置
+    if (preferences.begin(SYSTEM_NAMESPACE, false)) {
+        preferences.clear();
+        preferences.end();
+        printf("系统配置已清除\n");
+    } else {
+        printf("清除系统配置失败\n");
+        success = false;
+    }
+    
+    if (success) {
+        printf("所有配置已重置为默认值\n");
+    } else {
+        printf("配置重置过程中发生错误\n");
+    }
+    
+    return success;
 } 

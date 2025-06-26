@@ -37,6 +37,7 @@ void WebServerManager::init() {
     server->on("/scan", [this]() { handleWiFiScan(); });
     server->on("/info", [this]() { handleSystemInfo(); });
     server->on("/restart", [this]() { handleRestart(); });
+    server->on("/reset", [this]() { handleResetConfig(); });
     server->on("/api", [this]() { handleAPI(); });
     server->on("/save", HTTP_POST, [this]() { handleSaveWiFi(); });
     server->on("/status", [this]() { handleGetStatus(); });
@@ -149,7 +150,7 @@ void WebServerManager::handleSystemInfo() {
     
     DynamicJsonDocument doc(1024);
     doc["device"] = "ESP32S3 Monitor";
-    doc["version"] = "v2.0.2";
+    doc["version"] = "v2.0.3";
     doc["chipModel"] = ESP.getChipModel();
     doc["chipRevision"] = ESP.getChipRevision();
     doc["cpuFreq"] = ESP.getCpuFreqMHz();
@@ -180,6 +181,35 @@ void WebServerManager::handleRestart() {
     ESP.restart();
 }
 
+void WebServerManager::handleResetConfig() {
+    printf("处理配置重置请求\n");
+    
+    DynamicJsonDocument doc(256);
+    
+    // 执行配置重置
+    bool success = configStorage->resetAllConfig();
+    
+    doc["success"] = success;
+    
+    if (success) {
+        doc["message"] = "配置已重置为默认值，设备将在3秒后重启";
+        
+        String response;
+        serializeJson(doc, response);
+        server->send(200, "application/json", response);
+        
+        // 延时3秒后重启设备
+        vTaskDelay(pdMS_TO_TICKS(3000));
+        ESP.restart();
+    } else {
+        doc["message"] = "配置重置失败";
+        
+        String response;
+        serializeJson(doc, response);
+        server->send(500, "application/json", response);
+    }
+}
+
 void WebServerManager::handleNotFound() {
     printf("处理404请求: %s\n", server->uri().c_str());
     server->send(404, "text/plain", "页面未找到");
@@ -191,7 +221,7 @@ void WebServerManager::handleAPI() {
     DynamicJsonDocument doc(512);
     doc["status"] = "ok";
     doc["message"] = "ESP32S3 Monitor API";
-    doc["endpoints"] = "/scan, /info, /save, /status, /restart";
+    doc["endpoints"] = "/scan, /info, /save, /status, /restart, /reset";
     
     String response;
     serializeJson(doc, response);

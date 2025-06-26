@@ -27,6 +27,9 @@ public:
     bool saveSystemConfig(const String& deviceName, int refreshRate);
     bool loadSystemConfig(String& deviceName, int& refreshRate);
     
+    // 配置重置操作
+    bool resetAllConfig();
+    
 private:
     Preferences preferences;
     

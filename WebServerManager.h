@@ -46,6 +46,7 @@ private:
     void handleWiFiScan();
     void handleSystemInfo();
     void handleRestart();
+    void handleResetConfig();
     void handleNotFound();
     
     // API处理函数
