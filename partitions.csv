@@ -1,0 +1,10 @@
+# ESP32S3 Monitor Project - Maximum Flash Utilization
+# Flash Size: 16MB (16,777,216 bytes) - Full utilization
+# Large APP partitions for maximum firmware space
+
+# Name,     Type, SubType,  Offset,   Size,     Flags
+nvs,        data, nvs,      0x9000,   0x5000,   
+otadata,    data, ota,      0xe000,   0x2000,   
+app0,       app,  ota_0,    0x10000,  0x600000, 
+app1,       app,  ota_1,    0x610000, 0x600000, 
+spiffs,     data, spiffs,   0xc10000, 0x3f0000, 

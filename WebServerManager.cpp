@@ -6,10 +6,11 @@
 #include "WebServerManager.h"
 #include "Arduino.h"
 
-WebServerManager::WebServerManager(WiFiManager* wifiMgr, ConfigStorage* configStore) :
+WebServerManager::WebServerManager(WiFiManager* wifiMgr, ConfigStorage* configStore, OTAManager* otaMgr) :
     server(nullptr),
     wifiManager(wifiMgr),
     configStorage(configStore),
+    otaManager(otaMgr),
     serverTaskHandle(nullptr),
     isRunning(false) {
     server = new WebServer(80);
@@ -44,6 +45,13 @@ void WebServerManager::init() {
     server->on("/wifi-configs", HTTP_GET, [this]() { handleGetWiFiConfigs(); });
     server->on("/delete-wifi-config", HTTP_POST, [this]() { handleDeleteWiFiConfig(); });
     server->on("/connect-wifi", HTTP_POST, [this]() { handleConnectWiFiConfig(); });
+    server->on("/ota-upload", HTTP_POST, [this]() { 
+        // POST请求完成后的响应处理
+        printf("OTA上传POST请求完成，发送响应\n");
+        server->send(200, "application/json", otaManager->getStatusJSON());
+    }, [this]() { handleOTAUpload(); });
+    server->on("/ota-status", HTTP_GET, [this]() { handleOTAStatus(); });
+    server->on("/ota-reboot", HTTP_POST, [this]() { handleOTAReboot(); });
     server->onNotFound([this]() { handleNotFound(); });
     
     printf("Web服务器路由配置完成\n");
@@ -153,7 +161,7 @@ void WebServerManager::handleSystemInfo() {
     
     DynamicJsonDocument doc(1024);
     doc["device"] = "ESP32S3 Monitor";
-    doc["version"] = "v3.0.5";
+    doc["version"] = "v3.2.13";
     doc["chipModel"] = ESP.getChipModel();
     doc["chipRevision"] = ESP.getChipRevision();
     doc["cpuFreq"] = ESP.getCpuFreqMHz();
@@ -458,4 +466,76 @@ void WebServerManager::handleConnectWiFiConfig() {
     String response;
     serializeJson(doc, response);
     server->send(200, "application/json", response);
+}
+
+void WebServerManager::handleOTAUpload() {
+    HTTPUpload& upload = server->upload();
+    
+    if (upload.status == UPLOAD_FILE_START) {
+        printf("处理OTA固件上传请求\n");
+        printf("开始OTA文件上传: %s\n", upload.filename.c_str());
+        
+        // ESP32的WebServer在START阶段totalSize通常为0，所以使用动态大小
+        if (!otaManager->beginOTA(0)) {  // 使用0表示动态大小
+            printf("OTA开始失败\n");
+            return;
+        }
+        
+    } else if (upload.status == UPLOAD_FILE_WRITE) {
+        if (!otaManager->writeOTAData(upload.buf, upload.currentSize)) {
+            printf("写入OTA数据失败\n");
+            return;
+        }
+        
+    } else if (upload.status == UPLOAD_FILE_END) {
+        printf("OTA文件上传结束，总大小: %u 字节\n", upload.totalSize);
+        
+        // 在结束时更新实际的文件大小
+        if (!otaManager->setActualSize(upload.totalSize)) {
+            printf("设置实际文件大小失败\n");
+            return;
+        }
+        
+        if (otaManager->endOTA()) {
+            printf("OTA升级成功完成\n");
+        } else {
+            printf("OTA升级失败\n");
+        }
+        
+    } else if (upload.status == UPLOAD_FILE_ABORTED) {
+        printf("OTA文件上传被中止\n");
+        otaManager->abortOTA();
+    }
+    
+    // 不在upload回调中发送响应，而是在POST处理函数中统一处理
+}
+
+void WebServerManager::handleOTAStatus() {
+    String statusJson = otaManager->getStatusJSON();
+    server->send(200, "application/json", statusJson);
+}
+
+void WebServerManager::handleOTAReboot() {
+    printf("处理OTA重启请求\n");
+    
+    DynamicJsonDocument doc(256);
+    
+    if (otaManager->getStatus() == OTAStatus::SUCCESS) {
+        doc["success"] = true;
+        doc["message"] = "设备将在3秒后重启以应用新固件";
+        
+        String response;
+        serializeJson(doc, response);
+        server->send(200, "application/json", response);
+        
+        // 延时后重启设备
+        otaManager->rebootDevice();
+    } else {
+        doc["success"] = false;
+        doc["message"] = "OTA升级未成功，无法重启";
+        
+        String response;
+        serializeJson(doc, response);
+        server->send(400, "application/json", response);
+    }
 } 

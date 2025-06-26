@@ -12,10 +12,11 @@
 #include "freertos/task.h"
 #include "ConfigStorage.h"
 #include "WiFiManager.h"
+#include "OTAManager.h"
 
 class WebServerManager {
 public:
-    WebServerManager(WiFiManager* wifiMgr, ConfigStorage* configStore);
+    WebServerManager(WiFiManager* wifiMgr, ConfigStorage* configStore, OTAManager* otaMgr);
     ~WebServerManager();
     
     // 初始化Web服务器
@@ -34,6 +35,7 @@ private:
     WebServer* server;
     WiFiManager* wifiManager;
     ConfigStorage* configStorage;
+    OTAManager* otaManager;
     TaskHandle_t serverTaskHandle;
     bool isRunning;
     
@@ -58,6 +60,11 @@ private:
     void handleGetWiFiConfigs();
     void handleDeleteWiFiConfig();
     void handleConnectWiFiConfig();
+    
+    // OTA升级相关API
+    void handleOTAUpload();
+    void handleOTAStatus();
+    void handleOTAReboot();
     
     // 获取主页HTML
     String getIndexHTML();

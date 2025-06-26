@@ -20,22 +20,26 @@
 #include <ArduinoJson.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "esp_partition.h"
+#include "esp_ota_ops.h"
 
 #include "Monitor.h"
 #include "ConfigStorage.h"
 #include "WiFiManager.h"
 #include "WebServerManager.h"
+#include "OTAManager.h"
 
 // 全局实例
 Monitor monitor;
 ConfigStorage configStorage;
 WiFiManager wifiManager;
 WebServerManager* webServerManager;
+OTAManager otaManager;
 
 void setup() {
   
       printf("=== ESP32S3 WiFi配置管理器启动 ===\n");
-    printf("版本: v3.0.5\n");
+    printf("版本: v3.2.0\n");
     printf("编译时间: %s %s\n", __DATE__, __TIME__);
   
   // 初始化配置存储
@@ -45,8 +49,11 @@ void setup() {
   // 初始化WiFi管理器
   wifiManager.init();
   
+  // 初始化OTA管理器
+  otaManager.init();
+  
   // 创建Web服务器管理器实例
-  webServerManager = new WebServerManager(&wifiManager, &configStorage);
+  webServerManager = new WebServerManager(&wifiManager, &configStorage, &otaManager);
   
   // 初始化并启动Web服务器
   webServerManager->init();
@@ -70,6 +77,23 @@ void loop() {
 
 void displaySystemStatus() {
   printf("\n=== 系统状态信息 ===\n");
+  
+  // 分区信息
+  printf("=== Flash分区信息 ===\n");
+  const esp_partition_t* app0 = esp_partition_find_first(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_OTA_0, NULL);
+  const esp_partition_t* app1 = esp_partition_find_first(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_OTA_1, NULL);
+  const esp_partition_t* running = esp_ota_get_running_partition();
+  
+  if (app0 && app1) {
+    printf("✅ OTA分区配置正确\n");
+    printf("APP0 分区: %u MB (0x%x - 0x%x)\n", app0->size / (1024*1024), app0->address, app0->address + app0->size);
+    printf("APP1 分区: %u MB (0x%x - 0x%x)\n", app1->size / (1024*1024), app1->address, app1->address + app1->size);
+    printf("当前运行: %s\n", running ? running->label : "未知");
+    printf("可用固件空间: %u MB\n", ESP.getFreeSketchSpace() / (1024*1024));
+  } else {
+    printf("❌ OTA分区配置错误或缺失\n");
+  }
+  printf("==================\n");
   
   // WiFi状态
   if (wifiManager.isConnected()) {

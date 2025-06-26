@@ -38,6 +38,9 @@ String WebServerManager::getIndexHTML() {
     html += "            <button class=\"tab-btn active\" onclick=\"switchTab('wifi')\" id=\"wifiTab\">\n";
     html += "                WiFi配置\n";
     html += "            </button>\n";
+    html += "            <button class=\"tab-btn\" onclick=\"switchTab('ota')\" id=\"otaTab\">\n";
+    html += "                固件升级\n";
+    html += "            </button>\n";
     html += "            <button class=\"tab-btn\" onclick=\"switchTab('system')\" id=\"systemTab\">\n";
     html += "                系统信息\n";
     html += "            </button>\n";
@@ -85,6 +88,70 @@ String WebServerManager::getIndexHTML() {
     html += "                            </div>\n";
     html += "                        </button>\n";
     html += "                    </form>\n";
+    html += "                </div>\n";
+    html += "            </div>\n";
+    html += "        </div>\n";
+    html += "        \n";
+    html += "        <!-- OTA升级标签页 -->\n";
+    html += "        <div class=\"tab-content\" id=\"otaContent\">\n";
+    html += "            <div class=\"card\">\n";
+    html += "                <h2>固件升级</h2>\n";
+    html += "                <div class=\"ota-section\">\n";
+    html += "                    <div class=\"ota-info\">\n";
+    html += "                        <p class=\"info-text\">📱 请选择.bin固件文件进行升级</p>\n";
+    html += "                        <p class=\"warning-text\">⚠️ 升级过程中请勿断电或关闭页面</p>\n";
+    html += "                    </div>\n";
+    html += "                    \n";
+    html += "                    <div class=\"file-upload-section\">\n";
+    html += "                        <input type=\"file\" id=\"firmwareFile\" accept=\".bin\" style=\"display: none;\">\n";
+    html += "                        <button id=\"selectFileBtn\" class=\"file-select-btn\">\n";
+    html += "                            📁 选择固件文件\n";
+    html += "                        </button>\n";
+    html += "                        <div id=\"fileInfo\" class=\"file-info hidden\">\n";
+    html += "                            <p><strong>文件名:</strong> <span id=\"fileName\"></span></p>\n";
+    html += "                            <p><strong>文件大小:</strong> <span id=\"fileSize\"></span></p>\n";
+    html += "                        </div>\n";
+    html += "                    </div>\n";
+    html += "                    \n";
+    html += "                    <div class=\"upload-section\">\n";
+    html += "                        <button id=\"uploadBtn\" class=\"upload-btn\" disabled>\n";
+    html += "                            <span class=\"btn-text\">🚀 开始升级</span>\n";
+    html += "                            <div class=\"btn-loading hidden\">\n";
+    html += "                                <div class=\"spinner-sm\"></div>\n";
+    html += "                            </div>\n";
+    html += "                        </button>\n";
+    html += "                    </div>\n";
+    html += "                    \n";
+    html += "                    <div id=\"otaProgress\" class=\"ota-progress hidden\">\n";
+    html += "                        <div class=\"progress-info\">\n";
+    html += "                            <h3 id=\"otaStatusTitle\">准备升级...</h3>\n";
+    html += "                            <p id=\"otaStatusDetail\"></p>\n";
+    html += "                        </div>\n";
+    html += "                        <div class=\"progress-bar\">\n";
+    html += "                            <div id=\"progressFill\" class=\"progress-fill\"></div>\n";
+    html += "                        </div>\n";
+    html += "                        <div class=\"progress-text\">\n";
+    html += "                            <span id=\"progressPercent\">0%</span>\n";
+    html += "                            <span id=\"progressSize\">0 / 0 字节</span>\n";
+    html += "                        </div>\n";
+    html += "                    </div>\n";
+    html += "                    \n";
+    html += "                    <div id=\"otaResult\" class=\"ota-result hidden\">\n";
+    html += "                        <div class=\"result-success hidden\" id=\"successResult\">\n";
+    html += "                            <h3>✅ 升级成功！</h3>\n";
+    html += "                            <p>固件已成功升级，点击下方按钮重启设备以应用新固件。</p>\n";
+    html += "                            <button id=\"rebootBtn\" class=\"reboot-btn\">\n";
+    html += "                                🔄 重启设备\n";
+    html += "                            </button>\n";
+    html += "                        </div>\n";
+    html += "                        <div class=\"result-error hidden\" id=\"errorResult\">\n";
+    html += "                            <h3>❌ 升级失败</h3>\n";
+    html += "                            <p id=\"errorMessage\">升级过程中发生错误</p>\n";
+    html += "                            <button id=\"retryBtn\" class=\"retry-btn\">\n";
+    html += "                                🔄 重新尝试\n";
+    html += "                            </button>\n";
+    html += "                        </div>\n";
+    html += "                    </div>\n";
     html += "                </div>\n";
     html += "            </div>\n";
     html += "        </div>\n";
@@ -533,6 +600,8 @@ String WebServerManager::getCSS() {
         .signal-strength {
             display: flex;
             gap: 2px;
+            align-items: flex-end;
+            height: 20px;
         }
         
         .signal-bar {
@@ -769,6 +838,209 @@ String WebServerManager::getCSS() {
             border-top-color: white;
         }
         
+        /* OTA升级相关样式 */
+        .ota-section {
+            text-align: center;
+        }
+        
+        .ota-info {
+            margin-bottom: 24px;
+            padding: 20px;
+            background: #f0f9ff;
+            border-radius: 12px;
+            border: 2px solid #0ea5e9;
+        }
+        
+        .info-text {
+            color: #0c4a6e;
+            font-size: 1.1rem;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+        
+        .warning-text {
+            color: #dc2626;
+            font-size: 0.95rem;
+            font-weight: 500;
+        }
+        
+        .file-upload-section {
+            margin-bottom: 24px;
+        }
+        
+        .file-select-btn {
+            background: linear-gradient(135deg, #6366f1, #4f46e5);
+            color: white;
+            border: none;
+            padding: 14px 24px;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 16px;
+        }
+        
+        .file-select-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.4);
+        }
+        
+        .file-info {
+            background: #f8fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 16px;
+            text-align: left;
+        }
+        
+        .file-info p {
+            margin-bottom: 8px;
+            color: #374151;
+        }
+        
+        .file-info p:last-child {
+            margin-bottom: 0;
+        }
+        
+        .upload-section {
+            margin-bottom: 24px;
+        }
+        
+        .upload-btn {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            border-radius: 12px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.3s ease;
+            min-width: 200px;
+        }
+        
+        .upload-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
+        }
+        
+        .upload-btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .ota-progress {
+            background: #f8fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+        
+        .progress-info {
+            margin-bottom: 20px;
+        }
+        
+        .progress-info h3 {
+            color: #1f2937;
+            margin-bottom: 8px;
+            font-size: 1.25rem;
+        }
+        
+        .progress-info p {
+            color: #6b7280;
+            font-size: 0.95rem;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 12px;
+            background: #e5e7eb;
+            border-radius: 6px;
+            overflow: hidden;
+            margin-bottom: 12px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #10b981, #059669);
+            border-radius: 6px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+        
+        .progress-text {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+        
+        .ota-result {
+            padding: 24px;
+            border-radius: 12px;
+            text-align: center;
+        }
+        
+        .result-success {
+            background: #f0fdf4;
+            border: 2px solid #22c55e;
+        }
+        
+        .result-success h3 {
+            color: #166534;
+            margin-bottom: 12px;
+        }
+        
+        .result-success p {
+            color: #15803d;
+            margin-bottom: 20px;
+        }
+        
+        .result-error {
+            background: #fef2f2;
+            border: 2px solid #ef4444;
+        }
+        
+        .result-error h3 {
+            color: #991b1b;
+            margin-bottom: 12px;
+        }
+        
+        .result-error p {
+            color: #dc2626;
+            margin-bottom: 20px;
+        }
+        
+        .reboot-btn, .retry-btn {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .reboot-btn:hover, .retry-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(245, 158, 11, 0.4);
+        }
+        
+        .retry-btn {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+        }
+        
+        .retry-btn:hover {
+            box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+        }
+        
         @media (max-width: 640px) {
             .container {
                 padding: 16px;
@@ -800,6 +1072,7 @@ String WebServerManager::getJavaScript() {
     js += "    statusInterval = setInterval(updateStatus, 5000);\n";
     js += "    document.getElementById('scanBtn').addEventListener('click', scanWiFi);\n";
     js += "    document.getElementById('wifiForm').addEventListener('submit', connectWiFi);\n";
+    js += "    initOTAHandlers();\n";
     js += "});\n\n";
     
     js += "function switchTab(tabName) {\n";
@@ -817,6 +1090,8 @@ String WebServerManager::getJavaScript() {
     js += "        loadSystemInfo();\n";
     js += "    } else if (tabName === 'wifi') {\n";
     js += "        loadSavedWiFiConfigs();\n";
+    js += "    } else if (tabName === 'ota') {\n";
+    js += "        resetOTAUI();\n";
     js += "    }\n";
     js += "}\n\n";
     
@@ -932,8 +1207,9 @@ String WebServerManager::getJavaScript() {
     js += "    const strength = Math.min(Math.max(2 * (rssi + 100), 0), 100);\n";
     js += "    const bars = Math.ceil(strength / 25);\n";
     js += "    let html = '';\n";
+    js += "    // 信号条从左到右：低→高，符合常见WiFi图标习惯\n";
     js += "    for (let i = 1; i <= 4; i++) {\n";
-    js += "        const height = i * 4 + 4;\n";
+    js += "        const height = i * 4 + 4; // 8px, 12px, 16px, 20px\n";
     js += "        const active = i <= bars ? 'active' : '';\n";
     js += "        html += '<div class=\"signal-bar ' + active + '\" style=\"height: ' + height + 'px;\"></div>';\n";
     js += "    }\n";
@@ -1212,8 +1488,309 @@ String WebServerManager::getJavaScript() {
     js += "    }\n";
     js += "}\n\n";
     
+    // OTA相关JavaScript函数
+    js += "let otaStatusInterval;\n";
+    js += "let selectedFile = null;\n\n";
+    
+    js += "function initOTAHandlers() {\n";
+    js += "    const selectFileBtn = document.getElementById('selectFileBtn');\n";
+    js += "    const firmwareFile = document.getElementById('firmwareFile');\n";
+    js += "    const uploadBtn = document.getElementById('uploadBtn');\n";
+    js += "    const rebootBtn = document.getElementById('rebootBtn');\n";
+    js += "    const retryBtn = document.getElementById('retryBtn');\n";
+    js += "    \n";
+    js += "    if (selectFileBtn) selectFileBtn.addEventListener('click', () => firmwareFile.click());\n";
+    js += "    if (firmwareFile) firmwareFile.addEventListener('change', handleFileSelect);\n";
+    js += "    if (uploadBtn) uploadBtn.addEventListener('click', startOTAUpload);\n";
+    js += "    if (rebootBtn) rebootBtn.addEventListener('click', rebootAfterOTA);\n";
+    js += "    if (retryBtn) retryBtn.addEventListener('click', resetOTAUI);\n";
+    js += "}\n\n";
+    
+    js += "function handleFileSelect(event) {\n";
+    js += "    const file = event.target.files[0];\n";
+    js += "    const fileInfo = document.getElementById('fileInfo');\n";
+    js += "    const fileName = document.getElementById('fileName');\n";
+    js += "    const fileSize = document.getElementById('fileSize');\n";
+    js += "    const uploadBtn = document.getElementById('uploadBtn');\n";
+    js += "    \n";
+    js += "    if (file) {\n";
+    js += "        if (!file.name.endsWith('.bin')) {\n";
+    js += "            showToast('请选择.bin格式的固件文件', 'error');\n";
+    js += "            event.target.value = '';\n";
+    js += "            return;\n";
+    js += "        }\n";
+    js += "        \n";
+    js += "        selectedFile = file;\n";
+    js += "        fileName.textContent = file.name;\n";
+    js += "        fileSize.textContent = formatBytes(file.size);\n";
+    js += "        fileInfo.classList.remove('hidden');\n";
+    js += "        uploadBtn.disabled = false;\n";
+    js += "    } else {\n";
+    js += "        selectedFile = null;\n";
+    js += "        fileInfo.classList.add('hidden');\n";
+    js += "        uploadBtn.disabled = true;\n";
+    js += "    }\n";
+    js += "}\n\n";
+    
+    js += "async function startOTAUpload() {\n";
+    js += "    if (!selectedFile) {\n";
+    js += "        showToast('请先选择固件文件', 'error');\n";
+    js += "        return;\n";
+    js += "    }\n";
+    js += "    \n";
+    js += "    const uploadBtn = document.getElementById('uploadBtn');\n";
+    js += "    const otaProgress = document.getElementById('otaProgress');\n";
+    js += "    const otaResult = document.getElementById('otaResult');\n";
+    js += "    \n";
+    js += "    // 显示进度界面\n";
+    js += "    uploadBtn.disabled = true;\n";
+    js += "    uploadBtn.querySelector('.btn-text').textContent = '升级中...';\n";
+    js += "    uploadBtn.querySelector('.btn-loading').classList.remove('hidden');\n";
+    js += "    otaProgress.classList.remove('hidden');\n";
+    js += "    otaResult.classList.add('hidden');\n";
+    js += "    \n";
+    js += "    // 重置进度条显示\n";
+    js += "    const progressFill = document.getElementById('progressFill');\n";
+    js += "    const progressPercent = document.getElementById('progressPercent');\n";
+    js += "    if (progressFill) progressFill.style.width = '1%';\n";
+    js += "    if (progressPercent) progressPercent.textContent = '1%';\n";
+    js += "    \n";
+    js += "    // 隐藏成功和错误结果\n";
+    js += "    document.getElementById('successResult').classList.add('hidden');\n";
+    js += "    document.getElementById('errorResult').classList.add('hidden');\n";
+    js += "    \n";
+    js += "    try {\n";
+            js += "        // 使用XMLHttpRequest实现上传进度监控\n";
+    js += "        \n";
+    js += "        const formData = new FormData();\n";
+    js += "        formData.append('firmware', selectedFile);\n";
+    js += "        \n";
+    js += "        // 使用Promise包装XMLHttpRequest\n";
+    js += "        const uploadPromise = new Promise((resolve, reject) => {\n";
+    js += "            const xhr = new XMLHttpRequest();\n";
+    js += "            \n";
+                js += "            // 上传进度事件\n";
+            js += "            xhr.upload.addEventListener('progress', (e) => {\n";
+            js += "                if (e.lengthComputable) {\n";
+            js += "                    const percentComplete = (e.loaded / e.total) * 100;\n";
+            js += "                    \n";
+            js += "                    // 更新进度条\n";
+    js += "                    const progressFill = document.getElementById('progressFill');\n";
+    js += "                    const progressPercent = document.getElementById('progressPercent');\n";
+    js += "                    const progressSize = document.getElementById('progressSize');\n";
+    js += "                    const statusDetail = document.getElementById('otaStatusDetail');\n";
+    js += "                    \n";
+    js += "                    if (progressFill) progressFill.style.width = percentComplete + '%';\n";
+    js += "                    if (progressPercent) progressPercent.textContent = percentComplete.toFixed(1) + '%';\n";
+    js += "                    if (progressSize) progressSize.textContent = formatBytes(e.loaded) + ' / ' + formatBytes(e.total);\n";
+    js += "                    if (statusDetail) statusDetail.textContent = '上传进度: ' + percentComplete.toFixed(1) + '%';\n";
+    js += "                }\n";
+    js += "            });\n";
+    js += "            \n";
+    js += "            xhr.addEventListener('load', () => {\n";
+    js += "                if (xhr.status === 200) {\n";
+    js += "                    try {\n";
+    js += "                        const result = JSON.parse(xhr.responseText);\n";
+    js += "                        resolve(result);\n";
+    js += "                    } catch (e) {\n";
+    js += "                        resolve({ status: 'success', message: '上传完成' });\n";
+    js += "                    }\n";
+    js += "                } else {\n";
+    js += "                    reject(new Error('上传失败: ' + xhr.status));\n";
+    js += "                }\n";
+    js += "            });\n";
+    js += "            \n";
+    js += "            xhr.addEventListener('error', () => {\n";
+    js += "                reject(new Error('网络错误'));\n";
+    js += "            });\n";
+    js += "            \n";
+    js += "            xhr.open('POST', '/ota-upload');\n";
+    js += "            xhr.send(formData);\n";
+    js += "        });\n";
+    js += "        \n";
+            js += "        // 开始后端状态监控\n";
+        js += "        otaStatusInterval = setInterval(updateOTAStatus, 300);\n";
+    js += "        \n";
+    js += "        // 等待上传完成\n";
+            js += "        const result = await uploadPromise;\n";
+        js += "        \n";
+                js += "        // 上传完成后，等待后端处理完成\n";
+        js += "        \n";
+        js += "        // 等待一段时间让后端处理完成\n";
+        js += "        let waitCount = 0;\n";
+        js += "        const maxWait = 20; // 最多等待6秒\n";
+        js += "        \n";
+        js += "        while (waitCount < maxWait) {\n";
+        js += "            await new Promise(resolve => setTimeout(resolve, 300));\n";
+        js += "            waitCount++;\n";
+        js += "            \n";
+        js += "            // 检查后端状态\n";
+        js += "            const statusResponse = await fetch('/ota-status');\n";
+        js += "            const status = await statusResponse.json();\n";
+        js += "            \n";
+        
+        js += "            \n";
+        js += "            if (status.status === 'success' || status.status === 'failed') {\n";
+        js += "                break;\n";
+        js += "            }\n";
+        js += "        }\n";
+        js += "        \n";
+        js += "        // 停止状态监控\n";
+        js += "        stopOTAStatusMonitoring();\n";
+        js += "        \n";
+        js += "        if (result.status === 'success') {\n";
+        js += "            showOTAResult(true, '固件升级成功！');\n";
+        js += "        } else {\n";
+        js += "            showOTAResult(false, result.message || '固件升级失败');\n";
+        js += "        }\n";
+    js += "        \n";
+    js += "    } catch (error) {\n";
+    js += "        console.error('OTA升级失败:', error);\n";
+    js += "        stopOTAStatusMonitoring();\n";
+    js += "        showOTAResult(false, 'OTA升级过程中发生错误: ' + error.message);\n";
+    js += "    }\n";
+    js += "}\n\n";
+    
+
+    
+    js += "function startOTAStatusMonitoring() {\n";
+    js += "    otaStatusInterval = setInterval(updateOTAStatus, 500);\n";
+    js += "}\n\n";
+    
+    js += "function stopOTAStatusMonitoring() {\n";
+    js += "    if (otaStatusInterval) {\n";
+    js += "        clearInterval(otaStatusInterval);\n";
+    js += "        otaStatusInterval = null;\n";
+    js += "    }\n";
+    js += "}\n\n";
+    
+    js += "async function updateOTAStatus() {\n";
+    js += "    try {\n";
+    js += "        const response = await fetch('/ota-status');\n";
+    js += "        \n";
+    js += "        if (!response.ok) {\n";
+    js += "            console.error('状态请求失败:', response.status);\n";
+    js += "            return;\n";
+    js += "        }\n";
+    js += "        \n";
+            js += "        const status = await response.json();\n";
+    js += "        \n";
+    js += "        const statusTitle = document.getElementById('otaStatusTitle');\n";
+    js += "        const statusDetail = document.getElementById('otaStatusDetail');\n";
+    js += "        const progressFill = document.getElementById('progressFill');\n";
+    js += "        const progressPercent = document.getElementById('progressPercent');\n";
+    js += "        const progressSize = document.getElementById('progressSize');\n";
+    js += "        \n";
+    
+    js += "        \n";
+    js += "        statusTitle.textContent = status.message || '升级中...';\n";
+    js += "        \n";
+    
+    js += "        \n";
+            js += "        // 统一的进度更新逻辑\n";
+        js += "        const progress = status.progress || 0;\n";
+        js += "        statusDetail.textContent = '进度: ' + progress.toFixed(1) + '%';\n";
+    js += "            \n";
+    js += "        // 更新进度条样式\n";
+    js += "        if (progressFill) {\n";
+    js += "            progressFill.style.width = progress + '%';\n";
+    js += "            progressFill.style.transition = 'width 0.3s ease';\n";
+    js += "            progressFill.style.backgroundColor = '#10b981';\n";
+    js += "            progressFill.style.height = '100%';\n";
+    js += "        }\n";
+    js += "        if (progressPercent) {\n";
+    js += "            progressPercent.textContent = progress.toFixed(1) + '%';\n";
+    js += "        }\n";
+    js += "        if (progressSize) {\n";
+    js += "            if (status.totalSize > 0) {\n";
+    js += "                progressSize.textContent = formatBytes(status.writtenSize) + ' / ' + formatBytes(status.totalSize);\n";
+    js += "            } else {\n";
+    js += "                progressSize.textContent = formatBytes(status.writtenSize) + ' (已写入)';\n";
+    js += "            }\n";
+    js += "        }\n";
+    
+    js += "        \n";
+    js += "        if (status.status === 'failed') {\n";
+    js += "            stopOTAStatusMonitoring();\n";
+    js += "            showOTAResult(false, status.error || '升级失败');\n";
+    js += "        } else if (status.status === 'success') {\n";
+    js += "            stopOTAStatusMonitoring();\n";
+    js += "            showOTAResult(true, '固件升级成功！');\n";
+    js += "        }\n";
+    js += "        \n";
+    js += "    } catch (error) {\n";
+    js += "        console.error('获取OTA状态失败:', error);\n";
+    js += "    }\n";
+    js += "}\n\n";
+    
+    js += "function showOTAResult(success, message) {\n";
+    js += "    const otaResult = document.getElementById('otaResult');\n";
+    js += "    const successResult = document.getElementById('successResult');\n";
+    js += "    const errorResult = document.getElementById('errorResult');\n";
+    js += "    const errorMessage = document.getElementById('errorMessage');\n";
+    js += "    const uploadBtn = document.getElementById('uploadBtn');\n";
+    js += "    \n";
+    js += "    // 隐藏进度界面\n";
+    js += "    document.getElementById('otaProgress').classList.add('hidden');\n";
+    js += "    \n";
+    js += "    // 重置上传按钮\n";
+    js += "    uploadBtn.querySelector('.btn-text').textContent = '🚀 开始升级';\n";
+    js += "    uploadBtn.querySelector('.btn-loading').classList.add('hidden');\n";
+    js += "    \n";
+    js += "    // 显示结果\n";
+    js += "    otaResult.classList.remove('hidden');\n";
+    js += "    \n";
+    js += "    if (success) {\n";
+    js += "        successResult.classList.remove('hidden');\n";
+    js += "        errorResult.classList.add('hidden');\n";
+    js += "        showToast('固件升级成功！', 'success');\n";
+    js += "    } else {\n";
+    js += "        successResult.classList.add('hidden');\n";
+    js += "        errorResult.classList.remove('hidden');\n";
+    js += "        errorMessage.textContent = message;\n";
+    js += "        showToast('固件升级失败', 'error');\n";
+    js += "    }\n";
+    js += "}\n\n";
+    
+    js += "async function rebootAfterOTA() {\n";
+    js += "    try {\n";
+    js += "        const response = await fetch('/ota-reboot', { method: 'POST' });\n";
+    js += "        const result = await response.json();\n";
+    js += "        \n";
+    js += "        if (result.success) {\n";
+    js += "            showToast('设备将在3秒后重启...', 'success');\n";
+    js += "            setTimeout(() => {\n";
+    js += "                showToast('设备重启中，请稍候...', 'success');\n";
+    js += "                setTimeout(() => location.reload(), 10000);\n";
+    js += "            }, 3000);\n";
+    js += "        } else {\n";
+    js += "            showToast(result.message || '重启失败', 'error');\n";
+    js += "        }\n";
+    js += "    } catch (error) {\n";
+    js += "        console.error('重启失败:', error);\n";
+    js += "        showToast('重启失败', 'error');\n";
+    js += "    }\n";
+    js += "}\n\n";
+    
+    js += "function resetOTAUI() {\n";
+    js += "    selectedFile = null;\n";
+    js += "    document.getElementById('firmwareFile').value = '';\n";
+    js += "    document.getElementById('fileInfo').classList.add('hidden');\n";
+    js += "    document.getElementById('uploadBtn').disabled = true;\n";
+    js += "    document.getElementById('otaProgress').classList.add('hidden');\n";
+    js += "    document.getElementById('otaResult').classList.add('hidden');\n";
+    js += "    \n";
+    js += "    const uploadBtn = document.getElementById('uploadBtn');\n";
+    js += "    uploadBtn.querySelector('.btn-text').textContent = '🚀 开始升级';\n";
+    js += "    uploadBtn.querySelector('.btn-loading').classList.add('hidden');\n";
+    js += "    \n";
+    js += "    // 停止状态监控\n";
+    js += "    stopOTAStatusMonitoring();\n";
+    js += "}\n\n";
+    
     js += "window.addEventListener('beforeunload', function() {\n";
     js += "    if (statusInterval) { clearInterval(statusInterval); }\n";
+    js += "    if (otaStatusInterval) { clearInterval(otaStatusInterval); }\n";
     js += "});";
     
     return js;
