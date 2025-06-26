@@ -150,7 +150,7 @@ void WebServerManager::handleSystemInfo() {
     
     DynamicJsonDocument doc(1024);
     doc["device"] = "ESP32S3 Monitor";
-    doc["version"] = "v2.0.3";
+    doc["version"] = "v2.0.6";
     doc["chipModel"] = ESP.getChipModel();
     doc["chipRevision"] = ESP.getChipRevision();
     doc["cpuFreq"] = ESP.getCpuFreqMHz();
@@ -248,7 +248,17 @@ void WebServerManager::handleSaveWiFi() {
     doc["success"] = connected;
     
     if (connected) {
-        doc["message"] = "WiFi连接成功";
+        // 等待NVS刷新数据
+        vTaskDelay(pdMS_TO_TICKS(100));
+        
+        // 检查配置是否已保存
+        bool configSaved = configStorage->hasWiFiConfig();
+        if (configSaved) {
+            doc["message"] = "WiFi连接成功，配置已保存";
+        } else {
+            doc["message"] = "WiFi连接成功，但配置保存失败";
+            printf("⚠ 警告: Web接口检测到配置保存失败\n");
+        }
         doc["ip"] = wifiManager->getLocalIP();
     } else {
         doc["message"] = "WiFi连接失败";

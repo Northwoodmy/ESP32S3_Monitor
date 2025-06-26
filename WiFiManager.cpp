@@ -151,7 +151,12 @@ bool WiFiManager::connectToWiFi(const String& ssid, const String& password) {
         
         // 保存配置到NVS
         if (configStorage) {
-            configStorage->saveWiFiConfig(ssid, password);
+            bool saveResult = configStorage->saveWiFiConfig(ssid, password);
+            if (!saveResult) {
+                printf("⚠ 警告: WiFi连接成功但配置保存失败\n");
+            }
+        } else {
+            printf("⚠ 警告: 配置存储未初始化\n");
         }
         
         return true;

@@ -36,9 +36,27 @@ bool ConfigStorage::saveWiFiConfig(const String& ssid, const String& password) {
     }
     
     bool success = true;
-    success &= preferences.putString(WIFI_SSID_KEY, ssid);
-    success &= preferences.putString(WIFI_PASSWORD_KEY, password);
-    success &= preferences.putBool(WIFI_CONFIGURED_KEY, true);
+    
+    // 保存SSID (返回写入字节数，0表示失败)
+    size_t ssidResult = preferences.putString(WIFI_SSID_KEY, ssid);
+    if (ssidResult == 0) {
+        printf("保存SSID失败\n");
+        success = false;
+    }
+    
+    // 保存密码
+    size_t passwordResult = preferences.putString(WIFI_PASSWORD_KEY, password);
+    if (passwordResult == 0) {
+        printf("保存密码失败\n");
+        success = false;
+    }
+    
+    // 保存配置标志
+    size_t configResult = preferences.putBool(WIFI_CONFIGURED_KEY, true);
+    if (configResult == 0) {
+        printf("保存配置标志失败\n");
+        success = false;
+    }
     
     preferences.end();
     
@@ -113,8 +131,20 @@ bool ConfigStorage::saveSystemConfig(const String& deviceName, int refreshRate) 
     }
     
     bool success = true;
-    success &= preferences.putString(DEVICE_NAME_KEY, deviceName);
-    success &= preferences.putInt(REFRESH_RATE_KEY, refreshRate);
+    
+    // 保存设备名称
+    size_t nameResult = preferences.putString(DEVICE_NAME_KEY, deviceName);
+    if (nameResult == 0) {
+        printf("保存设备名称失败\n");
+        success = false;
+    }
+    
+    // 保存刷新率
+    size_t rateResult = preferences.putInt(REFRESH_RATE_KEY, refreshRate);
+    if (rateResult == 0) {
+        printf("保存刷新率失败\n");
+        success = false;
+    }
     
     preferences.end();
     
