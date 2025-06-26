@@ -46,7 +46,19 @@ String WebServerManager::getIndexHTML() {
     html += "        <!-- WiFi配置标签页 -->\n";
     html += "        <div class=\"tab-content active\" id=\"wifiContent\">\n";
     html += "            <div class=\"card\">\n";
-    html += "                <h2>WiFi网络配置</h2>\n";
+    html += "                <h2>已保存的WiFi配置</h2>\n";
+    html += "                <div class=\"saved-wifi-section\">\n";
+    html += "                    <div id=\"savedWiFiList\" class=\"saved-wifi-list\">\n";
+    html += "                        <div class=\"loading\" id=\"savedWiFiLoading\">\n";
+    html += "                            <div class=\"spinner\"></div>\n";
+    html += "                            <span>加载中...</span>\n";
+    html += "                        </div>\n";
+    html += "                    </div>\n";
+    html += "                </div>\n";
+    html += "            </div>\n";
+    html += "            \n";
+    html += "            <div class=\"card\">\n";
+    html += "                <h2>添加新的WiFi配置</h2>\n";
     html += "                <div class=\"wifi-section\">\n";
     html += "                    <button id=\"scanBtn\" class=\"scan-btn\">\n";
     html += "                        <span class=\"scan-icon\">📡</span>\n";
@@ -73,7 +85,7 @@ String WebServerManager::getIndexHTML() {
     html += "                        </div>\n";
     html += "                        \n";
     html += "                        <button type=\"submit\" class=\"connect-btn\" id=\"connectBtn\">\n";
-    html += "                            <span class=\"btn-text\">连接WiFi</span>\n";
+    html += "                            <span class=\"btn-text\">连接并保存WiFi</span>\n";
     html += "                            <div class=\"btn-loading hidden\">\n";
     html += "                                <div class=\"spinner-sm\"></div>\n";
     html += "                            </div>\n";
@@ -378,6 +390,83 @@ String WebServerManager::getCSS() {
             overflow-y: auto;
         }
         
+        /* 已保存WiFi配置样式 */
+        .saved-wifi-list {
+            margin-bottom: 20px;
+        }
+        
+        .saved-wifi-item {
+            background: #f8fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s ease;
+        }
+        
+        .saved-wifi-item:hover {
+            background: #f1f5f9;
+            border-color: #cbd5e1;
+        }
+        
+        .saved-wifi-info {
+            flex: 1;
+        }
+        
+        .saved-wifi-ssid {
+            font-weight: 600;
+            color: #1f2937;
+            font-size: 1.1rem;
+            margin-bottom: 4px;
+        }
+        
+        .saved-wifi-details {
+            color: #6b7280;
+            font-size: 0.875rem;
+        }
+        
+        .saved-wifi-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .delete-btn {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .delete-btn:hover {
+            background: #dc2626;
+            transform: translateY(-1px);
+        }
+        
+        .priority-badge {
+            background: #3b82f6;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        .empty-wifi-message {
+            text-align: center;
+            color: #6b7280;
+            padding: 40px 20px;
+            background: #f9fafb;
+            border-radius: 12px;
+            border: 2px dashed #d1d5db;
+        }
+        
         .network-item {
             background: #f8fafc;
             border: 2px solid transparent;
@@ -680,6 +769,7 @@ String WebServerManager::getJavaScript() {
     js += "document.addEventListener('DOMContentLoaded', function() {\n";
     js += "    loadSystemInfo();\n";
     js += "    updateStatus();\n";
+    js += "    loadSavedWiFiConfigs();\n";
     js += "    statusInterval = setInterval(updateStatus, 5000);\n";
     js += "    document.getElementById('scanBtn').addEventListener('click', scanWiFi);\n";
     js += "    document.getElementById('wifiForm').addEventListener('submit', connectWiFi);\n";
@@ -698,6 +788,8 @@ String WebServerManager::getJavaScript() {
     js += "    document.getElementById(tabName + 'Content').classList.add('active');\n";
     js += "    if (tabName === 'system') {\n";
     js += "        loadSystemInfo();\n";
+    js += "    } else if (tabName === 'wifi') {\n";
+    js += "        loadSavedWiFiConfigs();\n";
     js += "    }\n";
     js += "}\n\n";
     
@@ -843,7 +935,9 @@ String WebServerManager::getJavaScript() {
     js += "            showToast('WiFi连接成功！', 'success');\n";
     js += "            setTimeout(() => {\n";
     js += "                updateStatus();\n";
+    js += "                loadSavedWiFiConfigs();\n";
     js += "                document.getElementById('networkList').classList.add('hidden');\n";
+    js += "                document.getElementById('wifiForm').reset();\n";
     js += "            }, 2000);\n";
     js += "        } else {\n";
     js += "            showToast(data.message || 'WiFi连接失败', 'error');\n";
@@ -934,6 +1028,73 @@ String WebServerManager::getJavaScript() {
     js += "        return minutes + '分钟 ' + (seconds % 60) + '秒';\n";
     js += "    } else {\n";
     js += "        return seconds + '秒';\n";
+    js += "    }\n";
+    js += "}\n\n";
+    
+    js += "async function loadSavedWiFiConfigs() {\n";
+    js += "    const savedWiFiList = document.getElementById('savedWiFiList');\n";
+    js += "    const savedWiFiLoading = document.getElementById('savedWiFiLoading');\n";
+    js += "    savedWiFiLoading.classList.remove('hidden');\n";
+    js += "    try {\n";
+    js += "        const response = await fetch('/wifi-configs');\n";
+    js += "        const data = await response.json();\n";
+    js += "        displaySavedWiFiConfigs(data.configs || [], data.count || 0, data.maxConfigs || 3);\n";
+    js += "    } catch (error) {\n";
+    js += "        console.error('加载WiFi配置失败:', error);\n";
+    js += "        savedWiFiList.innerHTML = '<div class=\"empty-wifi-message\">加载WiFi配置失败</div>';\n";
+    js += "    } finally {\n";
+    js += "        savedWiFiLoading.classList.add('hidden');\n";
+    js += "    }\n";
+    js += "}\n\n";
+    
+    js += "function displaySavedWiFiConfigs(configs, count, maxConfigs) {\n";
+    js += "    const savedWiFiList = document.getElementById('savedWiFiList');\n";
+    js += "    if (configs.length === 0) {\n";
+    js += "        savedWiFiList.innerHTML = '<div class=\"empty-wifi-message\">暂无保存的WiFi配置<br><small>连接新的WiFi网络后会自动保存</small></div>';\n";
+    js += "        return;\n";
+    js += "    }\n";
+    js += "    let html = '';\n";
+    js += "    for (let i = 0; i < configs.length; i++) {\n";
+    js += "        const config = configs[i];\n";
+    js += "        html += '<div class=\"saved-wifi-item\">';\n";
+    js += "        html += '<div class=\"saved-wifi-info\">';\n";
+    js += "        html += '<div class=\"saved-wifi-ssid\">' + config.ssid + '</div>';\n";
+    js += "        html += '<div class=\"saved-wifi-details\">';\n";
+    js += "        html += '<span class=\"priority-badge\">优先级 ' + (i + 1) + '</span>';\n";
+    js += "        html += '<span style=\"margin-left: 10px;\">密码: ' + config.password + '</span>';\n";
+    js += "        html += '</div>';\n";
+    js += "        html += '</div>';\n";
+    js += "        html += '<div class=\"saved-wifi-actions\">';\n";
+    js += "        html += '<button class=\"delete-btn\" onclick=\"deleteWiFiConfig(' + config.index + ')\">';\n";
+    js += "        html += '删除';\n";
+    js += "        html += '</button>';\n";
+    js += "        html += '</div>';\n";
+    js += "        html += '</div>';\n";
+    js += "    }\n";
+    js += "    if (count < maxConfigs) {\n";
+    js += "        html += '<div class=\"empty-wifi-message\" style=\"margin-top: 10px;\">';\n";
+    js += "        html += '还可以保存 ' + (maxConfigs - count) + ' 个WiFi配置';\n";
+    js += "        html += '</div>';\n";
+    js += "    }\n";
+    js += "    savedWiFiList.innerHTML = html;\n";
+    js += "}\n\n";
+    
+    js += "async function deleteWiFiConfig(index) {\n";
+    js += "    if (!confirm('确定要删除这个WiFi配置吗？')) {\n";
+    js += "        return;\n";
+    js += "    }\n";
+    js += "    try {\n";
+    js += "        const response = await fetch('/wifi-configs?index=' + index, { method: 'DELETE' });\n";
+    js += "        const data = await response.json();\n";
+    js += "        if (data.success) {\n";
+    js += "            showToast('WiFi配置删除成功', 'success');\n";
+    js += "            loadSavedWiFiConfigs();\n";
+    js += "        } else {\n";
+    js += "            showToast(data.message || 'WiFi配置删除失败', 'error');\n";
+    js += "        }\n";
+    js += "    } catch (error) {\n";
+    js += "        console.error('删除WiFi配置失败:', error);\n";
+    js += "        showToast('删除WiFi配置失败', 'error');\n";
     js += "    }\n";
     js += "}\n\n";
     

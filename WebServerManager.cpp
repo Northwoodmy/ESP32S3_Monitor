@@ -41,6 +41,8 @@ void WebServerManager::init() {
     server->on("/api", [this]() { handleAPI(); });
     server->on("/save", HTTP_POST, [this]() { handleSaveWiFi(); });
     server->on("/status", [this]() { handleGetStatus(); });
+    server->on("/wifi-configs", [this]() { handleGetWiFiConfigs(); });
+    server->on("/wifi-configs", HTTP_DELETE, [this]() { handleDeleteWiFiConfig(); });
     server->onNotFound([this]() { handleNotFound(); });
     
     printf("Web服务器路由配置完成\n");
@@ -150,7 +152,7 @@ void WebServerManager::handleSystemInfo() {
     
     DynamicJsonDocument doc(1024);
     doc["device"] = "ESP32S3 Monitor";
-    doc["version"] = "v2.0.8";
+    doc["version"] = "v3.0.0";
     doc["chipModel"] = ESP.getChipModel();
     doc["chipRevision"] = ESP.getChipRevision();
     doc["cpuFreq"] = ESP.getCpuFreqMHz();
@@ -286,6 +288,82 @@ void WebServerManager::handleGetStatus() {
     
     doc["system"]["freeHeap"] = ESP.getFreeHeap();
     doc["system"]["uptime"] = millis();
+    
+    String response;
+    serializeJson(doc, response);
+    server->send(200, "application/json", response);
+}
+
+void WebServerManager::handleGetWiFiConfigs() {
+    printf("处理获取WiFi配置列表请求\n");
+    
+    DynamicJsonDocument doc(1024);
+    JsonArray configs = doc.createNestedArray("configs");
+    
+    WiFiConfig wifiConfigs[3];
+    if (configStorage->loadWiFiConfigs(wifiConfigs)) {
+        for (int i = 0; i < ConfigStorage::MAX_WIFI_CONFIGS; i++) {
+            if (wifiConfigs[i].isValid && wifiConfigs[i].ssid.length() > 0) {
+                JsonObject config = configs.createNestedObject();
+                config["index"] = i;
+                config["ssid"] = wifiConfigs[i].ssid;
+                config["password"] = "***"; // 不返回实际密码，只显示占位符
+                config["status"] = "saved";
+            }
+        }
+    }
+    
+    doc["count"] = configStorage->getWiFiConfigCount();
+    doc["maxConfigs"] = ConfigStorage::MAX_WIFI_CONFIGS;
+    
+    String response;
+    serializeJson(doc, response);
+    server->send(200, "application/json", response);
+}
+
+void WebServerManager::handleDeleteWiFiConfig() {
+    printf("处理删除WiFi配置请求\n");
+    
+    if (!server->hasArg("index")) {
+        server->send(400, "application/json", "{\"success\":false,\"message\":\"缺少index参数\"}");
+        return;
+    }
+    
+    int index = server->arg("index").toInt();
+    
+    if (index < 0 || index >= ConfigStorage::MAX_WIFI_CONFIGS) {
+        server->send(400, "application/json", "{\"success\":false,\"message\":\"无效的配置索引\"}");
+        return;
+    }
+    
+    DynamicJsonDocument doc(256);
+    
+    // 加载现有配置
+    WiFiConfig configs[3];
+    if (configStorage->loadWiFiConfigs(configs)) {
+        if (configs[index].isValid) {
+            printf("删除WiFi配置 %d: %s\n", index, configs[index].ssid.c_str());
+            
+            // 清除指定配置
+            configs[index] = WiFiConfig();
+            
+            // 重新保存配置
+            bool success = configStorage->saveWiFiConfigs(configs);
+            
+            doc["success"] = success;
+            if (success) {
+                doc["message"] = "WiFi配置删除成功";
+            } else {
+                doc["message"] = "WiFi配置删除失败";
+            }
+        } else {
+            doc["success"] = false;
+            doc["message"] = "指定的配置不存在";
+        }
+    } else {
+        doc["success"] = false;
+        doc["message"] = "加载WiFi配置失败";
+    }
     
     String response;
     serializeJson(doc, response);

@@ -54,6 +54,10 @@ private:
     void handleSaveWiFi();
     void handleGetStatus();
     
+    // 多WiFi配置API
+    void handleGetWiFiConfigs();
+    void handleDeleteWiFiConfig();
+    
     // 获取主页HTML
     String getIndexHTML();
     

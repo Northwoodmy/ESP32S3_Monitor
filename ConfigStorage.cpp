@@ -7,11 +7,16 @@
 
 // 静态常量定义
 const char* ConfigStorage::WIFI_NAMESPACE = "wifi_config";
+const char* ConfigStorage::MULTI_WIFI_NAMESPACE = "multi_wifi";
 const char* ConfigStorage::SYSTEM_NAMESPACE = "system_config";
 
 const char* ConfigStorage::WIFI_SSID_KEY = "ssid";
 const char* ConfigStorage::WIFI_PASSWORD_KEY = "password";
 const char* ConfigStorage::WIFI_CONFIGURED_KEY = "configured";
+
+const char* ConfigStorage::WIFI_COUNT_KEY = "count";
+const char* ConfigStorage::WIFI_SSID_PREFIX = "ssid_";
+const char* ConfigStorage::WIFI_PASSWORD_PREFIX = "pwd_";
 
 const char* ConfigStorage::DEVICE_NAME_KEY = "device_name";
 const char* ConfigStorage::REFRESH_RATE_KEY = "refresh_rate";
@@ -197,6 +202,16 @@ bool ConfigStorage::resetAllConfig() {
         success = false;
     }
     
+    // 清除多WiFi配置
+    if (preferences.begin(MULTI_WIFI_NAMESPACE, false)) {
+        preferences.clear();
+        preferences.end();
+        printf("多WiFi配置已清除\n");
+    } else {
+        printf("清除多WiFi配置失败\n");
+        success = false;
+    }
+    
     if (success) {
         printf("所有配置已重置为默认值\n");
     } else {
@@ -204,4 +219,169 @@ bool ConfigStorage::resetAllConfig() {
     }
     
     return success;
+}
+
+// 多WiFi配置功能实现
+
+bool ConfigStorage::saveWiFiConfigs(const WiFiConfig configs[3]) {
+    printf("保存多WiFi配置到NVS\n");
+    
+    if (!preferences.begin(MULTI_WIFI_NAMESPACE, false)) {
+        printf("打开多WiFi配置命名空间失败\n");
+        return false;
+    }
+    
+    bool success = true;
+    int validCount = 0;
+    
+    // 计算有效配置数量
+    for (int i = 0; i < MAX_WIFI_CONFIGS; i++) {
+        if (configs[i].isValid && configs[i].ssid.length() > 0) {
+            validCount++;
+        }
+    }
+    
+    // 保存配置数量
+    size_t countResult = preferences.putInt(WIFI_COUNT_KEY, validCount);
+    if (countResult == 0) {
+        printf("保存WiFi配置数量失败\n");
+        success = false;
+    }
+    
+    // 保存每个配置
+    int savedIndex = 0;
+    for (int i = 0; i < MAX_WIFI_CONFIGS && savedIndex < validCount; i++) {
+        if (configs[i].isValid && configs[i].ssid.length() > 0) {
+            String ssidKey = getWiFiSSIDKey(savedIndex);
+            String passwordKey = getWiFiPasswordKey(savedIndex);
+            
+            size_t ssidResult = preferences.putString(ssidKey.c_str(), configs[i].ssid);
+            size_t passwordResult = preferences.putString(passwordKey.c_str(), configs[i].password);
+            
+            if (ssidResult == 0 || passwordResult == 0) {
+                printf("保存WiFi配置 %d 失败\n", savedIndex);
+                success = false;
+            } else {
+                printf("保存WiFi配置 %d: SSID=%s\n", savedIndex, configs[i].ssid.c_str());
+            }
+            savedIndex++;
+        }
+    }
+    
+    preferences.end();
+    
+    if (success) {
+        printf("多WiFi配置保存成功，共保存 %d 个配置\n", validCount);
+    } else {
+        printf("多WiFi配置保存失败\n");
+    }
+    
+    return success;
+}
+
+bool ConfigStorage::loadWiFiConfigs(WiFiConfig configs[3]) {
+    printf("加载多WiFi配置\n");
+    
+    // 初始化配置数组
+    for (int i = 0; i < MAX_WIFI_CONFIGS; i++) {
+        configs[i] = WiFiConfig();
+    }
+    
+    if (!preferences.begin(MULTI_WIFI_NAMESPACE, true)) {
+        printf("打开多WiFi配置命名空间失败\n");
+        return false;
+    }
+    
+    int count = preferences.getInt(WIFI_COUNT_KEY, 0);
+    printf("找到 %d 个WiFi配置\n", count);
+    
+    if (count <= 0) {
+        preferences.end();
+        return false;
+    }
+    
+    bool success = true;
+    for (int i = 0; i < count && i < MAX_WIFI_CONFIGS; i++) {
+        String ssidKey = getWiFiSSIDKey(i);
+        String passwordKey = getWiFiPasswordKey(i);
+        
+        String ssid = preferences.getString(ssidKey.c_str(), "");
+        String password = preferences.getString(passwordKey.c_str(), "");
+        
+        if (ssid.length() > 0) {
+            configs[i] = WiFiConfig(ssid, password);
+            printf("加载WiFi配置 %d: SSID=%s\n", i, ssid.c_str());
+        } else {
+            printf("WiFi配置 %d 为空\n", i);
+            success = false;
+        }
+    }
+    
+    preferences.end();
+    return success;
+}
+
+int ConfigStorage::getWiFiConfigCount() {
+    if (!preferences.begin(MULTI_WIFI_NAMESPACE, true)) {
+        return 0;
+    }
+    
+    int count = preferences.getInt(WIFI_COUNT_KEY, 0);
+    preferences.end();
+    
+    return count;
+}
+
+bool ConfigStorage::addWiFiConfig(const String& ssid, const String& password) {
+    printf("添加WiFi配置: SSID=%s\n", ssid.c_str());
+    
+    // 加载现有配置
+    WiFiConfig configs[3];
+    loadWiFiConfigs(configs);
+    
+    // 检查是否已存在相同SSID
+    for (int i = 0; i < MAX_WIFI_CONFIGS; i++) {
+        if (configs[i].isValid && configs[i].ssid == ssid) {
+            printf("WiFi配置已存在，更新密码\n");
+            configs[i].password = password;
+            return saveWiFiConfigs(configs);
+        }
+    }
+    
+    // 查找空位置添加新配置
+    for (int i = 0; i < MAX_WIFI_CONFIGS; i++) {
+        if (!configs[i].isValid) {
+            configs[i] = WiFiConfig(ssid, password);
+            return saveWiFiConfigs(configs);
+        }
+    }
+    
+    // 如果没有空位，替换最后一个配置
+    printf("WiFi配置已满，替换最后一个配置\n");
+    configs[MAX_WIFI_CONFIGS - 1] = WiFiConfig(ssid, password);
+    return saveWiFiConfigs(configs);
+}
+
+void ConfigStorage::clearAllWiFiConfigs() {
+    printf("清除所有多WiFi配置\n");
+    
+    if (!preferences.begin(MULTI_WIFI_NAMESPACE, false)) {
+        printf("打开多WiFi配置命名空间失败\n");
+        return;
+    }
+    
+    preferences.clear();
+    preferences.end();
+    
+    printf("所有多WiFi配置已清除\n");
+}
+
+// 内部辅助方法实现
+
+String ConfigStorage::getWiFiSSIDKey(int index) {
+    return String(WIFI_SSID_PREFIX) + String(index);
+}
+
+String ConfigStorage::getWiFiPasswordKey(int index) {
+    return String(WIFI_PASSWORD_PREFIX) + String(index);
 } 

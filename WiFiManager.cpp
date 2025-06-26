@@ -149,9 +149,9 @@ bool WiFiManager::connectToWiFi(const String& ssid, const String& password) {
         printf("WiFi连接成功\n");
         printf("IP地址: %s\n", WiFi.localIP().toString().c_str());
         
-        // 保存配置到NVS
+        // 保存配置到NVS (使用新的多WiFi配置系统)
         if (configStorage) {
-            bool saveResult = configStorage->saveWiFiConfig(ssid, password);
+            bool saveResult = configStorage->addWiFiConfig(ssid, password);
             if (!saveResult) {
                 printf("⚠ 警告: WiFi连接成功但配置保存失败\n");
             }
@@ -223,16 +223,25 @@ void WiFiManager::wifiTask() {
         if (!isAPMode && !isConnected()) {
             printf("WiFi连接丢失，尝试重新连接...\n");
             
-            // 尝试重新连接存储的WiFi
-            String ssid, password;
-            if (configStorage && configStorage->loadWiFiConfig(ssid, password)) {
-                if (!connectToWiFi(ssid, password)) {
-                    printf("重新连接失败，启动AP模式\n");
+            // 优先尝试多WiFi配置
+            if (configStorage && configStorage->getWiFiConfigCount() > 0) {
+                printf("尝试多WiFi配置重连\n");
+                if (!connectToMultiWiFi()) {
+                    printf("多WiFi配置重连失败，启动AP模式\n");
                     startConfigMode();
                 }
             } else {
-                printf("没有存储的WiFi配置，启动AP模式\n");
-                startConfigMode();
+                // 回退到单WiFi配置
+                String ssid, password;
+                if (configStorage && configStorage->loadWiFiConfig(ssid, password)) {
+                    if (!connectToWiFi(ssid, password)) {
+                        printf("单WiFi配置重连失败，启动AP模式\n");
+                        startConfigMode();
+                    }
+                } else {
+                    printf("没有存储的WiFi配置，启动AP模式\n");
+                    startConfigMode();
+                }
             }
         }
         
@@ -245,6 +254,15 @@ void WiFiManager::wifiTask() {
 }
 
 void WiFiManager::tryStoredCredentials() {
+    // 优先尝试多WiFi配置
+    if (configStorage && configStorage->getWiFiConfigCount() > 0) {
+        printf("尝试使用多WiFi配置连接\n");
+        if (connectToMultiWiFi()) {
+            return;
+        }
+    }
+    
+    // 回退到单WiFi配置
     if (!configStorage || !configStorage->hasWiFiConfig()) {
         printf("没有存储的WiFi配置\n");
         return;
@@ -252,7 +270,86 @@ void WiFiManager::tryStoredCredentials() {
     
     String ssid, password;
     if (configStorage->loadWiFiConfig(ssid, password)) {
-        printf("尝试使用存储的WiFi配置连接\n");
+        printf("尝试使用单WiFi配置连接\n");
         connectToWiFi(ssid, password);
+    }
+}
+
+// 多WiFi配置连接功能实现
+
+bool WiFiManager::connectToMultiWiFi() {
+    printf("开始多WiFi配置连接尝试\n");
+    
+    if (!configStorage) {
+        printf("配置存储未初始化\n");
+        return false;
+    }
+    
+    WiFiConfig configs[3];
+    if (!configStorage->loadWiFiConfigs(configs)) {
+        printf("加载多WiFi配置失败\n");
+        return false;
+    }
+    
+    // 按顺序尝试连接每个配置
+    for (int i = 0; i < ConfigStorage::MAX_WIFI_CONFIGS; i++) {
+        if (configs[i].isValid && configs[i].ssid.length() > 0) {
+            printf("尝试连接WiFi配置 %d: %s\n", i + 1, configs[i].ssid.c_str());
+            
+            if (tryConnectToConfig(configs[i], 15)) {
+                printf("✓ WiFi配置 %d 连接成功\n", i + 1);
+                isAPMode = false;
+                return true;
+            } else {
+                printf("✗ WiFi配置 %d 连接失败\n", i + 1);
+            }
+        }
+    }
+    
+    printf("所有WiFi配置连接失败\n");
+    return false;
+}
+
+bool WiFiManager::tryConnectToConfig(const WiFiConfig& config, int timeoutSeconds) {
+    if (!config.isValid || config.ssid.length() == 0) {
+        printf("WiFi配置无效\n");
+        return false;
+    }
+    
+    printf("连接到 %s...\n", config.ssid.c_str());
+    
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(config.ssid.c_str(), config.password.c_str());
+    
+    // 等待连接
+    int attempts = 0;
+    while (WiFi.status() != WL_CONNECTED && attempts < timeoutSeconds) {
+        vTaskDelay(pdMS_TO_TICKS(1000));
+        attempts++;
+        if (attempts % 5 == 0) {
+            printf("连接中... (%d/%d)\n", attempts, timeoutSeconds);
+        }
+    }
+    
+    if (WiFi.status() == WL_CONNECTED) {
+        printf("✓ 连接成功\n");
+        printf("  IP地址: %s\n", WiFi.localIP().toString().c_str());
+        printf("  信号强度: %d dBm\n", WiFi.RSSI());
+        return true;
+    } else {
+        printf("✗ 连接超时或失败\n");
+        WiFi.disconnect();
+        return false;
+    }
+}
+
+void WiFiManager::tryMultiWiFiConfigs() {
+    printf("尝试多WiFi配置连接\n");
+    
+    if (connectToMultiWiFi()) {
+        printf("多WiFi配置连接成功\n");
+    } else {
+        printf("多WiFi配置连接失败，启动AP模式\n");
+        startConfigMode();
     }
 } 

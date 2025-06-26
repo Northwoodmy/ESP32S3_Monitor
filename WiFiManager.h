@@ -26,6 +26,10 @@ public:
     // 尝试连接到WiFi
     bool connectToWiFi(const String& ssid, const String& password);
     
+    // 多WiFi配置连接功能
+    bool connectToMultiWiFi();
+    bool tryConnectToConfig(const WiFiConfig& config, int timeoutSeconds = 10);
+    
     // 获取当前WiFi状态
     bool isConnected();
     
@@ -52,6 +56,9 @@ private:
     
     // 尝试从存储的配置连接WiFi
     void tryStoredCredentials();
+    
+    // 多WiFi配置相关私有方法
+    void tryMultiWiFiConfigs();
 };
 
 #endif // WIFIMANAGER_H 
