@@ -100,7 +100,7 @@ String WebServerManager::getIndexHTML() {
     html += "                    </div>\n";
     html += "                    <div class=\"info-item\">\n";
     html += "                        <span class=\"label\">固件版本:</span>\n";
-    html += "                        <span class=\"value\" id=\"firmwareVersion\">v3.3.26</span>\n";
+    html += "                        <span class=\"value\" id=\"firmwareVersion\">v3.3.29</span>\n";
     html += "                    </div>\n";
     html += "                    <div class=\"info-item\">\n";
     html += "                        <span class=\"label\">CPU频率:</span>\n";
@@ -135,17 +135,17 @@ String WebServerManager::getIndexHTML() {
     html += "                    <button onclick=\"refreshInfo()\" class=\"primary-btn\">\n";
     html += "                        刷新信息\n";
     html += "                    </button>\n";
-    html += "                    <button onclick=\"window.location.href='/ota'\" class=\"warning-btn\">\n";
-    html += "                        固件升级\n";
-    html += "                    </button>\n";
     html += "                    <button onclick=\"window.location.href='/files'\" class=\"success-btn\">\n";
     html += "                        文件管理器\n";
     html += "                    </button>\n";
-    html += "                    <button onclick=\"resetConfig()\" class=\"danger-btn\">\n";
-    html += "                        恢复默认配置\n";
+    html += "                    <button onclick=\"window.location.href='/ota'\" class=\"warning-btn\">\n";
+    html += "                        固件升级\n";
     html += "                    </button>\n";
     html += "                    <button onclick=\"rebootDevice()\" class=\"warning-btn\">\n";
     html += "                        重启设备\n";
+    html += "                    </button>\n";
+    html += "                    <button onclick=\"resetConfig()\" class=\"danger-btn\">\n";
+    html += "                        恢复默认配置\n";
     html += "                    </button>\n";
     html += "                </div>\n";
     html += "            </div>\n";
@@ -553,11 +553,11 @@ String WebServerManager::getCSS() {
             flex: 1;
         }
         
-        .saved-wifi-ssid {
+        .saved-wifi-name {
             font-weight: 600;
             color: #1f2937;
-            font-size: 1.1rem;
-            margin-bottom: 4px;
+            font-size: 1.2rem;
+            line-height: 1.4;
         }
         
         .saved-wifi-details {
@@ -567,7 +567,8 @@ String WebServerManager::getCSS() {
         
         .saved-wifi-actions {
             display: flex;
-            gap: 8px;
+            align-items: center;
+            gap: 12px;
         }
         
         .delete-btn, .connect-btn-small {
@@ -605,12 +606,14 @@ String WebServerManager::getCSS() {
         }
         
         .priority-badge {
-            background: #3b82f6;
+            background: #f59e0b;
             color: white;
-            padding: 4px 8px;
-            border-radius: 6px;
-            font-size: 0.75rem;
-            font-weight: 500;
+            padding: 6px 10px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            white-space: nowrap;
+            box-shadow: 0 2px 4px rgba(245, 158, 11, 0.2);
         }
         
         .empty-wifi-message {
@@ -1496,12 +1499,10 @@ String WebServerManager::getJavaScript() {
     js += "        const config = configs[i];\n";
     js += "        html += '<div class=\"saved-wifi-item\">';\n";
     js += "        html += '<div class=\"saved-wifi-info\">';\n";
-    js += "        html += '<div class=\"saved-wifi-ssid\">' + config.ssid + '</div>';\n";
-            js += "        html += '<div class=\"saved-wifi-details\">';\n";
-        js += "        html += '<span class=\"priority-badge\">优先级 ' + (i + 1) + '</span>';\n";
-        js += "        html += '</div>';\n";
+    js += "        html += '<div class=\"saved-wifi-name\">' + config.ssid + '</div>';\n";
     js += "        html += '</div>';\n";
     js += "        html += '<div class=\"saved-wifi-actions\">';\n";
+    js += "        html += '<span class=\"priority-badge\">优先级 ' + (i + 1) + '</span>';\n";
     js += "        html += '<button class=\"connect-btn-small\" onclick=\"connectWiFiConfig(' + config.index + ')\" id=\"connectBtn_' + config.index + '\">';\n";
     js += "        html += '连接';\n";
     js += "        html += '</button>';\n";
