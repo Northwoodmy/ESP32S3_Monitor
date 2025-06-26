@@ -33,80 +33,105 @@ String WebServerManager::getIndexHTML() {
     html += "            </div>\n";
     html += "        </div>\n";
     html += "        \n";
-    html += "        <div class=\"card\">\n";
-    html += "            <h2>WiFi网络配置</h2>\n";
-    html += "            <div class=\"wifi-section\">\n";
-    html += "                <button id=\"scanBtn\" class=\"scan-btn\">\n";
-    html += "                    <span class=\"scan-icon\">📡</span>\n";
-    html += "                    扫描WiFi网络\n";
-    html += "                </button>\n";
-    html += "                \n";
-    html += "                <div id=\"networkList\" class=\"network-list hidden\">\n";
-    html += "                    <div class=\"loading\" id=\"scanLoading\">\n";
-    html += "                        <div class=\"spinner\"></div>\n";
-    html += "                        <span>扫描中...</span>\n";
-    html += "                    </div>\n";
-    html += "                </div>\n";
-    html += "                \n";
-    html += "                <form id=\"wifiForm\" class=\"wifi-form\">\n";
-    html += "                    <div class=\"form-group\">\n";
-    html += "                        <label for=\"ssid\">网络名称 (SSID)</label>\n";
-    html += "                        <input type=\"text\" id=\"ssid\" name=\"ssid\" required placeholder=\"请输入WiFi名称\">\n";
-    html += "                    </div>\n";
-    html += "                    \n";
-    html += "                    <div class=\"form-group\">\n";
-    html += "                        <label for=\"password\">密码</label>\n";
-    html += "                        <input type=\"password\" id=\"password\" name=\"password\" placeholder=\"请输入WiFi密码\">\n";
-    html += "                        <div class=\"password-toggle\" onclick=\"togglePassword()\">👁</div>\n";
-    html += "                    </div>\n";
-    html += "                    \n";
-    html += "                    <button type=\"submit\" class=\"connect-btn\" id=\"connectBtn\">\n";
-    html += "                        <span class=\"btn-text\">连接WiFi</span>\n";
-    html += "                        <div class=\"btn-loading hidden\">\n";
-    html += "                            <div class=\"spinner-sm\"></div>\n";
-    html += "                        </div>\n";
+    html += "        <!-- 标签页导航 -->\n";
+    html += "        <div class=\"tab-nav\">\n";
+    html += "            <button class=\"tab-btn active\" onclick=\"switchTab('wifi')\" id=\"wifiTab\">\n";
+    html += "                WiFi配置\n";
+    html += "            </button>\n";
+    html += "            <button class=\"tab-btn\" onclick=\"switchTab('system')\" id=\"systemTab\">\n";
+    html += "                系统信息\n";
+    html += "            </button>\n";
+    html += "        </div>\n";
+    html += "        \n";
+    html += "        <!-- WiFi配置标签页 -->\n";
+    html += "        <div class=\"tab-content active\" id=\"wifiContent\">\n";
+    html += "            <div class=\"card\">\n";
+    html += "                <h2>WiFi网络配置</h2>\n";
+    html += "                <div class=\"wifi-section\">\n";
+    html += "                    <button id=\"scanBtn\" class=\"scan-btn\">\n";
+    html += "                        <span class=\"scan-icon\">📡</span>\n";
+    html += "                        扫描WiFi网络\n";
     html += "                    </button>\n";
-    html += "                </form>\n";
+    html += "                    \n";
+    html += "                    <div id=\"networkList\" class=\"network-list hidden\">\n";
+    html += "                        <div class=\"loading\" id=\"scanLoading\">\n";
+    html += "                            <div class=\"spinner\"></div>\n";
+    html += "                            <span>扫描中...</span>\n";
+    html += "                        </div>\n";
+    html += "                    </div>\n";
+    html += "                    \n";
+    html += "                    <form id=\"wifiForm\" class=\"wifi-form\">\n";
+    html += "                        <div class=\"form-group\">\n";
+    html += "                            <label for=\"ssid\">网络名称 (SSID)</label>\n";
+    html += "                            <input type=\"text\" id=\"ssid\" name=\"ssid\" required placeholder=\"请输入WiFi名称\">\n";
+    html += "                        </div>\n";
+    html += "                        \n";
+    html += "                        <div class=\"form-group\">\n";
+    html += "                            <label for=\"password\">密码</label>\n";
+    html += "                            <input type=\"password\" id=\"password\" name=\"password\" placeholder=\"请输入WiFi密码\">\n";
+    html += "                            <div class=\"password-toggle\" onclick=\"togglePassword()\">👁</div>\n";
+    html += "                        </div>\n";
+    html += "                        \n";
+    html += "                        <button type=\"submit\" class=\"connect-btn\" id=\"connectBtn\">\n";
+    html += "                            <span class=\"btn-text\">连接WiFi</span>\n";
+    html += "                            <div class=\"btn-loading hidden\">\n";
+    html += "                                <div class=\"spinner-sm\"></div>\n";
+    html += "                            </div>\n";
+    html += "                        </button>\n";
+    html += "                    </form>\n";
+    html += "                </div>\n";
     html += "            </div>\n";
     html += "        </div>\n";
     html += "        \n";
-    html += "        <div class=\"card\">\n";
-    html += "            <h2>系统信息</h2>\n";
-    html += "            <div class=\"info-grid\" id=\"systemInfo\">\n";
-    html += "                <div class=\"info-item\">\n";
-    html += "                    <span class=\"label\">设备型号:</span>\n";
-    html += "                    <span class=\"value\" id=\"deviceModel\">加载中...</span>\n";
-    html += "                </div>\n";
-    html += "                <div class=\"info-item\">\n";
-    html += "                    <span class=\"label\">固件版本:</span>\n";
-    html += "                    <span class=\"value\" id=\"firmwareVersion\">加载中...</span>\n";
-    html += "                </div>\n";
-    html += "                <div class=\"info-item\">\n";
-    html += "                    <span class=\"label\">CPU频率:</span>\n";
-    html += "                    <span class=\"value\" id=\"cpuFreq\">加载中...</span>\n";
-    html += "                </div>\n";
-    html += "                <div class=\"info-item\">\n";
-    html += "                    <span class=\"label\">Flash大小:</span>\n";
-    html += "                    <span class=\"value\" id=\"flashSize\">加载中...</span>\n";
-    html += "                </div>\n";
-    html += "                <div class=\"info-item\">\n";
-    html += "                    <span class=\"label\">总内存:</span>\n";
-    html += "                    <span class=\"value\" id=\"totalHeap\">加载中...</span>\n";
-    html += "                </div>\n";
-    html += "                <div class=\"info-item\">\n";
-    html += "                    <span class=\"label\">可用内存:</span>\n";
-    html += "                    <span class=\"value\" id=\"freeHeap\">加载中...</span>\n";
-    html += "                </div>\n";
-    html += "                <div class=\"info-item\">\n";
-    html += "                    <span class=\"label\">运行时间:</span>\n";
-    html += "                    <span class=\"value\" id=\"uptime\">加载中...</span>\n";
+    html += "        <!-- 系统信息标签页 -->\n";
+    html += "        <div class=\"tab-content\" id=\"systemContent\">\n";
+    html += "            <div class=\"card\">\n";
+    html += "                <h2>设备信息</h2>\n";
+    html += "                <div class=\"info-grid\" id=\"systemInfo\">\n";
+    html += "                    <div class=\"info-item\">\n";
+    html += "                        <span class=\"label\">设备型号:</span>\n";
+    html += "                        <span class=\"value\" id=\"deviceModel\">加载中...</span>\n";
+    html += "                    </div>\n";
+    html += "                    <div class=\"info-item\">\n";
+    html += "                        <span class=\"label\">固件版本:</span>\n";
+    html += "                        <span class=\"value\" id=\"firmwareVersion\">加载中...</span>\n";
+    html += "                    </div>\n";
+    html += "                    <div class=\"info-item\">\n";
+    html += "                        <span class=\"label\">CPU频率:</span>\n";
+    html += "                        <span class=\"value\" id=\"cpuFreq\">加载中...</span>\n";
+    html += "                    </div>\n";
+    html += "                    <div class=\"info-item\">\n";
+    html += "                        <span class=\"label\">Flash大小:</span>\n";
+    html += "                        <span class=\"value\" id=\"flashSize\">加载中...</span>\n";
+    html += "                    </div>\n";
+    html += "                    <div class=\"info-item\">\n";
+    html += "                        <span class=\"label\">总内存:</span>\n";
+    html += "                        <span class=\"value\" id=\"totalHeap\">加载中...</span>\n";
+    html += "                    </div>\n";
+    html += "                    <div class=\"info-item\">\n";
+    html += "                        <span class=\"label\">可用内存:</span>\n";
+    html += "                        <span class=\"value\" id=\"freeHeap\">加载中...</span>\n";
+    html += "                    </div>\n";
+    html += "                    <div class=\"info-item\">\n";
+    html += "                        <span class=\"label\">运行时间:</span>\n";
+    html += "                        <span class=\"value\" id=\"uptime\">加载中...</span>\n";
+    html += "                    </div>\n";
     html += "                </div>\n";
     html += "            </div>\n";
     html += "            \n";
-    html += "            <div class=\"action-buttons\">\n";
-    html += "                <button onclick=\"resetConfig()\" class=\"danger-btn\">恢复默认配置</button>\n";
-    html += "                <button onclick=\"rebootDevice()\" class=\"warning-btn\">重启设备</button>\n";
-    html += "                <button onclick=\"refreshInfo()\" class=\"secondary-btn\">刷新信息</button>\n";
+    html += "            <div class=\"card\">\n";
+    html += "                <h2>设备管理</h2>\n";
+    html += "                <div class=\"action-buttons\">\n";
+    html += "                    <button onclick=\"refreshInfo()\" class=\"primary-btn\">\n";
+    html += "                        刷新信息\n";
+    html += "                    </button>\n";
+    html += "                    <button onclick=\"resetConfig()\" class=\"danger-btn\">\n";
+    html += "                        恢复默认配置\n";
+    html += "                    </button>\n";
+    html += "                    <button onclick=\"rebootDevice()\" class=\"warning-btn\">\n";
+    html += "                        重启设备\n";
+    html += "                    </button>\n";
+    html += "                </div>\n";
     html += "            </div>\n";
     html += "        </div>\n";
     html += "    </div>\n";
@@ -251,6 +276,66 @@ String WebServerManager::getCSS() {
         .status-info p {
             color: #666;
             font-size: 0.9rem;
+        }
+        
+        /* 标签页导航样式 */
+        .tab-nav {
+            display: flex;
+            background: rgba(255,255,255,0.95);
+            border-radius: 16px;
+            padding: 6px;
+            margin-bottom: 24px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        
+        .tab-btn {
+            flex: 1;
+            background: transparent;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 500;
+            color: #6b7280;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+        
+        .tab-btn.active {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+        
+        .tab-btn:hover:not(.active) {
+            background: #f3f4f6;
+            color: #374151;
+        }
+        
+
+        
+        /* 标签页内容样式 */
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
         
         h2 {
@@ -436,37 +521,52 @@ String WebServerManager::getCSS() {
         }
         
         .action-buttons {
-            display: flex;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
             gap: 12px;
         }
         
-        .danger-btn, .warning-btn, .secondary-btn {
-            flex: 1;
-            padding: 10px 16px;
+        .primary-btn, .danger-btn, .warning-btn, .secondary-btn {
+            padding: 12px 16px;
             border: none;
-            border-radius: 8px;
+            border-radius: 12px;
             font-weight: 500;
             cursor: pointer;
-            transition: all 0.2s ease;
-            margin: 0 4px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+        }
+        
+        .primary-btn {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+        }
+        
+        .primary-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
         }
         
         .danger-btn {
-            background: #ef4444;
+            background: linear-gradient(135deg, #ef4444, #dc2626);
             color: white;
         }
         
         .danger-btn:hover {
-            background: #dc2626;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(239, 68, 68, 0.4);
         }
         
         .warning-btn {
-            background: #f59e0b;
+            background: linear-gradient(135deg, #f59e0b, #d97706);
             color: white;
         }
         
         .warning-btn:hover {
-            background: #d97706;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(245, 158, 11, 0.4);
         }
         
         .secondary-btn {
@@ -476,7 +576,10 @@ String WebServerManager::getCSS() {
         
         .secondary-btn:hover {
             background: #e5e7eb;
+            transform: translateY(-2px);
         }
+        
+
         
         .toast {
             position: fixed;
@@ -581,6 +684,22 @@ String WebServerManager::getJavaScript() {
     js += "    document.getElementById('scanBtn').addEventListener('click', scanWiFi);\n";
     js += "    document.getElementById('wifiForm').addEventListener('submit', connectWiFi);\n";
     js += "});\n\n";
+    
+    js += "function switchTab(tabName) {\n";
+    js += "    const tabs = document.querySelectorAll('.tab-btn');\n";
+    js += "    const contents = document.querySelectorAll('.tab-content');\n";
+    js += "    for (let i = 0; i < tabs.length; i++) {\n";
+    js += "        tabs[i].classList.remove('active');\n";
+    js += "    }\n";
+    js += "    for (let i = 0; i < contents.length; i++) {\n";
+    js += "        contents[i].classList.remove('active');\n";
+    js += "    }\n";
+    js += "    document.getElementById(tabName + 'Tab').classList.add('active');\n";
+    js += "    document.getElementById(tabName + 'Content').classList.add('active');\n";
+    js += "    if (tabName === 'system') {\n";
+    js += "        loadSystemInfo();\n";
+    js += "    }\n";
+    js += "}\n\n";
     
     js += "async function updateStatus() {\n";
     js += "    try {\n";
