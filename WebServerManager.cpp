@@ -1318,10 +1318,10 @@ String WebServerManager::getFileManagerHTML() {
     html += "html+='</div>';";
     html += "html+='<div class=\"file-actions\">';";
     html += "if(!f.isDirectory){";
-    html += "html+='<button class=\"file-btn file-btn-primary\" onclick=\"downloadFile(\\'' + f.name + '\\')\">[下载]</button>';";
-    html += "html+='<button class=\"file-btn file-btn-success\" onclick=\"showRenameModal(\\'' + f.name + '\\')\">[重命名]</button>';";
+    html += "html+='<button class=\"file-btn file-btn-primary\" onclick=\"downloadFile(\\'' + f.name + '\\')\">下载</button>';";
+    html += "html+='<button class=\"file-btn file-btn-success\" onclick=\"showRenameModal(\\'' + f.name + '\\')\">重命名</button>';";
     html += "}";
-    html += "html+='<button class=\"file-btn file-btn-danger\" onclick=\"deleteFile(\\'' + f.name + '\\')\">[删除]</button>';";
+    html += "html+='<button class=\"file-btn file-btn-danger\" onclick=\"deleteFile(\\'' + f.name + '\\')\">删除</button>';";
     html += "html+='</div>';";
     html += "html+='</div>';";
     html += "}";
