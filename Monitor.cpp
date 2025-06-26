@@ -64,13 +64,12 @@ void Monitor::helloWorldTask(void* parameter) {
     
     printf("Hello World任务开始运行\n");
     
-    // 持续循环，每秒输出一次hello world
-    while (monitor->isRunning) {
-        printf("hello world\n");
-        
-        // 延时1秒 (1000毫秒)
-        vTaskDelay(pdMS_TO_TICKS(1000));
-    }
+    // 只输出一次hello world
+    printf("hello world\n");
+    
+    // 任务完成，清理状态
+    monitor->isRunning = false;
+    monitor->helloTaskHandle = nullptr;
     
     printf("Hello World任务结束\n");
     vTaskDelete(nullptr);
