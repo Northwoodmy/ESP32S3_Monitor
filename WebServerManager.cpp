@@ -41,8 +41,8 @@ void WebServerManager::init() {
     server->on("/api", [this]() { handleAPI(); });
     server->on("/save", HTTP_POST, [this]() { handleSaveWiFi(); });
     server->on("/status", [this]() { handleGetStatus(); });
-    server->on("/wifi-configs", [this]() { handleGetWiFiConfigs(); });
-    server->on("/wifi-configs", HTTP_DELETE, [this]() { handleDeleteWiFiConfig(); });
+    server->on("/wifi-configs", HTTP_GET, [this]() { handleGetWiFiConfigs(); });
+    server->on("/delete-wifi-config", HTTP_POST, [this]() { handleDeleteWiFiConfig(); });
     server->on("/connect-wifi", HTTP_POST, [this]() { handleConnectWiFiConfig(); });
     server->onNotFound([this]() { handleNotFound(); });
     
@@ -300,11 +300,17 @@ void WebServerManager::handleGetStatus() {
 void WebServerManager::handleGetWiFiConfigs() {
     printf("处理获取WiFi配置列表请求\n");
     
+    // 添加缓存控制头
+    server->sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    server->sendHeader("Pragma", "no-cache");
+    server->sendHeader("Expires", "0");
+    
     DynamicJsonDocument doc(1024);
     JsonArray configs = doc.createNestedArray("configs");
     
     WiFiConfig wifiConfigs[3];
     if (configStorage->loadWiFiConfigs(wifiConfigs)) {
+        printf("成功加载WiFi配置，开始构建响应\n");
         for (int i = 0; i < ConfigStorage::MAX_WIFI_CONFIGS; i++) {
             if (wifiConfigs[i].isValid && wifiConfigs[i].ssid.length() > 0) {
                 JsonObject config = configs.createNestedObject();
@@ -312,12 +318,18 @@ void WebServerManager::handleGetWiFiConfigs() {
                 config["ssid"] = wifiConfigs[i].ssid;
                 config["password"] = "***"; // 不返回实际密码，只显示占位符
                 config["status"] = "saved";
+                printf("添加配置 %d: %s\n", i, wifiConfigs[i].ssid.c_str());
             }
         }
+    } else {
+        printf("加载WiFi配置失败\n");
     }
     
-    doc["count"] = configStorage->getWiFiConfigCount();
+    int configCount = configStorage->getWiFiConfigCount();
+    doc["count"] = configCount;
     doc["maxConfigs"] = ConfigStorage::MAX_WIFI_CONFIGS;
+    
+    printf("配置数量: %d，最大配置数: %d\n", configCount, ConfigStorage::MAX_WIFI_CONFIGS);
     
     String response;
     serializeJson(doc, response);
@@ -328,13 +340,16 @@ void WebServerManager::handleDeleteWiFiConfig() {
     printf("处理删除WiFi配置请求\n");
     
     if (!server->hasArg("index")) {
+        printf("缺少index参数\n");
         server->send(400, "application/json", "{\"success\":false,\"message\":\"缺少index参数\"}");
         return;
     }
     
     int index = server->arg("index").toInt();
+    printf("请求删除配置索引: %d\n", index);
     
     if (index < 0 || index >= ConfigStorage::MAX_WIFI_CONFIGS) {
+        printf("无效的配置索引: %d\n", index);
         server->send(400, "application/json", "{\"success\":false,\"message\":\"无效的配置索引\"}");
         return;
     }
@@ -343,33 +358,57 @@ void WebServerManager::handleDeleteWiFiConfig() {
     
     // 加载现有配置
     WiFiConfig configs[3];
+    printf("开始加载WiFi配置...\n");
     if (configStorage->loadWiFiConfigs(configs)) {
-        if (configs[index].isValid) {
+        printf("成功加载WiFi配置\n");
+        
+        // 打印所有配置状态
+        for (int i = 0; i < ConfigStorage::MAX_WIFI_CONFIGS; i++) {
+            printf("配置 %d: valid=%s, ssid=%s\n", i, 
+                   configs[i].isValid ? "true" : "false", 
+                   configs[i].ssid.c_str());
+        }
+        
+        if (configs[index].isValid && configs[index].ssid.length() > 0) {
             printf("删除WiFi配置 %d: %s\n", index, configs[index].ssid.c_str());
             
             // 清除指定配置
             configs[index] = WiFiConfig();
+            printf("已清除配置 %d\n", index);
             
             // 重新保存配置
+            printf("开始保存更新后的配置...\n");
             bool success = configStorage->saveWiFiConfigs(configs);
+            printf("配置保存结果: %s\n", success ? "成功" : "失败");
+            
+            // 等待NVS数据刷新
+            if (success) {
+                vTaskDelay(pdMS_TO_TICKS(100));
+                printf("等待NVS数据刷新完成\n");
+            }
             
             doc["success"] = success;
             if (success) {
                 doc["message"] = "WiFi配置删除成功";
+                printf("删除操作成功完成\n");
             } else {
                 doc["message"] = "WiFi配置删除失败";
+                printf("删除操作失败\n");
             }
         } else {
+            printf("指定的配置 %d 不存在或无效\n", index);
             doc["success"] = false;
             doc["message"] = "指定的配置不存在";
         }
     } else {
+        printf("加载WiFi配置失败\n");
         doc["success"] = false;
         doc["message"] = "加载WiFi配置失败";
     }
     
     String response;
     serializeJson(doc, response);
+    printf("返回删除结果: %s\n", response.c_str());
     server->send(200, "application/json", response);
 }
 

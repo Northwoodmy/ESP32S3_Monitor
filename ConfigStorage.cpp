@@ -231,6 +231,9 @@ bool ConfigStorage::saveWiFiConfigs(const WiFiConfig configs[3]) {
         return false;
     }
     
+    // 先清除所有现有配置
+    preferences.clear();
+    
     bool success = true;
     int validCount = 0;
     
@@ -248,9 +251,9 @@ bool ConfigStorage::saveWiFiConfigs(const WiFiConfig configs[3]) {
         success = false;
     }
     
-    // 保存每个配置
+    // 保存每个有效配置，按顺序重新排列
     int savedIndex = 0;
-    for (int i = 0; i < MAX_WIFI_CONFIGS && savedIndex < validCount; i++) {
+    for (int i = 0; i < MAX_WIFI_CONFIGS; i++) {
         if (configs[i].isValid && configs[i].ssid.length() > 0) {
             String ssidKey = getWiFiSSIDKey(savedIndex);
             String passwordKey = getWiFiPasswordKey(savedIndex);
