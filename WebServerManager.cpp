@@ -1109,6 +1109,55 @@ String WebServerManager::getFileManagerHTML() {
     html += "margin-bottom: 8px;";
     html += "color: #374151;";
     html += "}";
+    // 存储容量可视化样式
+    html += ".storage-info {";
+    html += "padding: 16px 0;";
+    html += "}";
+    html += ".storage-bar {";
+    html += "width: 100%;";
+    html += "height: 24px;";
+    html += "background: #f3f4f6;";
+    html += "border-radius: 12px;";
+    html += "position: relative;";
+    html += "overflow: hidden;";
+    html += "margin-bottom: 12px;";
+    html += "box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);";
+    html += "}";
+    html += ".storage-progress {";
+    html += "height: 100%;";
+    html += "background: linear-gradient(90deg, #10b981, #059669);";
+    html += "border-radius: 12px;";
+    html += "width: 0%;";
+    html += "transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);";
+    html += "position: relative;";
+    html += "box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);";
+    html += "}";
+    html += ".storage-progress::after {";
+    html += "content: '';";
+    html += "position: absolute;";
+    html += "top: 0;";
+    html += "left: 0;";
+    html += "right: 0;";
+    html += "bottom: 0;";
+    html += "background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);";
+    html += "animation: storage-shine 2s infinite;";
+    html += "}";
+    html += "@keyframes storage-shine {";
+    html += "0% { transform: translateX(-100%); }";
+    html += "100% { transform: translateX(100%); }";
+    html += "}";
+    html += ".storage-text {";
+    html += "display: flex;";
+    html += "justify-content: space-between;";
+    html += "align-items: center;";
+    html += "font-size: 0.9rem;";
+    html += "color: #6b7280;";
+    html += "font-weight: 500;";
+    html += "}";
+    html += ".usage-percent {";
+    html += "font-weight: 600;";
+    html += "color: #1f2937;";
+    html += "}";
     html += "</style></head><body>";
     
     html += "<div class='container'>";
@@ -1128,6 +1177,17 @@ String WebServerManager::getFileManagerHTML() {
     html += "</div>";
     
     html += "<div class='status-card' id='fsStatus'>文件系统状态：加载中...</div>";
+    
+    // 存储容量可视化显示
+    html += "<div class='card'>";
+    html += "<h3 style='margin-bottom: 16px; color: #1f2937;'>存储容量</h3>";
+    html += "<div class='storage-info' id='storageInfo'>";
+    html += "<div class='storage-bar'>";
+    html += "<div class='storage-progress' id='storageProgress'></div>";
+    html += "</div>";
+    html += "<div class='storage-text' id='storageText'>加载中...</div>";
+    html += "</div>";
+    html += "</div>";
     
     html += "<div class='card'>";
     html += "<div class='upload-zone' id='uploadZone'>";
@@ -1185,8 +1245,9 @@ String WebServerManager::getFileManagerHTML() {
     html += "var el=document.getElementById('fsStatus');";
     html += "if(data.initialized){";
     html += "el.innerHTML='文件系统状态：正常运行<br>总容量：'+data.totalFormatted+' | 已使用：'+data.usedFormatted+' | 可用：'+data.freeFormatted;";
-    html += "}else{el.innerHTML='警告：文件系统未初始化';}";
-    html += "}).catch(function(){document.getElementById('fsStatus').innerHTML='错误：无法加载状态';});";
+    html += "updateStorageVisualization(data);";
+    html += "}else{el.innerHTML='警告：文件系统未初始化';resetStorageVisualization();}";
+    html += "}).catch(function(){document.getElementById('fsStatus').innerHTML='错误：无法加载状态';resetStorageVisualization();});";
     html += "}";
     
     html += "function loadFileList(){";
@@ -1220,6 +1281,34 @@ String WebServerManager::getFileManagerHTML() {
     html += "}";
     
     html += "function refreshFiles(){loadFileSystemStatus();loadFileList();}";
+    
+    // 存储容量可视化更新函数
+    html += "function updateStorageVisualization(data){";
+    html += "var progressEl=document.getElementById('storageProgress');";
+    html += "var textEl=document.getElementById('storageText');";
+    html += "if(progressEl&&textEl){";
+    html += "var usagePercent=data.usagePercent||0;";
+    html += "progressEl.style.width=usagePercent+'%';";
+    // 根据使用率改变颜色
+    html += "var color='#10b981';"; // 默认绿色
+    html += "if(usagePercent>=90){color='#ef4444';}"; // 红色：危险
+    html += "else if(usagePercent>=75){color='#f59e0b';}"; // 橙色：警告
+    html += "else if(usagePercent>=50){color='#3b82f6';}"; // 蓝色：中等
+    html += "progressEl.style.background='linear-gradient(90deg, '+color+', '+color+'cc)';";
+    html += "progressEl.style.boxShadow='0 2px 8px '+color+'4d';";
+    html += "textEl.innerHTML='<span>'+data.usedFormatted+' / '+data.totalFormatted+'</span><span class=\"usage-percent\">'+usagePercent.toFixed(1)+'%</span>';";
+    html += "}";
+    html += "}";
+    
+    html += "function resetStorageVisualization(){";
+    html += "var progressEl=document.getElementById('storageProgress');";
+    html += "var textEl=document.getElementById('storageText');";
+    html += "if(progressEl&&textEl){";
+    html += "progressEl.style.width='0%';";
+    html += "progressEl.style.background='#d1d5db';";
+    html += "textEl.innerHTML='存储状态未知';";
+    html += "}";
+    html += "}";
     
     html += "function setupFileUpload(){";
     html += "var fileInput=document.getElementById('fileInput');";
