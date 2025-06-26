@@ -67,7 +67,6 @@ String WebServerManager::getIndexHTML() {
     html += "                    <div id=\"networkList\" class=\"network-list hidden\">\n";
     html += "                        <div class=\"loading\" id=\"scanLoading\">\n";
     html += "                            <div class=\"spinner\"></div>\n";
-    html += "                            <span>扫描中...</span>\n";
     html += "                        </div>\n";
     html += "                    </div>\n";
     html += "                    \n";
@@ -80,7 +79,6 @@ String WebServerManager::getIndexHTML() {
     html += "                        <div class=\"form-group\">\n";
     html += "                            <label for=\"password\">密码</label>\n";
     html += "                            <input type=\"password\" id=\"password\" name=\"password\" placeholder=\"请输入WiFi密码\">\n";
-    html += "                            <div class=\"password-toggle\" onclick=\"togglePassword()\">👁</div>\n";
     html += "                        </div>\n";
     html += "                        \n";
     html += "                        <button type=\"submit\" class=\"connect-btn\" id=\"connectBtn\">\n";
@@ -1013,17 +1011,7 @@ String WebServerManager::getJavaScript() {
     js += "    }\n";
     js += "}\n\n";
     
-    js += "function togglePassword() {\n";
-    js += "    const passwordInput = document.getElementById('password');\n";
-    js += "    const toggleBtn = document.querySelector('.password-toggle');\n";
-    js += "    if (passwordInput.type === 'password') {\n";
-    js += "        passwordInput.type = 'text';\n";
-    js += "        toggleBtn.textContent = '🙈';\n";
-    js += "    } else {\n";
-    js += "        passwordInput.type = 'password';\n";
-    js += "        toggleBtn.textContent = '👁';\n";
-    js += "    }\n";
-    js += "}\n\n";
+
     
     js += "function resetConfig() {\n";
     js += "    if (confirm('确定要恢复默认配置吗？\\n\\n此操作将：\\n• 清除所有WiFi配置\\n• 清除所有系统设置\\n• 重启设备\\n\\n此操作不可撤销！')) {\n";
