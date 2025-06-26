@@ -64,17 +64,11 @@ void Monitor::helloWorldTask(void* parameter) {
     
     printf("Hello World任务开始运行\n");
     
-    // 任务循环 - 使用无限循环，避免竞态条件
-    while (true) {
-        // 检查是否需要停止
-        if (!monitor->isRunning) {
-            break;
-        }
-        
-        // 输出hello world
+    // 持续循环，每秒输出一次hello world
+    while (monitor->isRunning) {
         printf("hello world\n");
         
-        // 延时1秒
+        // 延时1秒 (1000毫秒)
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
     

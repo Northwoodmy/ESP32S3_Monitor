@@ -4,6 +4,7 @@ globs:
 alwaysApply: true
 ---
 1、基于ESP32S3开发的项目，使用Arduino IDE开发
-2、电路板没有配置串口，使用printf输出调试信息
+2、不初始化串口，使用printf输出调试信息
 3、要使用freertos进行开发，通过任务实现功能，调整好各个任务的优先级
 4、setup()只做初始化，loop()不做任何任务处理
+5、延时函数使用系统延时
