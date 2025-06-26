@@ -8,3 +8,4 @@ alwaysApply: true
 3、要使用freertos进行开发，通过任务实现功能，调整好各个任务的优先级
 4、setup()只做初始化，loop()不做任何任务处理
 5、延时函数使用系统延时vTaskDelay
+6、每次修改后，需要更新项目说明和web页面中的版本号

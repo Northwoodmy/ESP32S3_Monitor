@@ -164,7 +164,7 @@ String WebServerManager::getIndexHTML() {
     html += "                    </div>\n";
     html += "                    <div class=\"info-item\">\n";
     html += "                        <span class=\"label\">固件版本:</span>\n";
-    html += "                        <span class=\"value\" id=\"firmwareVersion\">加载中...</span>\n";
+    html += "                        <span class=\"value\" id=\"firmwareVersion\">v3.3.0</span>\n";
     html += "                    </div>\n";
     html += "                    <div class=\"info-item\">\n";
     html += "                        <span class=\"label\">CPU频率:</span>\n";
@@ -198,6 +198,9 @@ String WebServerManager::getIndexHTML() {
     html += "                <div class=\"action-buttons\">\n";
     html += "                    <button onclick=\"refreshInfo()\" class=\"primary-btn\">\n";
     html += "                        刷新信息\n";
+    html += "                    </button>\n";
+    html += "                    <button onclick=\"window.location.href='/files'\" class=\"success-btn\">\n";
+    html += "                        文件管理器\n";
     html += "                    </button>\n";
     html += "                    <button onclick=\"resetConfig()\" class=\"danger-btn\">\n";
     html += "                        恢复默认配置\n";
@@ -708,7 +711,7 @@ String WebServerManager::getCSS() {
             gap: 12px;
         }
         
-        .primary-btn, .danger-btn, .warning-btn, .secondary-btn {
+        .primary-btn, .danger-btn, .warning-btn, .secondary-btn, .success-btn {
             padding: 12px 16px;
             border: none;
             border-radius: 12px;
@@ -759,6 +762,16 @@ String WebServerManager::getCSS() {
         .secondary-btn:hover {
             background: #e5e7eb;
             transform: translateY(-2px);
+        }
+        
+        .success-btn {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+        }
+        
+        .success-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
         }
         
 

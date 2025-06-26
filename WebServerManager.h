@@ -13,10 +13,11 @@
 #include "ConfigStorage.h"
 #include "WiFiManager.h"
 #include "OTAManager.h"
+#include "FileManager.h"
 
 class WebServerManager {
 public:
-    WebServerManager(WiFiManager* wifiMgr, ConfigStorage* configStore, OTAManager* otaMgr);
+    WebServerManager(WiFiManager* wifiMgr, ConfigStorage* configStore, OTAManager* otaMgr, FileManager* fileMgr);
     ~WebServerManager();
     
     // 初始化Web服务器
@@ -36,6 +37,7 @@ private:
     WiFiManager* wifiManager;
     ConfigStorage* configStorage;
     OTAManager* otaManager;
+    FileManager* fileManager;
     TaskHandle_t serverTaskHandle;
     bool isRunning;
     
@@ -66,8 +68,23 @@ private:
     void handleOTAStatus();
     void handleOTAReboot();
     
+    // 文件管理相关API
+    void handleFileManager();
+    void handleFileList();
+    void handleFileUpload();
+    void handleFileDownload();
+    void handleFileDelete();
+    void handleFileRename();
+    void handleFileCreate();
+    void handleFileSystemStatus();
+    void handleFileSystemFormat();
+    void handleFileSystemFormatStatus();
+    
     // 获取主页HTML
     String getIndexHTML();
+    
+    // 获取文件管理器HTML
+    String getFileManagerHTML();
     
     // 获取CSS样式
     String getCSS();

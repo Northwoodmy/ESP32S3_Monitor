@@ -28,6 +28,7 @@
 #include "WiFiManager.h"
 #include "WebServerManager.h"
 #include "OTAManager.h"
+#include "FileManager.h"
 
 // 全局实例
 Monitor monitor;
@@ -35,11 +36,12 @@ ConfigStorage configStorage;
 WiFiManager wifiManager;
 WebServerManager* webServerManager;
 OTAManager otaManager;
+FileManager fileManager;
 
 void setup() {
   
       printf("=== ESP32S3 WiFi配置管理器启动 ===\n");
-    printf("版本: v3.2.0\n");
+    printf("版本: v3.3.13\n");
     printf("编译时间: %s %s\n", __DATE__, __TIME__);
   
   // 初始化配置存储
@@ -52,8 +54,11 @@ void setup() {
   // 初始化OTA管理器
   otaManager.init();
   
+  // 初始化文件管理器
+  fileManager.init();
+  
   // 创建Web服务器管理器实例
-  webServerManager = new WebServerManager(&wifiManager, &configStorage, &otaManager);
+  webServerManager = new WebServerManager(&wifiManager, &configStorage, &otaManager, &fileManager);
   
   // 初始化并启动Web服务器
   webServerManager->init();
