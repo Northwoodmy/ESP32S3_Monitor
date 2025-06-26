@@ -1,6 +1,6 @@
 /*
  * ESP32S3监控项目 - WiFi配置管理器
- * 版本: v3.0.1
+ * 版本: v3.0.7
  * 作者: ESP32S3_Monitor
  * 日期: 2024
  * 
@@ -35,7 +35,7 @@ WebServerManager* webServerManager;
 void setup() {
   
       printf("=== ESP32S3 WiFi配置管理器启动 ===\n");
-    printf("版本: v3.0.1\n");
+    printf("版本: v3.0.5\n");
     printf("编译时间: %s %s\n", __DATE__, __TIME__);
   
   // 初始化配置存储

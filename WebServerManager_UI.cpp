@@ -19,8 +19,7 @@ String WebServerManager::getIndexHTML() {
     html += "<body>\n";
     html += "    <div class=\"container\">\n";
     html += "        <header class=\"header\">\n";
-    html += "            <h1>ESP32S3 Monitor</h1>\n";
-    html += "            <p class=\"subtitle\">WiFi配置管理器</p>\n";
+    html += "            <h1>小屏幕配置</h1>\n";
     html += "        </header>\n";
     html += "        \n";
     html += "        <div class=\"status-card\" id=\"statusCard\">\n";
@@ -29,6 +28,7 @@ String WebServerManager::getIndexHTML() {
     html += "            </div>\n";
     html += "            <div class=\"status-info\">\n";
     html += "                <h3 id=\"statusTitle\">正在连接...</h3>\n";
+    html += "                <p id=\"currentWiFi\" class=\"current-wifi hidden\"></p>\n";
     html += "                <p id=\"statusDetail\">检查设备状态中</p>\n";
     html += "            </div>\n";
     html += "        </div>\n";
@@ -61,7 +61,6 @@ String WebServerManager::getIndexHTML() {
     html += "                <h2>添加新的WiFi配置</h2>\n";
     html += "                <div class=\"wifi-section\">\n";
     html += "                    <button id=\"scanBtn\" class=\"scan-btn\">\n";
-    html += "                        <span class=\"scan-icon\">📡</span>\n";
     html += "                        扫描WiFi网络\n";
     html += "                    </button>\n";
     html += "                    \n";
@@ -127,6 +126,10 @@ String WebServerManager::getIndexHTML() {
     html += "                    <div class=\"info-item\">\n";
     html += "                        <span class=\"label\">运行时间:</span>\n";
     html += "                        <span class=\"value\" id=\"uptime\">加载中...</span>\n";
+    html += "                    </div>\n";
+    html += "                    <div class=\"info-item\" id=\"wifiInfoItem\">\n";
+    html += "                        <span class=\"label\">当前WiFi:</span>\n";
+    html += "                        <span class=\"value\" id=\"currentWiFiName\">未连接</span>\n";
     html += "                    </div>\n";
     html += "                </div>\n";
     html += "            </div>\n";
@@ -248,6 +251,17 @@ String WebServerManager::getCSS() {
             height: 24px;
             background: white;
             border-radius: 50%;
+        }
+        
+        .current-wifi {
+            margin-top: 8px;
+            font-weight: 600;
+            color: #059669;
+            font-size: 0.95rem;
+        }
+        
+        .current-wifi.hidden {
+            display: none;
         }
         
         .status-connected .pulse {
@@ -818,19 +832,29 @@ String WebServerManager::getJavaScript() {
     js += "        const statusIndicator = document.getElementById('statusIndicator');\n";
     js += "        const statusTitle = document.getElementById('statusTitle');\n";
     js += "        const statusDetail = document.getElementById('statusDetail');\n";
+    js += "        const currentWiFi = document.getElementById('currentWiFi');\n";
     js += "        statusIndicator.className = 'status-indicator';\n";
     js += "        if (data.wifi && data.wifi.connected) {\n";
     js += "            statusIndicator.classList.add('status-connected');\n";
     js += "            statusTitle.textContent = 'WiFi已连接';\n";
-    js += "            statusDetail.textContent = 'IP地址: ' + data.wifi.ip + ' | 信号强度: ' + data.wifi.rssi + 'dBm';\n";
+    js += "            if (data.wifi.ssid) {\n";
+    js += "                currentWiFi.textContent = '当前网络: ' + data.wifi.ssid;\n";
+    js += "                currentWiFi.classList.remove('hidden');\n";
+    js += "                statusDetail.textContent = 'IP地址: ' + data.wifi.ip + ' | 信号强度: ' + data.wifi.rssi + 'dBm';\n";
+    js += "            } else {\n";
+    js += "                currentWiFi.classList.add('hidden');\n";
+    js += "                statusDetail.textContent = 'IP地址: ' + data.wifi.ip + ' | 信号强度: ' + data.wifi.rssi + 'dBm';\n";
+    js += "            }\n";
     js += "        } else if (data.wifi && data.wifi.mode === 'AP') {\n";
     js += "            statusIndicator.classList.add('status-ap');\n";
     js += "            statusTitle.textContent = 'AP配置模式';\n";
     js += "            statusDetail.textContent = '配置IP: ' + data.wifi.ip + ' | 等待WiFi配置';\n";
+    js += "            currentWiFi.classList.add('hidden');\n";
     js += "        } else {\n";
     js += "            statusIndicator.classList.add('status-disconnected');\n";
     js += "            statusTitle.textContent = 'WiFi未连接';\n";
     js += "            statusDetail.textContent = '请配置WiFi网络';\n";
+    js += "            currentWiFi.classList.add('hidden');\n";
     js += "        }\n";
     js += "        document.getElementById('freeHeap').textContent = formatBytes(data.system.freeHeap);\n";
     js += "        document.getElementById('uptime').textContent = formatUptime(data.system.uptime);\n";
@@ -851,6 +875,13 @@ String WebServerManager::getJavaScript() {
     js += "        document.getElementById('totalHeap').textContent = formatBytes(data.totalHeap);\n";
     js += "        document.getElementById('freeHeap').textContent = formatBytes(data.freeHeap);\n";
     js += "        document.getElementById('uptime').textContent = formatUptime(data.uptime);\n";
+    js += "        \n";
+    js += "        // 显示WiFi信息\n";
+    js += "        if (data.wifi && data.wifi.status === 'connected' && data.wifi.ssid) {\n";
+    js += "            document.getElementById('currentWiFiName').textContent = data.wifi.ssid + ' (已连接)';\n";
+    js += "        } else {\n";
+    js += "            document.getElementById('currentWiFiName').textContent = '未连接';\n";
+    js += "        }\n";
     js += "    } catch (error) {\n";
     js += "        console.error('加载系统信息失败:', error);\n";
     js += "        showToast('加载系统信息失败', 'error');\n";
@@ -876,7 +907,7 @@ String WebServerManager::getJavaScript() {
     js += "        networkList.classList.add('hidden');\n";
     js += "    } finally {\n";
     js += "        scanBtn.disabled = false;\n";
-    js += "        scanBtn.innerHTML = '<span class=\"scan-icon\">📡</span> 扫描WiFi网络';\n";
+    js += "        scanBtn.innerHTML = '扫描WiFi网络';\n";
     js += "        scanLoading.classList.add('hidden');\n";
     js += "    }\n";
     js += "}\n\n";

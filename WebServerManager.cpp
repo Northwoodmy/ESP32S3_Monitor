@@ -153,7 +153,7 @@ void WebServerManager::handleSystemInfo() {
     
     DynamicJsonDocument doc(1024);
     doc["device"] = "ESP32S3 Monitor";
-    doc["version"] = "v3.0.1";
+    doc["version"] = "v3.0.5";
     doc["chipModel"] = ESP.getChipModel();
     doc["chipRevision"] = ESP.getChipRevision();
     doc["cpuFreq"] = ESP.getCpuFreqMHz();
@@ -164,6 +164,7 @@ void WebServerManager::handleSystemInfo() {
     
     if (wifiManager->isConnected()) {
         doc["wifi"]["status"] = "connected";
+        doc["wifi"]["ssid"] = WiFi.SSID();
         doc["wifi"]["ip"] = wifiManager->getLocalIP();
         doc["wifi"]["rssi"] = WiFi.RSSI();
     } else {
@@ -279,6 +280,7 @@ void WebServerManager::handleGetStatus() {
     
     if (wifiManager->isConnected()) {
         doc["wifi"]["connected"] = true;
+        doc["wifi"]["ssid"] = WiFi.SSID();
         doc["wifi"]["ip"] = wifiManager->getLocalIP();
         doc["wifi"]["rssi"] = WiFi.RSSI();
     } else {
