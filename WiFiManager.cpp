@@ -16,18 +16,20 @@ WiFiManager::WiFiManager() :
 
 WiFiManager::~WiFiManager() {
     stop();
-    if (configStorage) {
-        delete configStorage;
-        configStorage = nullptr;
-    }
 }
 
 void WiFiManager::init() {
     printf("初始化WiFi管理器...\n");
     
-    if (configStorage) {
-        configStorage->init();
-    }
+    // 创建独立的配置存储实例
+    configStorage = new ConfigStorage();
+    configStorage->init();
+    
+    printf("WiFi模块状态检查...\n");
+    
+    // 确保WiFi模块正常工作
+    WiFi.mode(WIFI_OFF);
+    vTaskDelay(pdMS_TO_TICKS(100));
     
     // 尝试从存储的配置连接WiFi
     tryStoredCredentials();
@@ -60,22 +62,70 @@ void WiFiManager::init() {
 void WiFiManager::startConfigMode() {
     printf("启动AP配置模式...\n");
     
+    // 确保WiFi完全关闭后再启动AP
+    WiFi.disconnect();
+    WiFi.mode(WIFI_OFF);
+    vTaskDelay(pdMS_TO_TICKS(500));
+    
+    printf("设置WiFi为AP模式...\n");
     WiFi.mode(WIFI_AP);
+    vTaskDelay(pdMS_TO_TICKS(100));
     
     // 设置AP参数
     String apSSID = "ESP32S3-Config";
     String apPassword = "12345678";
     
-    bool success = WiFi.softAP(apSSID.c_str(), apPassword.c_str());
+    printf("尝试启动AP: %s\n", apSSID.c_str());
+    
+    // 配置AP参数
+    WiFi.softAPConfig(
+        IPAddress(192, 168, 4, 1),  // AP IP
+        IPAddress(192, 168, 4, 1),  // Gateway
+        IPAddress(255, 255, 255, 0) // Subnet
+    );
+    
+    bool success = WiFi.softAP(apSSID.c_str(), apPassword.c_str(), 1, 0, 4);
+    
+    // 等待AP启动
+    vTaskDelay(pdMS_TO_TICKS(1000));
     
     if (success) {
         isAPMode = true;
-        printf("AP模式启动成功\n");
-        printf("AP SSID: %s\n", apSSID.c_str());
-        printf("AP Password: %s\n", apPassword.c_str());
-        printf("AP IP: %s\n", WiFi.softAPIP().toString().c_str());
+        IPAddress apIP = WiFi.softAPIP();
+        printf("✓ AP模式启动成功\n");
+        printf("  AP SSID: %s\n", apSSID.c_str());
+        printf("  AP Password: %s\n", apPassword.c_str());
+        printf("  AP IP: %s\n", apIP.toString().c_str());
+        printf("  配置网址: http://%s\n", apIP.toString().c_str());
+        
+        // 验证AP是否真的在工作
+        if (apIP.toString() == "0.0.0.0") {
+            printf("⚠ 警告: AP IP地址异常，尝试重新启动\n");
+            vTaskDelay(pdMS_TO_TICKS(1000));
+            WiFi.softAP(apSSID.c_str(), apPassword.c_str());
+            vTaskDelay(pdMS_TO_TICKS(1000));
+            printf("重试后AP IP: %s\n", WiFi.softAPIP().toString().c_str());
+        }
     } else {
-        printf("AP模式启动失败\n");
+        printf("✗ AP模式启动失败\n");
+        printf("WiFi状态: %d\n", WiFi.status());
+        printf("AP状态: %d\n", WiFi.getMode());
+        
+        // 尝试重新启动
+        printf("尝试重新启动AP...\n");
+        vTaskDelay(pdMS_TO_TICKS(2000));
+        WiFi.mode(WIFI_OFF);
+        vTaskDelay(pdMS_TO_TICKS(1000));
+        WiFi.mode(WIFI_AP);
+        vTaskDelay(pdMS_TO_TICKS(500));
+        success = WiFi.softAP(apSSID.c_str(), apPassword.c_str());
+        if (success) {
+            isAPMode = true;
+            printf("✓ 重试后AP启动成功\n");
+            printf("  AP IP: %s\n", WiFi.softAPIP().toString().c_str());
+        } else {
+            printf("✗ 重试后仍然失败\n");
+        }
     }
 }
 
@@ -143,6 +193,11 @@ void WiFiManager::stop() {
     
     WiFi.disconnect();
     WiFi.mode(WIFI_OFF);
+    
+    if (configStorage) {
+        delete configStorage;
+        configStorage = nullptr;
+    }
     
     isRunning = false;
     isAPMode = false;

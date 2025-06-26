@@ -32,11 +32,6 @@ WiFiManager wifiManager;
 WebServerManager* webServerManager;
 
 void setup() {
-  // 初始化串口用于调试输出
-  Serial.begin(115200);
-  
-  // 等待串口连接
-  delay(1000);
   
   printf("=== ESP32S3 WiFi配置管理器启动 ===\n");
   printf("版本: v2.0.0\n");
@@ -60,7 +55,7 @@ void setup() {
   monitor.init();
   
   // 显示当前状态
-  delay(2000);
+  vTaskDelay(pdMS_TO_TICKS(2000));
   displaySystemStatus();
   
   printf("=== 系统初始化完成 ===\n");
