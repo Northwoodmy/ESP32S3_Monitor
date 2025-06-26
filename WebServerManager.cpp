@@ -47,6 +47,8 @@ void WebServerManager::init() {
     server->on("/wifi-configs", HTTP_GET, [this]() { handleGetWiFiConfigs(); });
     server->on("/delete-wifi-config", HTTP_POST, [this]() { handleDeleteWiFiConfig(); });
     server->on("/connect-wifi", HTTP_POST, [this]() { handleConnectWiFiConfig(); });
+    server->on("/update-wifi-priority", HTTP_POST, [this]() { handleUpdateWiFiPriority(); });
+    server->on("/set-wifi-priorities", HTTP_POST, [this]() { handleSetWiFiPriorities(); });
     server->on("/ota-upload", HTTP_POST, [this]() { 
         // POST请求完成后的响应处理
         printf("OTA上传POST请求完成，发送响应\n");
@@ -183,7 +185,7 @@ void WebServerManager::handleSystemInfo() {
     
     DynamicJsonDocument doc(1024);
     doc["device"] = "ESP32S3 Monitor";
-    doc["version"] = "v3.3.29";
+    doc["version"] = "v3.4.1";
     doc["chipModel"] = ESP.getChipModel();
     doc["chipRevision"] = ESP.getChipRevision();
     doc["cpuFreq"] = ESP.getCpuFreqMHz();
@@ -347,8 +349,9 @@ void WebServerManager::handleGetWiFiConfigs() {
                 config["index"] = i;
                 config["ssid"] = wifiConfigs[i].ssid;
                 config["password"] = "***"; // 不返回实际密码，只显示占位符
+                config["priority"] = wifiConfigs[i].priority;  // 新增：返回优先级
                 config["status"] = "saved";
-                printf("添加配置 %d: %s\n", i, wifiConfigs[i].ssid.c_str());
+                printf("添加配置 %d: %s (优先级 %d)\n", i, wifiConfigs[i].ssid.c_str(), wifiConfigs[i].priority);
             }
         }
     } else {
@@ -1496,4 +1499,112 @@ String WebServerManager::getFileManagerHTML() {
     html += "</script></body></html>";
     
     return html;
+}
+
+void WebServerManager::handleUpdateWiFiPriority() {
+    printf("处理更新WiFi优先级请求\n");
+    
+    if (!server->hasArg("index") || !server->hasArg("priority")) {
+        printf("缺少必要参数\n");
+        server->send(400, "application/json", "{\"success\":false,\"message\":\"缺少index或priority参数\"}");
+        return;
+    }
+    
+    int index = server->arg("index").toInt();
+    int priority = server->arg("priority").toInt();
+    
+    printf("请求更新配置索引 %d 的优先级为 %d\n", index, priority);
+    
+    if (index < 0 || index >= ConfigStorage::MAX_WIFI_CONFIGS) {
+        printf("无效的配置索引: %d\n", index);
+        server->send(400, "application/json", "{\"success\":false,\"message\":\"无效的配置索引\"}");
+        return;
+    }
+    
+    if (priority < 1 || priority > 99) {
+        printf("无效的优先级: %d\n", priority);
+        server->send(400, "application/json", "{\"success\":false,\"message\":\"优先级必须在1-99之间\"}");
+        return;
+    }
+    
+    DynamicJsonDocument doc(256);
+    
+    bool success = configStorage->updateWiFiPriority(index, priority);
+    
+    doc["success"] = success;
+    if (success) {
+        doc["message"] = "WiFi优先级更新成功";
+        printf("WiFi优先级更新成功\n");
+    } else {
+        doc["message"] = "WiFi优先级更新失败";
+        printf("WiFi优先级更新失败\n");
+    }
+    
+    String response;
+    serializeJson(doc, response);
+    server->send(200, "application/json", response);
+}
+
+void WebServerManager::handleSetWiFiPriorities() {
+    printf("处理批量设置WiFi优先级请求\n");
+    
+    if (!server->hasArg("priorities")) {
+        printf("缺少priorities参数\n");
+        server->send(400, "application/json", "{\"success\":false,\"message\":\"缺少priorities参数\"}");
+        return;
+    }
+    
+    String prioritiesStr = server->arg("priorities");
+    printf("接收到优先级数据: %s\n", prioritiesStr.c_str());
+    
+    // 解析JSON格式的优先级数组
+    DynamicJsonDocument requestDoc(512);
+    DeserializationError error = deserializeJson(requestDoc, prioritiesStr);
+    
+    if (error) {
+        printf("JSON解析失败\n");
+        server->send(400, "application/json", "{\"success\":false,\"message\":\"JSON格式错误\"}");
+        return;
+    }
+    
+    if (!requestDoc.is<JsonArray>()) {
+        printf("priorities不是数组格式\n");
+        server->send(400, "application/json", "{\"success\":false,\"message\":\"priorities必须是数组格式\"}");
+        return;
+    }
+    
+    JsonArray priorityArray = requestDoc.as<JsonArray>();
+    if (priorityArray.size() != ConfigStorage::MAX_WIFI_CONFIGS) {
+        printf("优先级数组长度不正确: %d\n", priorityArray.size());
+        server->send(400, "application/json", "{\"success\":false,\"message\":\"优先级数组长度必须为3\"}");
+        return;
+    }
+    
+    int priorities[3];
+    for (int i = 0; i < ConfigStorage::MAX_WIFI_CONFIGS; i++) {
+        priorities[i] = priorityArray[i].as<int>();
+        if (priorities[i] < 1 || priorities[i] > 99) {
+            printf("无效的优先级值: %d\n", priorities[i]);
+            server->send(400, "application/json", "{\"success\":false,\"message\":\"优先级必须在1-99之间\"}");
+            return;
+        }
+        printf("设置配置 %d 优先级为 %d\n", i, priorities[i]);
+    }
+    
+    DynamicJsonDocument doc(256);
+    
+    bool success = configStorage->setWiFiPriorities(priorities);
+    
+    doc["success"] = success;
+    if (success) {
+        doc["message"] = "WiFi优先级批量设置成功";
+        printf("WiFi优先级批量设置成功\n");
+    } else {
+        doc["message"] = "WiFi优先级批量设置失败";
+        printf("WiFi优先级批量设置失败\n");
+    }
+    
+    String response;
+    serializeJson(doc, response);
+    server->send(200, "application/json", response);
 } 

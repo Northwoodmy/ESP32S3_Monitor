@@ -17,6 +17,7 @@ const char* ConfigStorage::WIFI_CONFIGURED_KEY = "configured";
 const char* ConfigStorage::WIFI_COUNT_KEY = "count";
 const char* ConfigStorage::WIFI_SSID_PREFIX = "ssid_";
 const char* ConfigStorage::WIFI_PASSWORD_PREFIX = "pwd_";
+const char* ConfigStorage::WIFI_PRIORITY_PREFIX = "prio_";
 
 const char* ConfigStorage::DEVICE_NAME_KEY = "device_name";
 const char* ConfigStorage::REFRESH_RATE_KEY = "refresh_rate";
@@ -257,15 +258,17 @@ bool ConfigStorage::saveWiFiConfigs(const WiFiConfig configs[3]) {
         if (configs[i].isValid && configs[i].ssid.length() > 0) {
             String ssidKey = getWiFiSSIDKey(savedIndex);
             String passwordKey = getWiFiPasswordKey(savedIndex);
+            String priorityKey = getWiFiPriorityKey(savedIndex);
             
             size_t ssidResult = preferences.putString(ssidKey.c_str(), configs[i].ssid);
             size_t passwordResult = preferences.putString(passwordKey.c_str(), configs[i].password);
+            size_t priorityResult = preferences.putInt(priorityKey.c_str(), configs[i].priority);
             
-            if (ssidResult == 0 || passwordResult == 0) {
+            if (ssidResult == 0 || passwordResult == 0 || priorityResult == 0) {
                 printf("保存WiFi配置 %d 失败\n", savedIndex);
                 success = false;
             } else {
-                printf("保存WiFi配置 %d: SSID=%s\n", savedIndex, configs[i].ssid.c_str());
+                printf("保存WiFi配置 %d: SSID=%s, 优先级=%d\n", savedIndex, configs[i].ssid.c_str(), configs[i].priority);
             }
             savedIndex++;
         }
@@ -307,13 +310,15 @@ bool ConfigStorage::loadWiFiConfigs(WiFiConfig configs[3]) {
     for (int i = 0; i < count && i < MAX_WIFI_CONFIGS; i++) {
         String ssidKey = getWiFiSSIDKey(i);
         String passwordKey = getWiFiPasswordKey(i);
+        String priorityKey = getWiFiPriorityKey(i);
         
         String ssid = preferences.getString(ssidKey.c_str(), "");
         String password = preferences.getString(passwordKey.c_str(), "");
+        int priority = preferences.getInt(priorityKey.c_str(), 99);
         
         if (ssid.length() > 0) {
-            configs[i] = WiFiConfig(ssid, password);
-            printf("加载WiFi配置 %d: SSID=%s\n", i, ssid.c_str());
+            configs[i] = WiFiConfig(ssid, password, priority);
+            printf("加载WiFi配置 %d: SSID=%s, 优先级=%d\n", i, ssid.c_str(), priority);
         } else {
             printf("WiFi配置 %d 为空\n", i);
             success = false;
@@ -321,6 +326,12 @@ bool ConfigStorage::loadWiFiConfigs(WiFiConfig configs[3]) {
     }
     
     preferences.end();
+    
+    // 按优先级排序配置
+    if (success) {
+        sortConfigsByPriority(configs);
+    }
+    
     return success;
 }
 
@@ -347,21 +358,32 @@ bool ConfigStorage::addWiFiConfig(const String& ssid, const String& password) {
         if (configs[i].isValid && configs[i].ssid == ssid) {
             printf("WiFi配置已存在，更新密码\n");
             configs[i].password = password;
+            // 保持原有优先级不变
             return saveWiFiConfigs(configs);
         }
     }
     
+    // 计算新配置的默认优先级（比现有最低优先级低1）
+    int maxPriority = 0;
+    for (int i = 0; i < MAX_WIFI_CONFIGS; i++) {
+        if (configs[i].isValid && configs[i].priority > maxPriority) {
+            maxPriority = configs[i].priority;
+        }
+    }
+    int newPriority = maxPriority + 1;
+    
     // 查找空位置添加新配置
     for (int i = 0; i < MAX_WIFI_CONFIGS; i++) {
         if (!configs[i].isValid) {
-            configs[i] = WiFiConfig(ssid, password);
+            configs[i] = WiFiConfig(ssid, password, newPriority);
+            printf("在位置 %d 添加新WiFi配置，优先级=%d\n", i, newPriority);
             return saveWiFiConfigs(configs);
         }
     }
     
     // 如果没有空位，替换最后一个配置
     printf("WiFi配置已满，替换最后一个配置\n");
-    configs[MAX_WIFI_CONFIGS - 1] = WiFiConfig(ssid, password);
+    configs[MAX_WIFI_CONFIGS - 1] = WiFiConfig(ssid, password, newPriority);
     return saveWiFiConfigs(configs);
 }
 
@@ -387,4 +409,139 @@ String ConfigStorage::getWiFiSSIDKey(int index) {
 
 String ConfigStorage::getWiFiPasswordKey(int index) {
     return String(WIFI_PASSWORD_PREFIX) + String(index);
+}
+
+String ConfigStorage::getWiFiPriorityKey(int index) {
+    return String(WIFI_PRIORITY_PREFIX) + String(index);
+}
+
+// 新增：优先级管理方法实现
+
+bool ConfigStorage::updateWiFiPriority(int index, int priority) {
+    printf("更新WiFi配置 %d 的优先级为 %d\n", index, priority);
+    
+    if (index < 0 || index >= MAX_WIFI_CONFIGS) {
+        printf("无效的配置索引: %d\n", index);
+        return false;
+    }
+    
+    // 加载现有配置
+    WiFiConfig configs[3];
+    if (!loadWiFiConfigs(configs)) {
+        printf("加载WiFi配置失败\n");
+        return false;
+    }
+    
+    if (!configs[index].isValid) {
+        printf("配置 %d 不存在或无效\n", index);
+        return false;
+    }
+    
+    // 自动解决优先级冲突
+    resolveConflictingPriorities(configs, index, priority);
+    
+    // 更新目标配置的优先级
+    configs[index].priority = priority;
+    printf("更新配置 %d (%s) 的优先级为 %d\n", index, configs[index].ssid.c_str(), priority);
+    
+    return saveWiFiConfigs(configs);
+}
+
+bool ConfigStorage::setWiFiPriorities(const int priorities[3]) {
+    printf("批量设置WiFi优先级\n");
+    
+    // 加载现有配置
+    WiFiConfig configs[3];
+    if (!loadWiFiConfigs(configs)) {
+        printf("加载WiFi配置失败\n");
+        return false;
+    }
+    
+    // 逐个更新有效配置的优先级，并解决冲突
+    for (int i = 0; i < MAX_WIFI_CONFIGS; i++) {
+        if (configs[i].isValid) {
+            printf("设置配置 %d (%s) 的优先级为 %d\n", i, configs[i].ssid.c_str(), priorities[i]);
+            
+            // 检查并解决可能的优先级冲突
+            resolveConflictingPriorities(configs, i, priorities[i]);
+            
+            // 设置新的优先级
+            configs[i].priority = priorities[i];
+        }
+    }
+    
+    return saveWiFiConfigs(configs);
+}
+
+void ConfigStorage::sortConfigsByPriority(WiFiConfig configs[3]) {
+    printf("按优先级排序WiFi配置\n");
+    
+    // 使用简单的冒泡排序按优先级排序（优先级数字越小越优先）
+    for (int i = 0; i < MAX_WIFI_CONFIGS - 1; i++) {
+        for (int j = 0; j < MAX_WIFI_CONFIGS - 1 - i; j++) {
+            // 只有两个配置都有效时才比较
+            if (configs[j].isValid && configs[j + 1].isValid) {
+                if (configs[j].priority > configs[j + 1].priority) {
+                    // 交换位置
+                    WiFiConfig temp = configs[j];
+                    configs[j] = configs[j + 1];
+                    configs[j + 1] = temp;
+                    printf("交换配置 %d (%s, 优先级%d) 和配置 %d (%s, 优先级%d)\n", 
+                           j, configs[j + 1].ssid.c_str(), configs[j + 1].priority,
+                           j + 1, configs[j].ssid.c_str(), configs[j].priority);
+                }
+            }
+        }
+    }
+    
+    printf("WiFi配置排序完成\n");
+    for (int i = 0; i < MAX_WIFI_CONFIGS; i++) {
+        if (configs[i].isValid) {
+            printf("排序后配置 %d: %s (优先级 %d)\n", i, configs[i].ssid.c_str(), configs[i].priority);
+        }
+    }
+}
+
+void ConfigStorage::resolveConflictingPriorities(WiFiConfig configs[3], int targetIndex, int newPriority) {
+    printf("解决优先级冲突：目标索引=%d，新优先级=%d\n", targetIndex, newPriority);
+    
+    const int MAX_PRIORITY = 99;  // 最大优先级限制
+    
+    // 检查是否有其他配置使用了相同的优先级
+    for (int i = 0; i < MAX_WIFI_CONFIGS; i++) {
+        if (i != targetIndex && configs[i].isValid && configs[i].priority == newPriority) {
+            printf("发现冲突：配置 %d (%s) 也使用优先级 %d\n", i, configs[i].ssid.c_str(), newPriority);
+            
+            // 为冲突的配置寻找新的优先级（往后退一级）
+            int adjustedPriority = newPriority + 1;
+            
+            // 递归检查调整后的优先级是否也有冲突
+            while (adjustedPriority <= MAX_PRIORITY) {
+                bool hasConflict = false;
+                for (int j = 0; j < MAX_WIFI_CONFIGS; j++) {
+                    if (j != i && j != targetIndex && configs[j].isValid && configs[j].priority == adjustedPriority) {
+                        hasConflict = true;
+                        break;
+                    }
+                }
+                
+                if (!hasConflict) {
+                    // 找到可用的优先级
+                    configs[i].priority = adjustedPriority;
+                    printf("调整配置 %d (%s) 的优先级从 %d 改为 %d\n", i, configs[i].ssid.c_str(), newPriority, adjustedPriority);
+                    break;
+                } else {
+                    adjustedPriority++;
+                }
+            }
+            
+            // 如果调整后的优先级超出最大值，报警但仍然设置
+            if (adjustedPriority > MAX_PRIORITY) {
+                configs[i].priority = MAX_PRIORITY;
+                printf("警告：配置 %d (%s) 的优先级已达到最大值 %d\n", i, configs[i].ssid.c_str(), MAX_PRIORITY);
+            }
+        }
+    }
+    
+    printf("优先级冲突解决完成\n");
 } 

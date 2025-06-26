@@ -63,6 +63,8 @@ private:
     void handleGetWiFiConfigs();
     void handleDeleteWiFiConfig();
     void handleConnectWiFiConfig();
+    void handleUpdateWiFiPriority();
+    void handleSetWiFiPriorities();
     
     // OTA升级相关API
     void handleOTAUpload();

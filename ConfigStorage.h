@@ -13,10 +13,11 @@
 struct WiFiConfig {
     String ssid;
     String password;
+    int priority;  // 优先级，1最高，数字越小优先级越高
     bool isValid;
     
-    WiFiConfig() : ssid(""), password(""), isValid(false) {}
-    WiFiConfig(const String& s, const String& p) : ssid(s), password(p), isValid(true) {}
+    WiFiConfig() : ssid(""), password(""), priority(99), isValid(false) {}
+    WiFiConfig(const String& s, const String& p, int prio = 99) : ssid(s), password(p), priority(prio), isValid(true) {}
 };
 
 class ConfigStorage {
@@ -33,6 +34,12 @@ public:
     int getWiFiConfigCount();
     bool addWiFiConfig(const String& ssid, const String& password);
     void clearAllWiFiConfigs();
+    
+    // 优先级管理新功能
+    bool updateWiFiPriority(int index, int priority);
+    bool setWiFiPriorities(const int priorities[3]);
+    void sortConfigsByPriority(WiFiConfig configs[3]);
+    void resolveConflictingPriorities(WiFiConfig configs[3], int targetIndex, int newPriority);  // 新增：解决优先级冲突
     
     // 兼容性方法 (保持向后兼容)
     bool saveWiFiConfig(const String& ssid, const String& password);
@@ -67,6 +74,7 @@ private:
     static const char* WIFI_COUNT_KEY;
     static const char* WIFI_SSID_PREFIX;
     static const char* WIFI_PASSWORD_PREFIX;
+    static const char* WIFI_PRIORITY_PREFIX;  // 新增：优先级前缀
     
     // 系统配置键名
     static const char* DEVICE_NAME_KEY;
@@ -75,6 +83,7 @@ private:
     // 内部辅助方法
     String getWiFiSSIDKey(int index);
     String getWiFiPasswordKey(int index);
+    String getWiFiPriorityKey(int index);  // 新增：获取优先级键名
 };
 
 #endif // CONFIGSTORAGE_H 

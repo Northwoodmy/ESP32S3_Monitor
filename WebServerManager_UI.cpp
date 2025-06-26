@@ -100,7 +100,7 @@ String WebServerManager::getIndexHTML() {
     html += "                    </div>\n";
     html += "                    <div class=\"info-item\">\n";
     html += "                        <span class=\"label\">固件版本:</span>\n";
-    html += "                        <span class=\"value\" id=\"firmwareVersion\">v3.3.29</span>\n";
+    html += "                        <span class=\"value\" id=\"firmwareVersion\">v3.4.1</span>\n";
     html += "                    </div>\n";
     html += "                    <div class=\"info-item\">\n";
     html += "                        <span class=\"label\">CPU频率:</span>\n";
@@ -551,6 +551,9 @@ String WebServerManager::getCSS() {
         
         .saved-wifi-info {
             flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
         }
         
         .saved-wifi-name {
@@ -558,6 +561,12 @@ String WebServerManager::getCSS() {
             color: #1f2937;
             font-size: 1.2rem;
             line-height: 1.4;
+        }
+        
+        .saved-wifi-priority {
+            color: #6b7280;
+            font-size: 0.875rem;
+            font-weight: 500;
         }
         
         .saved-wifi-details {
@@ -569,6 +578,46 @@ String WebServerManager::getCSS() {
             display: flex;
             align-items: center;
             gap: 12px;
+            flex-wrap: wrap;
+        }
+        
+        .priority-controls {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-right: 8px;
+            background: #f3f4f6;
+            padding: 6px 10px;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+        }
+        
+        .priority-controls label {
+            font-size: 0.875rem;
+            color: #6b7280;
+            font-weight: 500;
+            margin: 0;
+        }
+        
+        .priority-select {
+            padding: 4px 8px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            background: white;
+            min-width: 50px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .priority-select:hover {
+            border-color: #3b82f6;
+        }
+        
+        .priority-select:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
         }
         
         .delete-btn, .connect-btn-small {
@@ -1494,15 +1543,28 @@ String WebServerManager::getJavaScript() {
     js += "        savedWiFiList.innerHTML = '<div class=\"empty-wifi-message\">暂无保存的WiFi配置<br><small>连接新的WiFi网络后会自动保存</small></div>';\n";
     js += "        return;\n";
     js += "    }\n";
+    js += "    \n";
+    js += "    // 按优先级排序配置\n";
+    js += "    configs.sort((a, b) => a.priority - b.priority);\n";
+    js += "    \n";
     js += "    let html = '';\n";
     js += "    for (let i = 0; i < configs.length; i++) {\n";
     js += "        const config = configs[i];\n";
     js += "        html += '<div class=\"saved-wifi-item\">';\n";
     js += "        html += '<div class=\"saved-wifi-info\">';\n";
     js += "        html += '<div class=\"saved-wifi-name\">' + config.ssid + '</div>';\n";
+    js += "        html += '<div class=\"saved-wifi-priority\">优先级: ' + config.priority + '</div>';\n";
     js += "        html += '</div>';\n";
     js += "        html += '<div class=\"saved-wifi-actions\">';\n";
-    js += "        html += '<span class=\"priority-badge\">优先级 ' + (i + 1) + '</span>';\n";
+    js += "        html += '<div class=\"priority-controls\">';\n";
+    js += "        html += '<label>优先级:</label>';\n";
+    js += "        html += '<select class=\"priority-select\" onchange=\"updateWiFiPriority(' + config.index + ', this.value)\" id=\"priority_' + config.index + '\">';\n";
+    js += "        for (let p = 1; p <= 10; p++) {\n";
+    js += "            const selected = p === config.priority ? 'selected' : '';\n";
+    js += "            html += '<option value=\"' + p + '\" ' + selected + '>' + p + '</option>';\n";
+    js += "        }\n";
+    js += "        html += '</select>';\n";
+    js += "        html += '</div>';\n";
     js += "        html += '<button class=\"connect-btn-small\" onclick=\"connectWiFiConfig(' + config.index + ')\" id=\"connectBtn_' + config.index + '\">';\n";
     js += "        html += '连接';\n";
     js += "        html += '</button>';\n";
@@ -1585,6 +1647,50 @@ String WebServerManager::getJavaScript() {
     js += "    }\n";
     js += "}\n\n";
     
+    js += "async function updateWiFiPriority(index, priority) {\n";
+    js += "    console.log('更新WiFi配置', index, '的优先级为', priority);\n";
+    js += "    \n";
+    js += "    if (priority < 1 || priority > 10) {\n";
+    js += "        showToast('优先级必须在1-10之间', 'error');\n";
+    js += "        return;\n";
+    js += "    }\n";
+    js += "    \n";
+    js += "    try {\n";
+    js += "        const formData = new FormData();\n";
+    js += "        formData.append('index', index);\n";
+    js += "        formData.append('priority', priority);\n";
+    js += "        \n";
+    js += "        const response = await fetch('/update-wifi-priority', {\n";
+    js += "            method: 'POST',\n";
+    js += "            body: formData\n";
+    js += "        });\n";
+    js += "        \n";
+    js += "        const data = await response.json();\n";
+    js += "        \n";
+    js += "        if (data.success) {\n";
+    js += "            showToast('WiFi优先级更新成功', 'success');\n";
+    js += "            // 刷新WiFi配置列表\n";
+    js += "            setTimeout(async () => {\n";
+    js += "                await loadSavedWiFiConfigs();\n";
+    js += "            }, 500);\n";
+    js += "        } else {\n";
+    js += "            showToast(data.message || 'WiFi优先级更新失败', 'error');\n";
+    js += "            // 恢复原来的选择\n";
+    js += "            const select = document.getElementById('priority_' + index);\n";
+    js += "            if (select) {\n";
+    js += "                select.selectedIndex = 0; // 恢复到第一个选项\n";
+    js += "            }\n";
+    js += "        }\n";
+    js += "    } catch (error) {\n";
+    js += "        console.error('更新WiFi优先级失败:', error);\n";
+    js += "        showToast('更新WiFi优先级失败', 'error');\n";
+    js += "        // 恢复原来的选择\n";
+    js += "        const select = document.getElementById('priority_' + index);\n";
+    js += "        if (select) {\n";
+    js += "            select.selectedIndex = 0; // 恢复到第一个选项\n";
+    js += "        }\n";
+    js += "    }\n";
+    js += "}\n\n";
 
 
     

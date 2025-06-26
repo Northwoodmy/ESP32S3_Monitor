@@ -1,11 +1,12 @@
 /*
  * ESP32S3监控项目 - WiFi配置管理器
- * 版本: v3.3.29
+ * 版本: v3.4.1
  * 作者: ESP32S3_Monitor
  * 日期: 2024
  * 
  * 功能说明:
  * - WiFi自动配置和管理
+ * - 用户自定义优先级设置
  * - 现代化Web配置界面
  * - NVS存储WiFi信息
  * - 系统状态监控
@@ -41,7 +42,7 @@ FileManager fileManager;
 void setup() {
   
       printf("=== ESP32S3 WiFi配置管理器启动 ===\n");
-    printf("版本: v3.3.29\n");
+    printf("版本: v3.4.1\n");
     printf("编译时间: %s %s\n", __DATE__, __TIME__);
   
   // 初始化配置存储
