@@ -1221,8 +1221,8 @@ String WebServerManager::getFileManagerHTML() {
     
     html += "<div class='container'>";
     html += "<div class='header'>";
-    html += "<h1>文件管理器</h1>";
-    html += "<div class='subtitle'>ESP32S3 Monitor - 文件系统管理</div>";
+    html += "<h1>小屏幕配置</h1>";
+    html += "<div class='subtitle'>文件管理器</div>";
     html += "</div>";
     
     html += "<div class='action-buttons'>";

@@ -180,7 +180,8 @@ String WebServerManager::getOTAPageHTML() {
     html += "<body>\n";
     html += "    <div class=\"container\">\n";
     html += "        <header class=\"header\">\n";
-    html += "            <h1>固件升级</h1>\n";
+    html += "            <h1>小屏幕配置</h1>\n";
+    html += "            <div class=\"subtitle\">固件升级</div>\n";
     html += "        </header>\n";
             html += "        \n";
     html += "        <div class=\"card\">\n";
