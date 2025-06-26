@@ -100,7 +100,7 @@ String WebServerManager::getIndexHTML() {
     html += "                    </div>\n";
     html += "                    <div class=\"info-item\">\n";
     html += "                        <span class=\"label\">固件版本:</span>\n";
-    html += "                        <span class=\"value\" id=\"firmwareVersion\">v3.3.0</span>\n";
+    html += "                        <span class=\"value\" id=\"firmwareVersion\">v3.3.26</span>\n";
     html += "                    </div>\n";
     html += "                    <div class=\"info-item\">\n";
     html += "                        <span class=\"label\">CPU频率:</span>\n";
@@ -1497,10 +1497,9 @@ String WebServerManager::getJavaScript() {
     js += "        html += '<div class=\"saved-wifi-item\">';\n";
     js += "        html += '<div class=\"saved-wifi-info\">';\n";
     js += "        html += '<div class=\"saved-wifi-ssid\">' + config.ssid + '</div>';\n";
-    js += "        html += '<div class=\"saved-wifi-details\">';\n";
-    js += "        html += '<span class=\"priority-badge\">优先级 ' + (i + 1) + '</span>';\n";
-    js += "        html += '<span style=\"margin-left: 10px;\">密码: ' + config.password + '</span>';\n";
-    js += "        html += '</div>';\n";
+            js += "        html += '<div class=\"saved-wifi-details\">';\n";
+        js += "        html += '<span class=\"priority-badge\">优先级 ' + (i + 1) + '</span>';\n";
+        js += "        html += '</div>';\n";
     js += "        html += '</div>';\n";
     js += "        html += '<div class=\"saved-wifi-actions\">';\n";
     js += "        html += '<button class=\"connect-btn-small\" onclick=\"connectWiFiConfig(' + config.index + ')\" id=\"connectBtn_' + config.index + '\">';\n";
