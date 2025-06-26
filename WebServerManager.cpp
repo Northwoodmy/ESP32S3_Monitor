@@ -149,10 +149,11 @@ void WebServerManager::handleSystemInfo() {
     
     DynamicJsonDocument doc(1024);
     doc["device"] = "ESP32S3 Monitor";
-    doc["version"] = "v2.0.0";
+    doc["version"] = "v2.0.1";
     doc["chipModel"] = ESP.getChipModel();
     doc["chipRevision"] = ESP.getChipRevision();
     doc["cpuFreq"] = ESP.getCpuFreqMHz();
+    doc["flashSize"] = ESP.getFlashChipSize();
     doc["freeHeap"] = ESP.getFreeHeap();
     doc["totalHeap"] = ESP.getHeapSize();
     doc["uptime"] = millis();
