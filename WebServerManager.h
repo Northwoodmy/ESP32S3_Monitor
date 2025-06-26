@@ -57,6 +57,7 @@ private:
     // 多WiFi配置API
     void handleGetWiFiConfigs();
     void handleDeleteWiFiConfig();
+    void handleConnectWiFiConfig();
     
     // 获取主页HTML
     String getIndexHTML();

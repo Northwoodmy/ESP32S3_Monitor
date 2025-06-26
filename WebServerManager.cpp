@@ -43,6 +43,7 @@ void WebServerManager::init() {
     server->on("/status", [this]() { handleGetStatus(); });
     server->on("/wifi-configs", [this]() { handleGetWiFiConfigs(); });
     server->on("/wifi-configs", HTTP_DELETE, [this]() { handleDeleteWiFiConfig(); });
+    server->on("/connect-wifi", HTTP_POST, [this]() { handleConnectWiFiConfig(); });
     server->onNotFound([this]() { handleNotFound(); });
     
     printf("Web服务器路由配置完成\n");
@@ -152,7 +153,7 @@ void WebServerManager::handleSystemInfo() {
     
     DynamicJsonDocument doc(1024);
     doc["device"] = "ESP32S3 Monitor";
-    doc["version"] = "v3.0.0";
+    doc["version"] = "v3.0.1";
     doc["chipModel"] = ESP.getChipModel();
     doc["chipRevision"] = ESP.getChipRevision();
     doc["cpuFreq"] = ESP.getCpuFreqMHz();
@@ -359,6 +360,54 @@ void WebServerManager::handleDeleteWiFiConfig() {
         } else {
             doc["success"] = false;
             doc["message"] = "指定的配置不存在";
+        }
+    } else {
+        doc["success"] = false;
+        doc["message"] = "加载WiFi配置失败";
+    }
+    
+    String response;
+    serializeJson(doc, response);
+    server->send(200, "application/json", response);
+}
+
+void WebServerManager::handleConnectWiFiConfig() {
+    printf("处理手动连接WiFi配置请求\n");
+    
+    if (!server->hasArg("index")) {
+        server->send(400, "application/json", "{\"success\":false,\"message\":\"缺少index参数\"}");
+        return;
+    }
+    
+    int index = server->arg("index").toInt();
+    
+    if (index < 0 || index >= ConfigStorage::MAX_WIFI_CONFIGS) {
+        server->send(400, "application/json", "{\"success\":false,\"message\":\"无效的配置索引\"}");
+        return;
+    }
+    
+    DynamicJsonDocument doc(256);
+    
+    // 加载WiFi配置
+    WiFiConfig configs[3];
+    if (configStorage->loadWiFiConfigs(configs)) {
+        if (configs[index].isValid && configs[index].ssid.length() > 0) {
+            printf("手动连接WiFi配置 %d: %s\n", index, configs[index].ssid.c_str());
+            
+            // 尝试连接指定的WiFi配置
+            bool connected = wifiManager->tryConnectToConfig(configs[index], 20);
+            
+            doc["success"] = connected;
+            if (connected) {
+                doc["message"] = "WiFi连接成功";
+                doc["ssid"] = configs[index].ssid;
+                doc["ip"] = wifiManager->getLocalIP();
+            } else {
+                doc["message"] = "WiFi连接失败，请检查网络状态";
+            }
+        } else {
+            doc["success"] = false;
+            doc["message"] = "指定的配置不存在或无效";
         }
     } else {
         doc["success"] = false;

@@ -433,20 +433,38 @@ String WebServerManager::getCSS() {
             gap: 8px;
         }
         
-        .delete-btn {
-            background: #ef4444;
-            color: white;
+        .delete-btn, .connect-btn-small {
             border: none;
             padding: 8px 12px;
             border-radius: 8px;
             font-size: 0.875rem;
             cursor: pointer;
             transition: all 0.2s ease;
+            color: white;
+        }
+        
+        .delete-btn {
+            background: #ef4444;
         }
         
         .delete-btn:hover {
             background: #dc2626;
             transform: translateY(-1px);
+        }
+        
+        .connect-btn-small {
+            background: #10b981;
+        }
+        
+        .connect-btn-small:hover {
+            background: #059669;
+            transform: translateY(-1px);
+        }
+        
+        .connect-btn-small:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
         }
         
         .priority-badge {
@@ -1065,6 +1083,9 @@ String WebServerManager::getJavaScript() {
     js += "        html += '</div>';\n";
     js += "        html += '</div>';\n";
     js += "        html += '<div class=\"saved-wifi-actions\">';\n";
+    js += "        html += '<button class=\"connect-btn-small\" onclick=\"connectWiFiConfig(' + config.index + ')\" id=\"connectBtn_' + config.index + '\">';\n";
+    js += "        html += '连接';\n";
+    js += "        html += '</button>';\n";
     js += "        html += '<button class=\"delete-btn\" onclick=\"deleteWiFiConfig(' + config.index + ')\">';\n";
     js += "        html += '删除';\n";
     js += "        html += '</button>';\n";
@@ -1095,6 +1116,45 @@ String WebServerManager::getJavaScript() {
     js += "    } catch (error) {\n";
     js += "        console.error('删除WiFi配置失败:', error);\n";
     js += "        showToast('删除WiFi配置失败', 'error');\n";
+    js += "    }\n";
+    js += "}\n\n";
+    
+    js += "async function connectWiFiConfig(index) {\n";
+    js += "    const connectBtn = document.getElementById('connectBtn_' + index);\n";
+    js += "    if (!connectBtn) return;\n";
+    js += "    \n";
+    js += "    // 禁用所有连接按钮\n";
+    js += "    const allConnectBtns = document.querySelectorAll('.connect-btn-small');\n";
+    js += "    for (let i = 0; i < allConnectBtns.length; i++) {\n";
+    js += "        allConnectBtns[i].disabled = true;\n";
+    js += "    }\n";
+    js += "    \n";
+    js += "    connectBtn.textContent = '连接中...';\n";
+    js += "    \n";
+    js += "    try {\n";
+    js += "        const formData = new FormData();\n";
+    js += "        formData.append('index', index);\n";
+    js += "        const response = await fetch('/connect-wifi', { method: 'POST', body: formData });\n";
+    js += "        const data = await response.json();\n";
+    js += "        \n";
+    js += "        if (data.success) {\n";
+    js += "            showToast('WiFi连接成功！IP: ' + data.ip, 'success');\n";
+    js += "            setTimeout(() => {\n";
+    js += "                updateStatus();\n";
+    js += "                loadSavedWiFiConfigs();\n";
+    js += "            }, 2000);\n";
+    js += "        } else {\n";
+    js += "            showToast(data.message || 'WiFi连接失败', 'error');\n";
+    js += "        }\n";
+    js += "    } catch (error) {\n";
+    js += "        console.error('连接WiFi配置失败:', error);\n";
+    js += "        showToast('连接WiFi配置失败', 'error');\n";
+    js += "    } finally {\n";
+    js += "        // 恢复所有连接按钮\n";
+    js += "        for (let i = 0; i < allConnectBtns.length; i++) {\n";
+    js += "            allConnectBtns[i].disabled = false;\n";
+    js += "            allConnectBtns[i].textContent = '连接';\n";
+    js += "        }\n";
     js += "    }\n";
     js += "}\n\n";
     
