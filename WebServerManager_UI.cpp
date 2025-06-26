@@ -182,12 +182,11 @@ String WebServerManager::getOTAPageHTML() {
     html += "        <header class=\"header\">\n";
     html += "            <h1>固件升级</h1>\n";
     html += "        </header>\n";
-    html += "        \n";
-    html += "        <nav class=\"breadcrumb\">\n";
-    html += "            <a href=\"/\">首页</a> / 固件升级\n";
-    html += "        </nav>\n";
-    html += "        \n";
+            html += "        \n";
     html += "        <div class=\"card\">\n";
+    html += "            <button onclick=\"window.location.href='/'\" class=\"back-home-btn\">\n";
+    html += "                返回首页\n";
+    html += "            </button>\n";
     html += "            <div class=\"ota-section\">\n";
     html += "                <div class=\"ota-info\">\n";
     html += "                    <p class=\"info-text\">请选择.bin固件文件进行升级</p>\n";
@@ -241,13 +240,7 @@ String WebServerManager::getOTAPageHTML() {
     html += "                        </button>\n";
     html += "                    </div>\n";
     html += "                </div>\n";
-    html += "            </div>\n";
-    html += "            \n";
-    html += "            <div class=\"action-buttons\">\n";
-    html += "                <button onclick=\"window.location.href='/'\" class=\"primary-btn\">\n";
-    html += "                    返回首页\n";
-    html += "                </button>\n";
-    html += "            </div>\n";
+                html += "            </div>\n";
     html += "        </div>\n";
     html += "    </div>\n";
     html += "    \n";
@@ -296,8 +289,35 @@ String WebServerManager::getCSS() {
         .header h1 {
             font-size: 2.5rem;
             font-weight: 700;
-            margin-bottom: 10px;
+            margin: 0;
             text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .back-home-btn {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            white-space: nowrap;
+            z-index: 10;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+        }
+        
+        .back-home-btn:hover {
+            background: linear-gradient(135deg, #2563eb, #1e40af);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4);
         }
         
         .subtitle {
@@ -306,9 +326,11 @@ String WebServerManager::getCSS() {
         }
         
         .card {
+            position: relative;
             background: white;
             border-radius: 16px;
             padding: 24px;
+            padding-top: 70px;
             margin-bottom: 24px;
             box-shadow: 0 8px 32px rgba(0,0,0,0.1);
             backdrop-filter: blur(10px);
@@ -876,15 +898,22 @@ String WebServerManager::getCSS() {
         }
         
         .btn-loading {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
         
         .btn-loading .spinner-sm {
             border-color: rgba(255,255,255,0.3);
             border-top-color: white;
+        }
+        
+        .btn-loading.absolute {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
         }
         
         /* OTA升级相关样式 */
@@ -1038,6 +1067,7 @@ String WebServerManager::getCSS() {
         .result-success {
             background: #f0fdf4;
             border: 2px solid #22c55e;
+            border-radius: 12px;
         }
         
         .result-success h3 {
@@ -1053,6 +1083,7 @@ String WebServerManager::getCSS() {
         .result-error {
             background: #fef2f2;
             border: 2px solid #ef4444;
+            border-radius: 12px;
         }
         
         .result-error h3 {
@@ -1106,23 +1137,26 @@ String WebServerManager::getCSS() {
             .action-buttons {
                 flex-direction: column;
             }
-        }
             
-        /* 面包屑导航样式 */
-        .breadcrumb {
-            margin: 0 0 24px 0;
-            color: rgba(255,255,255,0.8);
-            font-size: 0.9rem;
-        }
-        
-        .breadcrumb a {
-            color: rgba(255,255,255,0.9);
-            text-decoration: none;
-            transition: color 0.3s ease;
-        }
-        
-        .breadcrumb a:hover {
-            color: white;
+            .container {
+                padding: 16px;
+            }
+            
+            .card {
+                padding: 20px;
+                padding-top: 60px;
+            }
+            
+            .back-home-btn {
+                top: 12px;
+                right: 12px;
+                font-size: 0.9rem;
+                padding: 10px 16px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
         }
         )";
     }
@@ -1619,8 +1653,11 @@ String WebServerManager::getOTAJavaScript() {
     js += "    if (!selectedFile) { showToast('请先选择固件文件', 'error'); return; }\n";
     js += "    const uploadBtn = document.getElementById('uploadBtn');\n";
     js += "    uploadBtn.disabled = true;\n";
-    js += "    uploadBtn.querySelector('.btn-text').textContent = '升级中...';\n";
-    js += "    uploadBtn.querySelector('.btn-loading').classList.remove('hidden');\n";
+    js += "    // 隐藏按钮文字，显示loading状态\n";
+    js += "    uploadBtn.querySelector('.btn-text').style.display = 'none';\n";
+    js += "    const btnLoading = uploadBtn.querySelector('.btn-loading');\n";
+    js += "    btnLoading.classList.remove('hidden');\n";
+    js += "    btnLoading.innerHTML = '<div class=\"spinner-sm\"></div><span>升级中...</span>';\n";
     js += "    document.getElementById('otaProgress').classList.remove('hidden');\n";
     js += "    // 初始化进度显示\n";
     js += "    document.getElementById('progressSize').textContent = '0 / ' + formatBytes(selectedFile.size);\n";
@@ -1690,9 +1727,16 @@ String WebServerManager::getOTAJavaScript() {
     js += "    selectedFile = null;\n";
     js += "    document.getElementById('firmwareFile').value = '';\n";
     js += "    document.getElementById('fileInfo').classList.add('hidden');\n";
-    js += "    document.getElementById('uploadBtn').disabled = true;\n";
+    js += "    const uploadBtn = document.getElementById('uploadBtn');\n";
+    js += "    uploadBtn.disabled = true;\n";
+    js += "    // 恢复按钮原始状态\n";
+    js += "    uploadBtn.querySelector('.btn-text').style.display = '';\n";
+    js += "    uploadBtn.querySelector('.btn-text').textContent = '选择文件开始升级';\n";
+    js += "    uploadBtn.querySelector('.btn-loading').classList.add('hidden');\n";
     js += "    document.getElementById('otaProgress').classList.add('hidden');\n";
     js += "    document.getElementById('otaResult').classList.add('hidden');\n";
+    js += "    document.getElementById('successResult').classList.add('hidden');\n";
+    js += "    document.getElementById('errorResult').classList.add('hidden');\n";
     js += "    if (otaStatusInterval) clearInterval(otaStatusInterval);\n";
     js += "}\n\n";
     
