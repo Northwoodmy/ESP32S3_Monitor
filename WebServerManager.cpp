@@ -36,6 +36,7 @@ void WebServerManager::init() {
     // 设置路由处理函数
     server->on("/", [this]() { handleRoot(); });
     server->on("/config", [this]() { handleWiFiConfig(); });
+    server->on("/ota", [this]() { handleOTAPage(); });
     server->on("/scan", [this]() { handleWiFiScan(); });
     server->on("/info", [this]() { handleSystemInfo(); });
     server->on("/restart", [this]() { handleRestart(); });
@@ -151,6 +152,11 @@ void WebServerManager::handleWiFiConfig() {
     server->send(200, "text/html", getIndexHTML());
 }
 
+void WebServerManager::handleOTAPage() {
+    printf("处理OTA页面请求\n");
+    server->send(200, "text/html", getOTAPageHTML());
+}
+
 void WebServerManager::handleWiFiScan() {
     printf("处理WiFi扫描请求\n");
     
@@ -177,7 +183,7 @@ void WebServerManager::handleSystemInfo() {
     
     DynamicJsonDocument doc(1024);
     doc["device"] = "ESP32S3 Monitor";
-    doc["version"] = "v3.3.13";
+    doc["version"] = "v3.3.14";
     doc["chipModel"] = ESP.getChipModel();
     doc["chipRevision"] = ESP.getChipRevision();
     doc["cpuFreq"] = ESP.getCpuFreqMHz();

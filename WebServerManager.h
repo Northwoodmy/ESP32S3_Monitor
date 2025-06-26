@@ -47,6 +47,7 @@ private:
     // HTTP处理函数
     void handleRoot();
     void handleWiFiConfig();
+    void handleOTAPage();
     void handleWiFiScan();
     void handleSystemInfo();
     void handleRestart();
@@ -86,11 +87,17 @@ private:
     // 获取文件管理器HTML
     String getFileManagerHTML();
     
+    // 获取OTA升级页面HTML
+    String getOTAPageHTML();
+    
     // 获取CSS样式
     String getCSS();
     
     // 获取JavaScript代码
     String getJavaScript();
+    
+    // 获取OTA JavaScript代码
+    String getOTAJavaScript();
 };
 
 #endif // WEBSERVERMANAGER_H 
