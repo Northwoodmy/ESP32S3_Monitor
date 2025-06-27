@@ -33,6 +33,11 @@ public:
     void clearBrightnessFlag();
     bool isRunning();
     
+    // 新增功能函数
+    void updateDisplayText(const char* title, const char* status);
+    void simulateTouch(int16_t x, int16_t y);
+    void resetUI();
+    
 private:
     // 内部变量
     int brightness;
@@ -60,6 +65,9 @@ extern "C" {
     void Pure_LVGL_Init(void);
     void Pure_LVGL_Loop(void);
     void Create_Test_UI(void);
+    
+    // 触摸输入函数
+    void setTouchPoint(int16_t x, int16_t y, bool pressed);
 }
 
 // ====================================================================

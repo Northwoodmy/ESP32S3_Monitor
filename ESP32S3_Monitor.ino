@@ -1,6 +1,6 @@
 /*
  * ESP32S3监控项目 - WiFi配置管理器
- * 版本: v3.5.0
+ * 版本: v3.6.0
  * 作者: ESP32S3_Monitor
  * 日期: 2024
  * 
@@ -36,15 +36,8 @@
 // 外部变量声明
 extern LVGLDriver* lvglDriver;
 
-// LVGL任务函数
-void lvglTask(void* parameter) {
-  printf("LVGL任务开始运行\n");
-  
-  while (true) {
-    Pure_LVGL_Loop();
-    vTaskDelay(pdMS_TO_TICKS(5)); // 5ms延时
-  }
-}
+// LVGL驱动实例
+LVGLDriver lvglDriverInstance;
 
 // 全局实例
 Monitor monitor;
@@ -53,13 +46,12 @@ WiFiManager wifiManager;
 WebServerManager* webServerManager;
 OTAManager otaManager;
 FileManager fileManager;
-// LVGLDriver* lvglDriver; // 已在LVGL_Driver.cpp中定义，这里使用extern声明
 
 void setup() {
   
-      printf("=== ESP32S3 WiFi配置管理器启动 ===\n");
-    printf("版本: v3.5.0\n");
-    printf("编译时间: %s %s\n", __DATE__, __TIME__);
+  printf("=== ESP32S3 WiFi配置管理器启动 ===\n");
+  printf("版本: v3.6.0\n");
+  printf("编译时间: %s %s\n", __DATE__, __TIME__);
   
   // 初始化配置存储
   printf("\n初始化系统组件...\n");
@@ -68,33 +60,31 @@ void setup() {
   // 初始化WiFi管理器
   wifiManager.init();
   
+  // 初始化LVGL驱动系统
+  printf("开始LVGL驱动系统初始化...\n");
+  lvglDriverInstance.init();
+  
+  // 启动LVGL驱动任务  
+  printf("启动LVGL驱动任务...\n");
+  lvglDriverInstance.start();
+  
+  printf("LVGL驱动系统初始化完成\n");
+
   // 初始化OTA管理器
   otaManager.init();
   
   // 初始化文件管理器
   fileManager.init();
   
-  // 初始化完整LVGL系统
-  printf("开始LVGL系统初始化...\n");
-  Pure_LVGL_Init();
+  // 初始化LVGL驱动系统
+  printf("开始LVGL驱动系统初始化...\n");
+  lvglDriverInstance.init();
   
-  // 创建测试UI界面
-  printf("创建LVGL测试界面...\n");
-  Create_Test_UI();
+  // 启动LVGL驱动任务  
+  printf("启动LVGL驱动任务...\n");
+  lvglDriverInstance.start();
   
-  // 创建LVGL任务
-  printf("创建LVGL运行任务...\n");
-  xTaskCreatePinnedToCore(
-    lvglTask,           // 任务函数
-    "LVGL_Task",        // 任务名称
-    8192,               // 堆栈大小
-    NULL,               // 参数
-    2,                  // 优先级
-    NULL,               // 任务句柄
-    1                   // 运行在核心1
-  );
-  
-  printf("LVGL系统初始化完成\n");
+  printf("LVGL驱动系统初始化完成\n");
   
   // 创建Web服务器管理器实例
   webServerManager = new WebServerManager(&wifiManager, &configStorage, &otaManager, &fileManager);
