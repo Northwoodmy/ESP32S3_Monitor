@@ -87,14 +87,15 @@ void WebServerManager::start() {
     server->begin();
     isRunning = true;
     
-    // 创建服务器处理任务
-    BaseType_t result = xTaskCreate(
+    // 创建服务器处理任务（运行在核心0）
+    BaseType_t result = xTaskCreatePinnedToCore(
         serverTask,
         "WebServerTask",
         4096,
         this,
         2,
-        &serverTaskHandle
+        &serverTaskHandle,
+        0                   // 运行在核心0
     );
     
     if (result == pdPASS) {
@@ -185,7 +186,7 @@ void WebServerManager::handleSystemInfo() {
     
     DynamicJsonDocument doc(1024);
     doc["device"] = "ESP32S3 Monitor";
-    doc["version"] = "v3.4.1";
+    doc["version"] = "v3.6.1";
     doc["chipModel"] = ESP.getChipModel();
     doc["chipRevision"] = ESP.getChipRevision();
     doc["cpuFreq"] = ESP.getCpuFreqMHz();

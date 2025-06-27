@@ -24,15 +24,16 @@ void Monitor::init() {
     // 先设置运行标志，避免竞态条件
     isRunning = true;
     
-    // 创建Hello World输出任务
+    // 创建Hello World输出任务（运行在核心0）
     // 任务优先级设置为2，栈大小2048字节
-    BaseType_t result = xTaskCreate(
+    BaseType_t result = xTaskCreatePinnedToCore(
         helloWorldTask,         // 任务函数
         "HelloWorldTask",       // 任务名称
         2048,                   // 栈大小
         this,                   // 传递给任务的参数
         2,                      // 任务优先级
-        &helloTaskHandle        // 任务句柄
+        &helloTaskHandle,       // 任务句柄
+        0                       // 运行在核心0
     );
     
     if (result == pdPASS) {

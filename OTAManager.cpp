@@ -269,14 +269,15 @@ String OTAManager::getStatusJSON() const {
 void OTAManager::rebootDevice() {
     printf("设备将在3秒后重启...\n");
     
-    // 创建重启任务
-    xTaskCreate(
+    // 创建重启任务（运行在核心0）
+    xTaskCreatePinnedToCore(
         rebootTask,
         "RebootTask",
         2048,
         nullptr,
         1,
-        nullptr
+        nullptr,
+        0           // 运行在核心0
     );
 }
 

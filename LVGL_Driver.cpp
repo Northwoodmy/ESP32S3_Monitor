@@ -199,7 +199,7 @@ void Create_Test_UI(void) {
   
   // 创建版本信息标签
   lv_obj_t* version_label = lv_label_create(lv_scr_act());
-  lv_label_set_text(version_label, "Version: v3.6.0\nLVGL Display System\nC++ Modular Design");
+  lv_label_set_text(version_label, "Version: v3.6.1\nLVGL Display System\nC++ Modular Design");
   lv_obj_set_style_text_color(version_label, lv_color_hex(0x00FF00), LV_PART_MAIN);
   lv_obj_set_style_text_align(version_label, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
   lv_obj_align(version_label, LV_ALIGN_CENTER, 0, -20);

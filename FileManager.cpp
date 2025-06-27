@@ -397,14 +397,15 @@ bool FileManager::startFormatFileSystem() {
     formatting = true;
     formatResult = false;
     
-    // 创建格式化任务
-    BaseType_t result = xTaskCreate(
+    // 创建格式化任务（运行在核心0）
+    BaseType_t result = xTaskCreatePinnedToCore(
         formatTask,
         "FormatTask",
         4096,  // 栈大小
         this,  // 参数
         1,     // 低优先级，避免影响其他任务
-        &formatTaskHandle
+        &formatTaskHandle,
+        0      // 运行在核心0
     );
     
     if (result == pdPASS) {

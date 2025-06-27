@@ -40,15 +40,16 @@ void WiFiManager::init() {
         startConfigMode();
     }
     
-    // 启动WiFi管理任务
+    // 启动WiFi管理任务（运行在核心0）
     isRunning = true;
-    BaseType_t result = xTaskCreate(
+    BaseType_t result = xTaskCreatePinnedToCore(
         wifiManagementTask,
         "WiFiManagement",
         4096,
         this,
         3,
-        &wifiTaskHandle
+        &wifiTaskHandle,
+        0                   // 运行在核心0
     );
     
     if (result == pdPASS) {
