@@ -15,6 +15,9 @@
 #include "OTAManager.h"
 #include "FileManager.h"
 
+// 前向声明
+class PSRAMManager;
+
 class WebServerManager {
 public:
     WebServerManager(WiFiManager* wifiMgr, ConfigStorage* configStore, OTAManager* otaMgr, FileManager* fileMgr);
@@ -22,6 +25,9 @@ public:
     
     // 初始化Web服务器
     void init();
+    
+    // 设置PSRAM管理器
+    void setPSRAMManager(PSRAMManager* psramManager);
     
     // 启动服务器
     void start();
@@ -38,6 +44,7 @@ private:
     ConfigStorage* configStorage;
     OTAManager* otaManager;
     FileManager* fileManager;
+    PSRAMManager* m_psramManager;
     TaskHandle_t serverTaskHandle;
     bool isRunning;
     

@@ -12,6 +12,9 @@
 #include "freertos/task.h"
 #include "ConfigStorage.h"
 
+// 前向声明
+class PSRAMManager;
+
 class WiFiManager {
 public:
     WiFiManager();
@@ -19,6 +22,7 @@ public:
     
     // 初始化WiFi管理器
     void init();
+    void setPSRAMManager(PSRAMManager* psramManager);
     
     // 启动AP配置模式
     void startConfigMode();
@@ -44,6 +48,7 @@ public:
 
 private:
     ConfigStorage* configStorage;
+    PSRAMManager* m_psramManager;
     TaskHandle_t wifiTaskHandle;
     bool isRunning;
     bool isAPMode;

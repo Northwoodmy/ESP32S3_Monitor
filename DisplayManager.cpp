@@ -18,6 +18,7 @@
 #include "DisplayManager.h"
 #include "WiFiManager.h"
 #include "ConfigStorage.h"
+#include "PSRAMManager.h"
 #include <WiFi.h>
 #include <cstring>
 #include <cstdio>
@@ -33,6 +34,7 @@ DisplayManager::DisplayManager()
     , m_lvglDriver(nullptr)
     , m_wifiManager(nullptr)
     , m_configStorage(nullptr)
+    , m_psramManager(nullptr)
     , m_currentPage(PAGE_HOME)
     , m_currentTheme(THEME_LIGHT)
     , m_brightness(80)
@@ -73,7 +75,7 @@ DisplayManager::~DisplayManager() {
 /**
  * @brief 初始化显示管理器
  */
-bool DisplayManager::init(LVGLDriver* lvgl_driver, WiFiManager* wifi_manager, ConfigStorage* config_storage) {
+bool DisplayManager::init(LVGLDriver* lvgl_driver, WiFiManager* wifi_manager, ConfigStorage* config_storage, PSRAMManager* psram_manager) {
     if (m_initialized) {
         printf("[DisplayManager] 警告：重复初始化\n");
         return true;
@@ -90,6 +92,7 @@ bool DisplayManager::init(LVGLDriver* lvgl_driver, WiFiManager* wifi_manager, Co
     m_lvglDriver = lvgl_driver;
     m_wifiManager = wifi_manager;
     m_configStorage = config_storage;
+    m_psramManager = psram_manager;
     
     // 创建消息队列
     m_messageQueue = xQueueCreate(MESSAGE_QUEUE_SIZE, sizeof(DisplayMessage));
@@ -156,24 +159,46 @@ bool DisplayManager::start() {
         return true;
     }
     
-    // 创建显示管理器任务
-    BaseType_t result = xTaskCreatePinnedToCore(
-        displayTaskEntry,           // 任务函数
-        "DisplayManager",           // 任务名称
-        TASK_STACK_SIZE,           // 栈大小
-        this,                      // 任务参数
-        TASK_PRIORITY,             // 任务优先级
-        &m_taskHandle,             // 任务句柄
-        TASK_CORE                  // 运行核心
-    );
-    
-    if (result != pdPASS) {
-        printf("[DisplayManager] 错误：创建任务失败\n");
-        return false;
+    if (m_psramManager && m_psramManager->isPSRAMAvailable()) {
+        // 使用PSRAM栈创建任务
+        printf("[DisplayManager] 使用PSRAM栈创建显示管理器任务\n");
+        m_taskHandle = m_psramManager->createTaskWithPSRAMStack(
+            displayTaskEntry,           // 任务函数
+            "DisplayManager",           // 任务名称
+            TASK_STACK_SIZE,           // 栈大小
+            this,                      // 任务参数
+            TASK_PRIORITY,             // 任务优先级
+            TASK_CORE                  // 运行核心
+        );
+        
+        if (m_taskHandle == nullptr) {
+            printf("[DisplayManager] 错误：创建PSRAM栈任务失败\n");
+            return false;
+        }
+        
+        m_running = true;
+        printf("[DisplayManager] 显示管理器任务(PSRAM栈)已启动（核心%d，优先级%d）\n", TASK_CORE, TASK_PRIORITY);
+    } else {
+        // 回退到SRAM栈创建任务
+        printf("[DisplayManager] 使用SRAM栈创建显示管理器任务\n");
+        BaseType_t result = xTaskCreatePinnedToCore(
+            displayTaskEntry,           // 任务函数
+            "DisplayManager",           // 任务名称
+            TASK_STACK_SIZE,           // 栈大小
+            this,                      // 任务参数
+            TASK_PRIORITY,             // 任务优先级
+            &m_taskHandle,             // 任务句柄
+            TASK_CORE                  // 运行核心
+        );
+        
+        if (result != pdPASS) {
+            printf("[DisplayManager] 错误：创建SRAM栈任务失败\n");
+            return false;
+        }
+        
+        m_running = true;
+        printf("[DisplayManager] 显示管理器任务(SRAM栈)已启动（核心%d，优先级%d）\n", TASK_CORE, TASK_PRIORITY);
     }
-    
-    m_running = true;
-    printf("[DisplayManager] 显示管理器任务已启动（核心%d，优先级%d）\n", TASK_CORE, TASK_PRIORITY);
     return true;
 }
 
@@ -426,7 +451,7 @@ void DisplayManager::createHomePage() {
     
          // 版本信息
      lv_obj_t* version_label = lv_label_create(m_pages[PAGE_HOME]);
-     lv_label_set_text(version_label, "版本: v4.0.0");
+     lv_label_set_text(version_label, "版本: v4.1.1");
      lv_obj_set_style_text_color(version_label, lv_color_hex(0x757575), 0);
      lv_obj_align(version_label, LV_ALIGN_BOTTOM_MID, 0, -20);
 }

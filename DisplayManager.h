@@ -29,6 +29,7 @@
 // 前向声明
 class WiFiManager;
 class ConfigStorage;
+class PSRAMManager;
 
 /**
  * @brief 显示页面枚举
@@ -125,9 +126,10 @@ public:
      * @param lvgl_driver LVGL驱动实例指针
      * @param wifi_manager WiFi管理器实例指针
      * @param config_storage 配置存储实例指针
+     * @param psram_manager PSRAM管理器实例指针（可选）
      * @return true 初始化成功，false 初始化失败
      */
-    bool init(LVGLDriver* lvgl_driver, WiFiManager* wifi_manager, ConfigStorage* config_storage);
+    bool init(LVGLDriver* lvgl_driver, WiFiManager* wifi_manager, ConfigStorage* config_storage, PSRAMManager* psram_manager = nullptr);
     
     /**
      * @brief 启动显示管理器任务
@@ -326,6 +328,7 @@ private:
     LVGLDriver* m_lvglDriver;           ///< LVGL驱动指针
     WiFiManager* m_wifiManager;         ///< WiFi管理器指针
     ConfigStorage* m_configStorage;     ///< 配置存储指针
+    PSRAMManager* m_psramManager;        ///< PSRAM管理器指针
     
     // 显示状态
     DisplayPage m_currentPage;          ///< 当前页面

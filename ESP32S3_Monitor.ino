@@ -1,6 +1,6 @@
 /*
  * ESP32S3监控项目 - WiFi配置管理器
- * 版本: v4.0.0
+ * 版本: v4.1.1
  * 作者: ESP32S3_Monitor
  * 日期: 2024
  * 
@@ -14,6 +14,7 @@
  * - FreeRTOS多任务架构
  * - 模块化C++设计
  * - LVGL显示驱动和触控按钮
+ * - PSRAM内存管理和优化
  */
 
 #include <WiFi.h>
@@ -33,6 +34,7 @@
 #include "FileManager.h"
 #include "LVGL_Driver.h"
 #include "DisplayManager.h"
+#include "PSRAMManager.h"
 
 // 外部变量声明
 extern LVGLDriver* lvglDriver;
@@ -48,18 +50,31 @@ WebServerManager* webServerManager;
 OTAManager otaManager;
 FileManager fileManager;
 DisplayManager displayManager;
+PSRAMManager psramManager;
 
 void setup() {
   
   printf("=== ESP32S3 WiFi配置管理器启动 ===\n");
-      printf("版本: v4.0.0\n");
+      printf("版本: v4.1.1\n");
   printf("编译时间: %s %s\n", __DATE__, __TIME__);
+  
+  // 初始化PSRAM管理器（优先初始化）
+  printf("\n初始化PSRAM管理器...\n");
+  if (psramManager.init()) {
+    psramManager.start();
+    psramManager.setDebugMode(false); // 生产环境关闭调试模式
+    printf("PSRAM管理器初始化成功\n");
+    psramManager.printStatistics();
+  } else {
+    printf("PSRAM管理器初始化失败，继续使用内部RAM\n");
+  }
   
   // 初始化配置存储
   printf("\n初始化系统组件...\n");
   configStorage.init();
   
   // 初始化WiFi管理器
+  wifiManager.setPSRAMManager(&psramManager);
   wifiManager.init();
   
   // 初始化LVGL驱动系统
@@ -74,7 +89,7 @@ void setup() {
 
   // 初始化显示管理器
   printf("开始初始化显示管理器...\n");
-  displayManager.init(&lvglDriverInstance, &wifiManager, &configStorage);
+  displayManager.init(&lvglDriverInstance, &wifiManager, &configStorage, &psramManager);
   
   // 启动显示管理器任务
   printf("启动显示管理器任务...\n");
@@ -92,15 +107,22 @@ void setup() {
   webServerManager = new WebServerManager(&wifiManager, &configStorage, &otaManager, &fileManager);
   
   // 初始化并启动Web服务器
+  webServerManager->setPSRAMManager(&psramManager);
   webServerManager->init();
   webServerManager->start();
   
   // 初始化监控器（Hello World任务）
-  monitor.init();
+  monitor.init(&psramManager);
   
   // 显示当前状态
   vTaskDelay(pdMS_TO_TICKS(2000));
   displaySystemStatus();
+  
+  // 显示PSRAM详细使用分析
+  printf("\n=== PSRAM详细使用分析 ===\n");
+  if (psramManager.isPSRAMAvailable()) {
+    psramManager.printMemoryMap();
+  }
   
   printf("=== 系统初始化完成 ===\n");
 }
@@ -149,8 +171,22 @@ void displaySystemStatus() {
   printf("芯片型号: %s Rev.%d\n", ESP.getChipModel(), ESP.getChipRevision());
   printf("CPU频率: %d MHz\n", ESP.getCpuFreqMHz());
   printf("Flash大小: %d MB\n", ESP.getFlashChipSize() / (1024 * 1024));
-  printf("可用内存: %d KB\n", ESP.getFreeHeap() / 1024);
-  printf("总内存: %d KB\n", ESP.getHeapSize() / 1024);
+  printf("内部RAM: %d KB 可用, %d KB 总计\n", ESP.getFreeHeap() / 1024, ESP.getHeapSize() / 1024);
+  
+  // PSRAM信息
+  if (psramManager.isPSRAMAvailable()) {
+    printf("PSRAM大小: %d MB\n", psramManager.getTotalSize() / (1024 * 1024));
+    printf("PSRAM可用: %d KB (%.1f%%)\n", 
+           psramManager.getFreeSize() / 1024, 
+           100.0f - psramManager.getUsagePercent());
+    printf("PSRAM已用: %d KB (%.1f%%)\n", 
+           psramManager.getUsedSize() / 1024, 
+           psramManager.getUsagePercent());
+    printf("PSRAM碎片率: %.1f%%\n", psramManager.getFragmentationRate());
+    printf("PSRAM分配块: %u个\n", psramManager.getBlockCount());
+  } else {
+    printf("PSRAM: 未检测到或未启用\n");
+  }
   
   printf("==================\n");
 } 

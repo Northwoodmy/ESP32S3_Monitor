@@ -4,6 +4,7 @@
  */
 
 #include "WebServerManager.h"
+#include "PSRAMManager.h"
 #include "Arduino.h"
 
 WebServerManager::WebServerManager(WiFiManager* wifiMgr, ConfigStorage* configStore, OTAManager* otaMgr, FileManager* fileMgr) :
@@ -12,6 +13,7 @@ WebServerManager::WebServerManager(WiFiManager* wifiMgr, ConfigStorage* configSt
     configStorage(configStore),
     otaManager(otaMgr),
     fileManager(fileMgr),
+    m_psramManager(nullptr),
     serverTaskHandle(nullptr),
     isRunning(false) {
     server = new WebServer(80);
@@ -76,6 +78,10 @@ void WebServerManager::init() {
     printf("Web服务器路由配置完成\n");
 }
 
+void WebServerManager::setPSRAMManager(PSRAMManager* psramManager) {
+    m_psramManager = psramManager;
+}
+
 void WebServerManager::start() {
     if (isRunning) {
         printf("Web服务器已经在运行中\n");
@@ -87,23 +93,45 @@ void WebServerManager::start() {
     server->begin();
     isRunning = true;
     
-    // 创建服务器处理任务（运行在核心0）
-    BaseType_t result = xTaskCreatePinnedToCore(
-        serverTask,
-        "WebServerTask",
-        4096,
-        this,
-        2,
-        &serverTaskHandle,
-        0                   // 运行在核心0
-    );
-    
-    if (result == pdPASS) {
-        printf("Web服务器任务创建成功\n");
-        printf("Web服务器启动成功，端口：80\n");
+    if (m_psramManager && m_psramManager->isPSRAMAvailable()) {
+        // 使用PSRAM栈创建任务
+        printf("使用PSRAM栈创建Web服务器任务\n");
+        serverTaskHandle = m_psramManager->createTaskWithPSRAMStack(
+            serverTask,
+            "WebServerTask",
+            4096,
+            this,
+            2,
+            0                   // 运行在核心0
+        );
+        
+        if (serverTaskHandle != nullptr) {
+            printf("Web服务器任务(PSRAM栈)创建成功\n");
+            printf("Web服务器启动成功，端口：80\n");
+        } else {
+            isRunning = false;
+            printf("Web服务器任务(PSRAM栈)创建失败\n");
+        }
     } else {
-        isRunning = false;
-        printf("Web服务器任务创建失败\n");
+        // 回退到SRAM栈创建任务
+        printf("使用SRAM栈创建Web服务器任务\n");
+        BaseType_t result = xTaskCreatePinnedToCore(
+            serverTask,
+            "WebServerTask",
+            4096,
+            this,
+            2,
+            &serverTaskHandle,
+            0                   // 运行在核心0
+        );
+        
+        if (result == pdPASS) {
+            printf("Web服务器任务(SRAM栈)创建成功\n");
+            printf("Web服务器启动成功，端口：80\n");
+        } else {
+            isRunning = false;
+            printf("Web服务器任务(SRAM栈)创建失败\n");
+        }
     }
 }
 
@@ -186,7 +214,7 @@ void WebServerManager::handleSystemInfo() {
     
     DynamicJsonDocument doc(1024);
     doc["device"] = "ESP32S3 Monitor";
-    doc["version"] = "v3.6.1";
+    doc["version"] = "v4.1.1";
     doc["chipModel"] = ESP.getChipModel();
     doc["chipRevision"] = ESP.getChipRevision();
     doc["cpuFreq"] = ESP.getCpuFreqMHz();

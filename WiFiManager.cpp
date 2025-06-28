@@ -4,10 +4,12 @@
  */
 
 #include "WiFiManager.h"
+#include "PSRAMManager.h"
 #include "Arduino.h"
 
 WiFiManager::WiFiManager() : 
     configStorage(nullptr),
+    m_psramManager(nullptr),
     wifiTaskHandle(nullptr),
     isRunning(false),
     isAPMode(false) {
@@ -16,6 +18,10 @@ WiFiManager::WiFiManager() :
 
 WiFiManager::~WiFiManager() {
     stop();
+}
+
+void WiFiManager::setPSRAMManager(PSRAMManager* psramManager) {
+    m_psramManager = psramManager;
 }
 
 void WiFiManager::init() {
@@ -42,21 +48,44 @@ void WiFiManager::init() {
     
     // 启动WiFi管理任务（运行在核心0）
     isRunning = true;
-    BaseType_t result = xTaskCreatePinnedToCore(
-        wifiManagementTask,
-        "WiFiManagement",
-        4096,
-        this,
-        3,
-        &wifiTaskHandle,
-        0                   // 运行在核心0
-    );
     
-    if (result == pdPASS) {
-        printf("WiFi管理任务创建成功\n");
+    if (m_psramManager && m_psramManager->isPSRAMAvailable()) {
+        // 使用PSRAM栈创建任务
+        printf("使用PSRAM栈创建WiFi管理任务\n");
+        wifiTaskHandle = m_psramManager->createTaskWithPSRAMStack(
+            wifiManagementTask,
+            "WiFiManagement",
+            4096,
+            this,
+            3,
+            0                   // 运行在核心0
+        );
+        
+        if (wifiTaskHandle != nullptr) {
+            printf("WiFi管理任务(PSRAM栈)创建成功\n");
+        } else {
+            isRunning = false;
+            printf("WiFi管理任务(PSRAM栈)创建失败\n");
+        }
     } else {
-        isRunning = false;
-        printf("WiFi管理任务创建失败\n");
+        // 回退到SRAM栈创建任务
+        printf("使用SRAM栈创建WiFi管理任务\n");
+        BaseType_t result = xTaskCreatePinnedToCore(
+            wifiManagementTask,
+            "WiFiManagement",
+            4096,
+            this,
+            3,
+            &wifiTaskHandle,
+            0                   // 运行在核心0
+        );
+        
+        if (result == pdPASS) {
+            printf("WiFi管理任务(SRAM栈)创建成功\n");
+        } else {
+            isRunning = false;
+            printf("WiFi管理任务(SRAM栈)创建失败\n");
+        }
     }
 }
 
