@@ -1,6 +1,6 @@
 /*
  * ESP32S3监控项目 - WiFi配置管理器
- * 版本: v3.6.1
+ * 版本: v4.0.0
  * 作者: ESP32S3_Monitor
  * 日期: 2024
  * 
@@ -32,6 +32,7 @@
 #include "OTAManager.h"
 #include "FileManager.h"
 #include "LVGL_Driver.h"
+#include "DisplayManager.h"
 
 // 外部变量声明
 extern LVGLDriver* lvglDriver;
@@ -46,11 +47,12 @@ WiFiManager wifiManager;
 WebServerManager* webServerManager;
 OTAManager otaManager;
 FileManager fileManager;
+DisplayManager displayManager;
 
 void setup() {
   
   printf("=== ESP32S3 WiFi配置管理器启动 ===\n");
-      printf("版本: v3.6.1\n");
+      printf("版本: v4.0.0\n");
   printf("编译时间: %s %s\n", __DATE__, __TIME__);
   
   // 初始化配置存储
@@ -70,21 +72,21 @@ void setup() {
   
   printf("LVGL驱动系统初始化完成\n");
 
+  // 初始化显示管理器
+  printf("开始初始化显示管理器...\n");
+  displayManager.init(&lvglDriverInstance, &wifiManager, &configStorage);
+  
+  // 启动显示管理器任务
+  printf("启动显示管理器任务...\n");
+  displayManager.start();
+  
+  printf("显示管理器初始化完成\n");
+
   // 初始化OTA管理器
   otaManager.init();
   
   // 初始化文件管理器
   fileManager.init();
-  
-  // 初始化LVGL驱动系统
-  printf("开始LVGL驱动系统初始化...\n");
-  lvglDriverInstance.init();
-  
-  // 启动LVGL驱动任务  
-  printf("启动LVGL驱动任务...\n");
-  lvglDriverInstance.start();
-  
-  printf("LVGL驱动系统初始化完成\n");
   
   // 创建Web服务器管理器实例
   webServerManager = new WebServerManager(&wifiManager, &configStorage, &otaManager, &fileManager);
