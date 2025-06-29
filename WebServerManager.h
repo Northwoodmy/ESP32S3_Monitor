@@ -100,6 +100,12 @@ private:
     void handleSetBrightness();
     void handleScreenTest();
     
+    // 系统设置相关API
+    void handleSystemSettings();
+    void handleGetTimeConfig();
+    void handleSetTimeConfig();
+    void handleSyncTime();
+    
     // 获取主页HTML
     String getIndexHTML();
     
@@ -109,6 +115,9 @@ private:
     // 获取OTA升级页面HTML
     String getOTAPageHTML();
     
+    // 获取系统设置页面HTML
+    String getSystemSettingsHTML();
+    
     // 获取CSS样式
     String getCSS();
     
@@ -117,6 +126,12 @@ private:
     
     // 获取OTA JavaScript代码
     String getOTAJavaScript();
+    
+    // 获取系统设置JavaScript代码
+    String getSystemSettingsJavaScript();
+    
+    // 获取系统设置CSS样式
+    String getSystemSettingsCSS();
 };
 
 #endif // WEBSERVERMANAGER_H 

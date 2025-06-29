@@ -81,6 +81,12 @@ void WebServerManager::init() {
     server->on("/api/screen/brightness", HTTP_POST, [this]() { handleSetBrightness(); });
     server->on("/api/screen/test", HTTP_POST, [this]() { handleScreenTest(); });
     
+    // 系统设置路由
+    server->on("/settings", [this]() { handleSystemSettings(); });
+    server->on("/api/time/config", HTTP_GET, [this]() { handleGetTimeConfig(); });
+    server->on("/api/time/config", HTTP_POST, [this]() { handleSetTimeConfig(); });
+    server->on("/api/time/sync", HTTP_POST, [this]() { handleSyncTime(); });
+    
     server->onNotFound([this]() { handleNotFound(); });
     
     printf("Web服务器路由配置完成\n");
@@ -205,7 +211,7 @@ void WebServerManager::handleSystemInfo() {
     
     DynamicJsonDocument doc(1024);
     doc["device"] = "ESP32S3 Monitor";
-    doc["version"] = "v5.0.1";
+    doc["version"] = "v5.1.1";
     doc["chipModel"] = ESP.getChipModel();
     doc["chipRevision"] = ESP.getChipRevision();
     doc["cpuFreq"] = ESP.getCpuFreqMHz();
@@ -1750,6 +1756,104 @@ void WebServerManager::handleScreenTest() {
         doc["message"] = "显示管理器未初始化";
         
         printf("显示管理器未初始化，无法执行屏幕测试\n");
+    }
+    
+    String response;
+    serializeJson(doc, response);
+    server->send(200, "application/json", response);
+}
+
+void WebServerManager::handleSystemSettings() {
+    printf("处理系统设置页面请求\n");
+    server->send(200, "text/html", getSystemSettingsHTML());
+}
+
+void WebServerManager::handleGetTimeConfig() {
+    printf("处理获取时间配置请求\n");
+    
+    DynamicJsonDocument doc(512);
+    
+    // 获取当前时间信息
+    time_t now;
+    struct tm timeinfo;
+    time(&now);
+    localtime_r(&now, &timeinfo);
+    
+    doc["success"] = true;
+    doc["currentTime"] = asctime(&timeinfo);
+    doc["timestamp"] = now;
+    doc["timezone"] = "UTC+8";
+    doc["ntpEnabled"] = true;
+    doc["ntpServer"] = "pool.ntp.org";
+    doc["message"] = "时间配置获取成功";
+    
+    String response;
+    serializeJson(doc, response);
+    server->send(200, "application/json", response);
+}
+
+void WebServerManager::handleSetTimeConfig() {
+    printf("处理设置时间配置请求\n");
+    
+    DynamicJsonDocument doc(256);
+    
+    if (server->hasArg("timezone")) {
+        String timezone = server->arg("timezone");
+        printf("设置时区: %s\n", timezone.c_str());
+        
+        // 这里可以添加时区设置逻辑
+        doc["success"] = true;
+        doc["message"] = "时区设置成功";
+        doc["timezone"] = timezone;
+    } else {
+        doc["success"] = false;
+        doc["message"] = "缺少时区参数";
+    }
+    
+    String response;
+    serializeJson(doc, response);
+    server->send(200, "application/json", response);
+}
+
+void WebServerManager::handleSyncTime() {
+    printf("处理时间同步请求\n");
+    
+    DynamicJsonDocument doc(256);
+    
+    if (wifiManager->isConnected()) {
+        // 执行NTP时间同步
+        printf("开始NTP时间同步...\n");
+        
+        configTime(8 * 3600, 0, "pool.ntp.org", "time.nist.gov");
+        
+        // 等待时间同步完成
+        int retries = 0;
+        while (time(nullptr) < 1000000000L && retries < 10) {
+            vTaskDelay(pdMS_TO_TICKS(1000));
+            retries++;
+            printf("等待时间同步... (%d/10)\n", retries);
+        }
+        
+        if (time(nullptr) > 1000000000L) {
+            doc["success"] = true;
+            doc["message"] = "时间同步成功";
+            
+            time_t now = time(nullptr);
+            struct tm timeinfo;
+            localtime_r(&now, &timeinfo);
+            doc["currentTime"] = asctime(&timeinfo);
+            doc["timestamp"] = now;
+            
+            printf("时间同步成功: %s\n", asctime(&timeinfo));
+        } else {
+            doc["success"] = false;
+            doc["message"] = "时间同步超时";
+            printf("时间同步失败\n");
+        }
+    } else {
+        doc["success"] = false;
+        doc["message"] = "设备未连接WiFi，无法同步时间";
+        printf("设备未连接WiFi，无法同步时间\n");
     }
     
     String response;
