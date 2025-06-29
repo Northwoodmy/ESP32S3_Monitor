@@ -274,7 +274,7 @@ static void lvgl_unlock(void) {
  * 图形渲染、动画更新、用户输入等操作。这是LVGL的核心处理循环。
  * 
  * @param arg 任务参数（未使用）
- */
+ 
 static void lvgl_port_task(void *arg) {
   printf("[ESP_LCD_LVGL] LVGL任务启动中...\n");
   uint32_t task_delay_ms = LVGL_TASK_MAX_DELAY_MS;
@@ -298,7 +298,7 @@ static void lvgl_port_task(void *arg) {
     // 任务延迟，让出CPU时间给其他任务
     vTaskDelay(pdMS_TO_TICKS(task_delay_ms));
   }
-}
+}*/
 
 // === LVGLDriver类实现 ===
 
@@ -322,10 +322,7 @@ LVGLDriver::LVGLDriver()
 LVGLDriver::~LVGLDriver() {
     stop();
     
-    if (m_mutex) {
-        vSemaphoreDelete(m_mutex);
-        m_mutex = nullptr;
-    }
+    // 不需要删除互斥锁，因为使用的是全局的lvgl_mux
     
     printf("[LVGLDriver] LVGL驱动实例已销毁\n");
 }
@@ -341,15 +338,11 @@ bool LVGLDriver::init() {
     
     printf("[LVGLDriver] 开始初始化LVGL驱动系统...\n");
     
-    // 创建互斥锁
-    m_mutex = xSemaphoreCreateMutex();
-    if (!m_mutex) {
-        printf("[LVGLDriver] 错误：创建互斥锁失败\n");
-        return false;
-    }
-    
     // 调用原有的LVGL初始化函数
     LVGL_Init();
+    
+    // 不创建自己的互斥锁，使用全局的lvgl_mux
+    m_mutex = nullptr;
     
     m_initialized = true;
     printf("[LVGLDriver] LVGL驱动初始化完成\n");
@@ -370,6 +363,9 @@ bool LVGLDriver::start() {
         return true;
     }
     
+    // 先设置运行标志，避免竞态条件
+    m_running = true;
+    
     // 创建LVGL处理任务
     BaseType_t result = xTaskCreatePinnedToCore(
         lvglTaskEntry,              // 任务函数
@@ -383,10 +379,10 @@ bool LVGLDriver::start() {
     
     if (result != pdPASS) {
         printf("[LVGLDriver] 错误：创建任务失败\n");
+        m_running = false;  // 任务创建失败，重置运行标志
         return false;
     }
     
-    m_running = true;
     printf("[LVGLDriver] LVGL任务已启动（核心%d，优先级%d）\n", LVGLDriver::TASK_CORE, LVGLDriver::TASK_PRIORITY);
     return true;
 }
@@ -427,14 +423,27 @@ void LVGLDriver::lvglTask() {
     printf("[LVGLDriver] LVGL任务开始运行\n");
     
     uint32_t task_delay_ms = LVGL_TASK_MAX_DELAY_MS;
+    uint32_t loop_count = 0;
     
     while (m_running) {
+        loop_count++;
+        
         // 获取LVGL互斥锁确保线程安全
         if (lock(-1)) {
             // 调用LVGL定时器处理函数
             task_delay_ms = lv_timer_handler();
             // 释放互斥锁
             unlock();
+            
+            // 每10000次循环打印一次状态（降低输出频率）
+            if (loop_count % 10000 == 0) {
+                printf("[LVGLDriver] LVGL任务运行正常，循环次数: %d\n", loop_count);
+            }
+        } else {
+            printf("[LVGLDriver] 错误：获取LVGL锁失败\n");
+            // 如果获取锁失败，等待一段时间再重试
+            vTaskDelay(pdMS_TO_TICKS(100));
+            continue;
         }
         
         // 限制任务延迟时间在合理范围内
@@ -448,31 +457,23 @@ void LVGLDriver::lvglTask() {
         vTaskDelay(pdMS_TO_TICKS(task_delay_ms));
     }
     
-    printf("[LVGLDriver] LVGL任务结束\n");
+    printf("[LVGLDriver] LVGL任务结束，总循环次数: %d\n", loop_count);
 }
 
 /**
  * @brief 获取LVGL互斥锁
  */
 bool LVGLDriver::lock(int timeout_ms) {
-    if (!m_mutex) {
-        printf("[LVGLDriver] 错误：互斥锁未初始化\n");
-        return false;
-    }
-
-    const TickType_t timeout_ticks = (timeout_ms == -1) ? portMAX_DELAY : pdMS_TO_TICKS(timeout_ms);
-    return xSemaphoreTake(m_mutex, timeout_ticks) == pdTRUE;
+    // 使用全局的lvgl_lock函数
+    return lvgl_lock(timeout_ms);
 }
 
 /**
  * @brief 释放LVGL互斥锁
  */
 void LVGLDriver::unlock() {
-    if (!m_mutex) {
-        printf("[LVGLDriver] 错误：互斥锁未初始化\n");
-        return;
-    }
-    xSemaphoreGive(m_mutex);
+    // 使用全局的lvgl_unlock函数
+    lvgl_unlock();
 }
 
 /**
@@ -672,7 +673,7 @@ void LVGL_Init(void) {
   assert(lvgl_mux);
   
   // 创建LVGL主处理任务
-  xTaskCreate(lvgl_port_task, "LVGL_Task", LVGL_TASK_STACK_SIZE, NULL, LVGL_TASK_PRIORITY, NULL);
+  //xTaskCreate(lvgl_port_task, "LVGL_Task", LVGL_TASK_STACK_SIZE, NULL, LVGL_TASK_PRIORITY, NULL);
   
   // === 14. 启动演示程序 ===
   printf("[ESP_LCD_LVGL] 启动LVGL演示程序\n");

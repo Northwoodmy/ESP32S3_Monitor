@@ -100,7 +100,7 @@ String WebServerManager::getIndexHTML() {
     html += "                    </div>\n";
     html += "                    <div class=\"info-item\">\n";
     html += "                        <span class=\"label\">固件版本:</span>\n";
-    html += "                        <span class=\"value\" id=\"firmwareVersion\">v4.1.1</span>\n";
+    html += "                        <span class=\"value\" id=\"firmwareVersion\">v4.2.0</span>\n";
     html += "                    </div>\n";
     html += "                    <div class=\"info-item\">\n";
     html += "                        <span class=\"label\">CPU频率:</span>\n";
