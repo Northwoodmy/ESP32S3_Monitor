@@ -25,6 +25,11 @@ const char* ConfigStorage::REFRESH_RATE_KEY = "refresh_rate";
 
 const char* ConfigStorage::BRIGHTNESS_KEY = "brightness";
 
+const char* ConfigStorage::TIME_PRIMARY_SERVER_KEY = "time_primary";
+const char* ConfigStorage::TIME_SECONDARY_SERVER_KEY = "time_secondary";
+const char* ConfigStorage::TIME_TIMEZONE_KEY = "time_timezone";
+const char* ConfigStorage::TIME_SYNC_INTERVAL_KEY = "time_interval";
+
 ConfigStorage::ConfigStorage() : configTaskHandle(nullptr), configQueue(nullptr), taskRunning(false) {
 }
 
@@ -290,6 +295,24 @@ void ConfigStorage::processConfigRequest(ConfigRequest* request) {
             break;
         }
         
+        case CONFIG_OP_SAVE_TIME_CONFIG: {
+            TimeConfigData* data = static_cast<TimeConfigData*>(request->data);
+            if (data != nullptr) {
+                request->success = saveTimeConfig(data->primaryServer, data->secondaryServer, 
+                                                 data->timezone, data->syncInterval);
+            }
+            break;
+        }
+        
+        case CONFIG_OP_LOAD_TIME_CONFIG: {
+            TimeConfigData* result = static_cast<TimeConfigData*>(request->result);
+            if (result != nullptr) {
+                request->success = loadTimeConfig(result->primaryServer, result->secondaryServer, 
+                                                 result->timezone, result->syncInterval);
+            }
+            break;
+        }
+        
         case CONFIG_OP_RESET_ALL: {
             request->success = resetAllConfig();
             break;
@@ -526,6 +549,36 @@ bool ConfigStorage::hasBrightnessConfigAsync(uint32_t timeoutMs) {
 }
 
 // 异步配置重置操作接口实现
+
+// 异步时间配置操作接口实现
+
+bool ConfigStorage::saveTimeConfigAsync(const String& primaryServer, const String& secondaryServer, 
+                                       const String& timezone, int syncInterval, uint32_t timeoutMs) {
+    TimeConfigData data(primaryServer, secondaryServer, timezone, syncInterval);
+    ConfigRequest request;
+    request.operation = CONFIG_OP_SAVE_TIME_CONFIG;
+    request.data = &data;
+    
+    return sendRequestAndWait(&request, timeoutMs);
+}
+
+bool ConfigStorage::loadTimeConfigAsync(String& primaryServer, String& secondaryServer, 
+                                       String& timezone, int& syncInterval, uint32_t timeoutMs) {
+    TimeConfigData result;
+    ConfigRequest request;
+    request.operation = CONFIG_OP_LOAD_TIME_CONFIG;
+    request.result = &result;
+    
+    bool success = sendRequestAndWait(&request, timeoutMs);
+    if (success) {
+        primaryServer = result.primaryServer;
+        secondaryServer = result.secondaryServer;
+        timezone = result.timezone;
+        syncInterval = result.syncInterval;
+    }
+    
+    return success;
+}
 
 bool ConfigStorage::resetAllConfigAsync(uint32_t timeoutMs) {
     ConfigRequest request;
@@ -1103,4 +1156,73 @@ bool ConfigStorage::hasBrightnessConfig() {
     
     printf("🔍 [ConfigStorage] 检查亮度配置存在性: %s\n", exists ? "存在" : "不存在");
     return exists;
+}
+
+// 时间配置方法实现
+
+bool ConfigStorage::saveTimeConfig(const String& primaryServer, const String& secondaryServer, 
+                                   const String& timezone, int syncInterval) {
+    printf("💾 [ConfigStorage] 保存时间配置\n");
+    printf("  主服务器: %s\n", primaryServer.c_str());
+    printf("  备用服务器: %s\n", secondaryServer.c_str());
+    printf("  时区: %s\n", timezone.c_str());
+    printf("  同步间隔: %d分钟\n", syncInterval);
+    
+    if (!preferences.begin(SYSTEM_NAMESPACE, false)) {
+        printf("❌ [ConfigStorage] 打开系统配置命名空间失败\n");
+        return false;
+    }
+    
+    // 保存时间配置
+    bool success = true;
+    success &= (preferences.putString(TIME_PRIMARY_SERVER_KEY, primaryServer) > 0);
+    success &= (preferences.putString(TIME_SECONDARY_SERVER_KEY, secondaryServer) > 0);
+    success &= (preferences.putString(TIME_TIMEZONE_KEY, timezone) > 0);
+    success &= (preferences.putInt(TIME_SYNC_INTERVAL_KEY, syncInterval) > 0);
+    
+    preferences.end();
+    
+    if (success) {
+        printf("✅ [ConfigStorage] 时间配置保存成功\n");
+    } else {
+        printf("❌ [ConfigStorage] 时间配置保存失败\n");
+    }
+    
+    return success;
+}
+
+bool ConfigStorage::loadTimeConfig(String& primaryServer, String& secondaryServer, 
+                                   String& timezone, int& syncInterval) {
+    printf("📖 [ConfigStorage] 加载时间配置\n");
+    
+    if (!preferences.begin(SYSTEM_NAMESPACE, true)) {
+        printf("⚠️ [ConfigStorage] 打开系统配置命名空间失败，使用默认时间配置\n");
+        primaryServer = "pool.ntp.org";
+        secondaryServer = "time.nist.gov";
+        timezone = "CST-8";
+        syncInterval = 60;
+        return false;
+    }
+    
+    // 加载时间配置
+    primaryServer = preferences.getString(TIME_PRIMARY_SERVER_KEY, "pool.ntp.org");
+    secondaryServer = preferences.getString(TIME_SECONDARY_SERVER_KEY, "time.nist.gov");
+    timezone = preferences.getString(TIME_TIMEZONE_KEY, "CST-8");
+    syncInterval = preferences.getInt(TIME_SYNC_INTERVAL_KEY, 60);
+    
+    preferences.end();
+    
+    // 验证同步间隔范围
+    if (syncInterval < 1 || syncInterval > 1440) { // 1分钟到24小时
+        printf("⚠️ [ConfigStorage] 加载的同步间隔超出范围(%d分钟)，使用默认值60分钟\n", syncInterval);
+        syncInterval = 60;
+    }
+    
+    printf("📖 [ConfigStorage] 时间配置加载完成\n");
+    printf("  主服务器: %s\n", primaryServer.c_str());
+    printf("  备用服务器: %s\n", secondaryServer.c_str());
+    printf("  时区: %s\n", timezone.c_str());
+    printf("  同步间隔: %d分钟\n", syncInterval);
+    
+    return true;
 }

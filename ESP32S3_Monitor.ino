@@ -1,6 +1,6 @@
 /*
  * ESP32S3监控项目 - WiFi配置管理器
- * 版本: v5.0.2
+ * 版本: v5.1.0
  * 作者: ESP32S3_Monitor
  * 日期: 2024
  * 
@@ -15,6 +15,7 @@
  * - 模块化C++设计
  * - LVGL显示驱动和触控按钮
  * - PSRAM内存管理和优化
+ * - NTP网络时间同步功能
  */
 
 #include <WiFi.h>
@@ -35,6 +36,7 @@
 #include "LVGL_Driver.h"
 #include "DisplayManager.h"
 #include "PSRAMManager.h"
+#include "TimeManager.h"
 
 // 外部变量声明
 extern LVGLDriver* lvglDriver;
@@ -51,11 +53,12 @@ OTAManager otaManager;
 FileManager fileManager;
 DisplayManager displayManager;
 PSRAMManager psramManager;
+TimeManager timeManager;
 
 void setup() {
   
   printf("=== ESP32S3 WiFi配置管理器启动 ===\n");
-      printf("版本: v5.0.2\n");
+      printf("版本: v5.1.0\n");
   printf("编译时间: %s %s\n", __DATE__, __TIME__);
   
   // 初始化PSRAM管理器（优先初始化）
@@ -122,6 +125,19 @@ void setup() {
   
   // 初始化监控器（Hello World任务）
   monitor.init(&psramManager);
+  
+  // 初始化时间管理器
+  printf("开始初始化时间管理器...\n");
+  timeManager.init(&psramManager, &wifiManager, &configStorage);
+  
+  // 启动时间管理器任务
+  printf("启动时间管理器任务...\n");
+  timeManager.start();  
+  
+  // 启用时间管理器调试模式，显示详细同步信息
+  timeManager.setDebugMode(true);
+  
+  printf("时间管理器初始化完成\n");
   
   // 显示当前状态
   vTaskDelay(pdMS_TO_TICKS(2000));
@@ -195,6 +211,24 @@ void displaySystemStatus() {
     printf("PSRAM分配块: %u个\n", psramManager.getBlockCount());
   } else {
     printf("PSRAM: 未检测到或未启用\n");
+  }
+  
+  // 时间信息
+  printf("时间状态: ");
+  if (timeManager.isTimeValid()) {
+    printf("已同步\n");
+    printf("当前时间: %s\n", timeManager.getDateTimeString().c_str());
+    printf("时区: UTC%+.1f\n", timeManager.getTimezoneOffset());
+    printf("同步状态: ");
+    switch (timeManager.getSyncStatus()) {
+      case TIME_SYNCED: printf("正常\n"); break;
+      case TIME_SYNCING: printf("同步中\n"); break;
+      case TIME_NOT_SYNCED: printf("未同步\n"); break;
+      case TIME_SYNC_FAILED: printf("同步失败\n"); break;
+    }
+  } else {
+    printf("未同步\n");
+    printf("NTP服务器: %s\n", timeManager.getNTPConfig().primaryServer.c_str());
   }
   
   printf("==================\n");

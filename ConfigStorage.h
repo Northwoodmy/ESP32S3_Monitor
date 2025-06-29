@@ -43,6 +43,8 @@ enum ConfigOperation {
     CONFIG_OP_SAVE_BRIGHTNESS,
     CONFIG_OP_LOAD_BRIGHTNESS,
     CONFIG_OP_HAS_BRIGHTNESS,
+    CONFIG_OP_SAVE_TIME_CONFIG,
+    CONFIG_OP_LOAD_TIME_CONFIG,
     CONFIG_OP_RESET_ALL
 };
 
@@ -108,6 +110,19 @@ struct BrightnessConfigData {
     BrightnessConfigData(uint8_t b) : brightness(b) {}
 };
 
+// 时间配置请求数据结构
+struct TimeConfigData {
+    String primaryServer;
+    String secondaryServer;
+    String timezone;
+    int syncInterval;
+    
+    TimeConfigData() : primaryServer("pool.ntp.org"), secondaryServer("time.nist.gov"), 
+                       timezone("CST-8"), syncInterval(60) {}
+    TimeConfigData(const String& primary, const String& secondary, const String& tz, int interval) 
+        : primaryServer(primary), secondaryServer(secondary), timezone(tz), syncInterval(interval) {}
+};
+
 class ConfigStorage {
 public:
     ConfigStorage();
@@ -143,6 +158,12 @@ public:
     bool saveBrightnessAsync(uint8_t brightness, uint32_t timeoutMs = 5000);
     uint8_t loadBrightnessAsync(uint32_t timeoutMs = 5000);
     bool hasBrightnessConfigAsync(uint32_t timeoutMs = 5000);
+    
+    // 异步时间配置操作接口
+    bool saveTimeConfigAsync(const String& primaryServer, const String& secondaryServer, 
+                            const String& timezone, int syncInterval, uint32_t timeoutMs = 5000);
+    bool loadTimeConfigAsync(String& primaryServer, String& secondaryServer, 
+                            String& timezone, int& syncInterval, uint32_t timeoutMs = 5000);
     
     // 异步配置重置操作接口
     bool resetAllConfigAsync(uint32_t timeoutMs = 5000);
@@ -188,6 +209,12 @@ private:
     // 屏幕亮度配置键名
     static const char* BRIGHTNESS_KEY;
     
+    // 时间配置键名
+    static const char* TIME_PRIMARY_SERVER_KEY;
+    static const char* TIME_SECONDARY_SERVER_KEY;
+    static const char* TIME_TIMEZONE_KEY;
+    static const char* TIME_SYNC_INTERVAL_KEY;
+    
     // 内部任务处理方法
     void processConfigRequest(ConfigRequest* request);
     
@@ -214,6 +241,11 @@ private:
     bool saveBrightness(uint8_t brightness);
     uint8_t loadBrightness();
     bool hasBrightnessConfig();
+    
+    bool saveTimeConfig(const String& primaryServer, const String& secondaryServer, 
+                       const String& timezone, int syncInterval);
+    bool loadTimeConfig(String& primaryServer, String& secondaryServer, 
+                       String& timezone, int& syncInterval);
     
     bool resetAllConfig();
     
