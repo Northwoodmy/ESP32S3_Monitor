@@ -341,9 +341,9 @@ bool LVGLDriver::init() {
     m_display = LVGL_Init();
     
     if (m_display) {
-        printf("✅ [LVGLDriver] 显示器对象初始化成功: %p\n", m_display);
+        printf("[LVGLDriver] 显示器对象初始化成功\n");
     } else {
-        printf("❌ [LVGLDriver] 显示器对象初始化失败\n");
+        printf("[LVGLDriver] 显示器对象初始化失败\n");
         return false;
     }
     
@@ -534,18 +534,16 @@ void LVGLDriver::setBrightness(uint8_t brightness) {
             esp_lcd_panel_handle_t panel_handle = (esp_lcd_panel_handle_t)drv->user_data;
             
             if (panel_handle) {
-                printf("🎯 [LVGLDriver] Panel句柄有效，设置亮度：%d%% -> 硬件值：%d\n", m_brightness, hw_brightness);
-                
                 // 调用SH8601专用的亮度控制函数
                 esp_err_t ret = esp_lcd_sh8601_set_brightness(panel_handle, hw_brightness);
                 
                 if (ret == ESP_OK) {
-                    printf("✅ [LVGLDriver] 硬件亮度设置成功：%d%% (硬件值：%d)\n", m_brightness, hw_brightness);
+                    printf("[LVGLDriver] 亮度设置成功：%d%%\n", m_brightness);
                 } else {
-                    printf("❌ [LVGLDriver] 硬件亮度设置失败，错误码：0x%x\n", ret);
+                    printf("[LVGLDriver] 亮度设置失败，错误码：0x%x\n", ret);
                 }
             } else {
-                printf("❌ [LVGLDriver] Panel句柄无效\n");
+                printf("[LVGLDriver] Panel句柄无效\n");
             }
         } else {
             printf("[LVGLDriver] 显示驱动无效\n");
@@ -553,8 +551,6 @@ void LVGLDriver::setBrightness(uint8_t brightness) {
     } else {
         printf("[LVGLDriver] 显示器未初始化\n");
     }
-    
-    printf("[LVGLDriver] 设置显示亮度：%d%%\n", m_brightness);
 }
 
 /**
