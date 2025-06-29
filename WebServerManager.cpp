@@ -93,45 +93,24 @@ void WebServerManager::start() {
     server->begin();
     isRunning = true;
     
-    if (m_psramManager && m_psramManager->isPSRAMAvailable()) {
-        // 使用PSRAM栈创建任务
-        printf("使用PSRAM栈创建Web服务器任务\n");
-        serverTaskHandle = m_psramManager->createTaskWithPSRAMStack(
-            serverTask,
-            "WebServerTask",
-            4096,
-            this,
-            2,
-            0                   // 运行在核心0
-        );
-        
-        if (serverTaskHandle != nullptr) {
-            printf("Web服务器任务(PSRAM栈)创建成功\n");
-            printf("Web服务器启动成功，端口：80\n");
-        } else {
-            isRunning = false;
-            printf("Web服务器任务(PSRAM栈)创建失败\n");
-        }
+    // 使用SRAM栈创建Web服务器任务
+    printf("使用SRAM栈创建Web服务器任务\n");
+    BaseType_t result = xTaskCreatePinnedToCore(
+        serverTask,
+        "WebServerTask",
+        4096,
+        this,
+        2,
+        &serverTaskHandle,
+        0                   // 运行在核心0
+    );
+    
+    if (result == pdPASS) {
+        printf("Web服务器任务(SRAM栈)创建成功\n");
+        printf("Web服务器启动成功，端口：80\n");
     } else {
-        // 回退到SRAM栈创建任务
-        printf("使用SRAM栈创建Web服务器任务\n");
-        BaseType_t result = xTaskCreatePinnedToCore(
-            serverTask,
-            "WebServerTask",
-            4096,
-            this,
-            2,
-            &serverTaskHandle,
-            0                   // 运行在核心0
-        );
-        
-        if (result == pdPASS) {
-            printf("Web服务器任务(SRAM栈)创建成功\n");
-            printf("Web服务器启动成功，端口：80\n");
-        } else {
-            isRunning = false;
-            printf("Web服务器任务(SRAM栈)创建失败\n");
-        }
+        isRunning = false;
+        printf("Web服务器任务(SRAM栈)创建失败\n");
     }
 }
 
@@ -214,14 +193,35 @@ void WebServerManager::handleSystemInfo() {
     
     DynamicJsonDocument doc(1024);
     doc["device"] = "ESP32S3 Monitor";
-    doc["version"] = "v4.1.1";
+    doc["version"] = "v4.2.3";
     doc["chipModel"] = ESP.getChipModel();
     doc["chipRevision"] = ESP.getChipRevision();
     doc["cpuFreq"] = ESP.getCpuFreqMHz();
     doc["flashSize"] = ESP.getFlashChipSize();
-    doc["freeHeap"] = ESP.getFreeHeap();
-    doc["totalHeap"] = ESP.getHeapSize();
     doc["uptime"] = millis();
+    
+    // SRAM内存信息（已使用/总容量格式）
+    size_t totalSRAM = ESP.getHeapSize();
+    size_t freeSRAM = ESP.getFreeHeap();
+    size_t usedSRAM = totalSRAM - freeSRAM;
+    doc["sramUsed"] = usedSRAM;
+    doc["sramTotal"] = totalSRAM;
+    doc["sramFree"] = freeSRAM;
+    doc["sramUsagePercent"] = (float)usedSRAM / totalSRAM * 100.0;
+    
+    // PSRAM内存信息
+    size_t totalPSRAM = ESP.getPsramSize();
+    if (totalPSRAM > 0) {
+        size_t freePSRAM = ESP.getFreePsram();
+        size_t usedPSRAM = totalPSRAM - freePSRAM;
+        doc["psramUsed"] = usedPSRAM;
+        doc["psramTotal"] = totalPSRAM;
+        doc["psramFree"] = freePSRAM;
+        doc["psramUsagePercent"] = (float)usedPSRAM / totalPSRAM * 100.0;
+        doc["psramAvailable"] = true;
+    } else {
+        doc["psramAvailable"] = false;
+    }
     
     if (wifiManager->isConnected()) {
         doc["wifi"]["status"] = "connected";

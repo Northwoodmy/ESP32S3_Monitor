@@ -100,7 +100,7 @@ String WebServerManager::getIndexHTML() {
     html += "                    </div>\n";
     html += "                    <div class=\"info-item\">\n";
     html += "                        <span class=\"label\">固件版本:</span>\n";
-    html += "                        <span class=\"value\" id=\"firmwareVersion\">v4.2.0</span>\n";
+    html += "                        <span class=\"value\" id=\"firmwareVersion\">v4.2.3</span>\n";
     html += "                    </div>\n";
     html += "                    <div class=\"info-item\">\n";
     html += "                        <span class=\"label\">CPU频率:</span>\n";
@@ -111,12 +111,12 @@ String WebServerManager::getIndexHTML() {
     html += "                        <span class=\"value\" id=\"flashSize\">加载中...</span>\n";
     html += "                    </div>\n";
     html += "                    <div class=\"info-item\">\n";
-    html += "                        <span class=\"label\">总内存:</span>\n";
-    html += "                        <span class=\"value\" id=\"totalHeap\">加载中...</span>\n";
+    html += "                        <span class=\"label\">SRAM内存:</span>\n";
+    html += "                        <span class=\"value\" id=\"sramInfo\">加载中...</span>\n";
     html += "                    </div>\n";
-    html += "                    <div class=\"info-item\">\n";
-    html += "                        <span class=\"label\">可用内存:</span>\n";
-    html += "                        <span class=\"value\" id=\"freeHeap\">加载中...</span>\n";
+    html += "                    <div class=\"info-item\" id=\"psramInfoItem\" style=\"display:none;\">\n";
+    html += "                        <span class=\"label\">PSRAM内存:</span>\n";
+    html += "                        <span class=\"value\" id=\"psramInfo\">不可用</span>\n";
     html += "                    </div>\n";
     html += "                    <div class=\"info-item\">\n";
     html += "                        <span class=\"label\">运行时间:</span>\n";
@@ -817,6 +817,18 @@ String WebServerManager::getCSS() {
         .value {
             color: #6b7280;
             font-family: 'Courier New', monospace;
+            text-align: right !important;
+            flex-shrink: 0;
+        }
+        
+        .info-item .value {
+            text-align: right !important;
+            display: block;
+            width: auto;
+        }
+        
+        #sramInfo, #psramInfo {
+            text-align: right !important;
         }
         
         .action-buttons {
@@ -1276,7 +1288,7 @@ String WebServerManager::getJavaScript() {
     js += "            statusDetail.textContent = '请配置WiFi网络';\n";
     js += "            currentWiFi.classList.add('hidden');\n";
     js += "        }\n";
-    js += "        document.getElementById('freeHeap').textContent = formatBytes(data.system.freeHeap);\n";
+
     js += "        document.getElementById('uptime').textContent = formatUptime(data.system.uptime);\n";
     js += "    } catch (error) {\n";
     js += "        console.error('更新状态失败:', error);\n";
@@ -1292,8 +1304,16 @@ String WebServerManager::getJavaScript() {
     js += "        document.getElementById('firmwareVersion').textContent = data.version;\n";
     js += "        document.getElementById('cpuFreq').textContent = data.cpuFreq + ' MHz';\n";
     js += "        document.getElementById('flashSize').textContent = formatBytes(data.flashSize);\n";
-    js += "        document.getElementById('totalHeap').textContent = formatBytes(data.totalHeap);\n";
-    js += "        document.getElementById('freeHeap').textContent = formatBytes(data.freeHeap);\n";
+    js += "        // SRAM信息显示\n";
+    js += "        document.getElementById('sramInfo').textContent = formatBytes(data.sramUsed) + ' / ' + formatBytes(data.sramTotal) + ' (' + data.sramUsagePercent.toFixed(1) + '%)';\n";
+    js += "        \n";
+    js += "        // PSRAM信息显示\n";
+    js += "        if (data.psramAvailable) {\n";
+    js += "            document.getElementById('psramInfoItem').style.display = 'block';\n";
+    js += "            document.getElementById('psramInfo').textContent = formatBytes(data.psramUsed) + ' / ' + formatBytes(data.psramTotal) + ' (' + data.psramUsagePercent.toFixed(1) + '%)';\n";
+    js += "        } else {\n";
+    js += "            document.getElementById('psramInfoItem').style.display = 'none';\n";
+    js += "        }\n";
     js += "        document.getElementById('uptime').textContent = formatUptime(data.uptime);\n";
     js += "        \n";
     js += "        // 显示WiFi信息\n";
