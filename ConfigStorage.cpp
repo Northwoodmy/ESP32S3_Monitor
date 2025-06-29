@@ -1,6 +1,7 @@
 /*
- * ConfigStorage.cpp - NVS配置存储类实现文件
+ * ConfigStorage.cpp - NVS配置存储任务管理器实现文件
  * ESP32S3监控项目 - 配置存储模块
+ * 基于FreeRTOS任务实现，确保NVS操作的线程安全性
  */
 
 #include "ConfigStorage.h"
@@ -22,19 +23,523 @@ const char* ConfigStorage::WIFI_PRIORITY_PREFIX = "prio_";
 const char* ConfigStorage::DEVICE_NAME_KEY = "device_name";
 const char* ConfigStorage::REFRESH_RATE_KEY = "refresh_rate";
 
-ConfigStorage::ConfigStorage() {
+const char* ConfigStorage::BRIGHTNESS_KEY = "brightness";
+
+ConfigStorage::ConfigStorage() : configTaskHandle(nullptr), configQueue(nullptr), taskRunning(false) {
 }
 
 ConfigStorage::~ConfigStorage() {
+    stopTask();
 }
 
+// 任务管理方法实现
+
 bool ConfigStorage::init() {
-    printf("初始化NVS配置存储...\n");
+    printf("🔧 [ConfigStorage] 初始化NVS配置存储任务管理器...\n");
+    
+    // 创建配置请求队列
+    configQueue = xQueueCreate(CONFIG_QUEUE_SIZE, sizeof(ConfigRequest*));
+    if (configQueue == nullptr) {
+        printf("❌ [ConfigStorage] 创建配置队列失败\n");
+        return false;
+    }
+    
+    printf("✅ [ConfigStorage] 配置存储任务管理器初始化完成\n");
     return true;
 }
 
+bool ConfigStorage::startTask() {
+    if (configTaskHandle != nullptr) {
+        printf("⚠️ [ConfigStorage] 配置任务已经在运行\n");
+        return true;
+    }
+    
+    if (configQueue == nullptr) {
+        printf("❌ [ConfigStorage] 队列未初始化，无法启动任务\n");
+        return false;
+    }
+    
+    printf("🚀 [ConfigStorage] 启动配置存储任务...\n");
+    
+    // 先设置运行标志
+    taskRunning = true;
+    
+    BaseType_t result = xTaskCreate(
+        configTaskFunction,           // 任务函数
+        "ConfigStorageTask",          // 任务名称
+        CONFIG_TASK_STACK_SIZE,       // 堆栈大小
+        this,                         // 任务参数
+        CONFIG_TASK_PRIORITY,         // 任务优先级
+        &configTaskHandle             // 任务句柄
+    );
+    
+    if (result != pdPASS) {
+        printf("❌ [ConfigStorage] 创建配置存储任务失败\n");
+        taskRunning = false;
+        return false;
+    }
+    
+    printf("✅ [ConfigStorage] 配置存储任务启动成功\n");
+    
+    // 等待任务实际开始运行
+    vTaskDelay(pdMS_TO_TICKS(100));
+    
+    return true;
+}
+
+void ConfigStorage::stopTask() {
+    if (configTaskHandle == nullptr) {
+        return;
+    }
+    
+    printf("🛑 [ConfigStorage] 停止配置存储任务...\n");
+    
+    taskRunning = false;
+    
+    // 等待任务结束
+    vTaskDelete(configTaskHandle);
+    configTaskHandle = nullptr;
+    
+    // 清理队列
+    if (configQueue != nullptr) {
+        vQueueDelete(configQueue);
+        configQueue = nullptr;
+    }
+    
+    printf("✅ [ConfigStorage] 配置存储任务已停止\n");
+}
+
+// 静态任务函数实现
+void ConfigStorage::configTaskFunction(void* parameter) {
+    ConfigStorage* storage = static_cast<ConfigStorage*>(parameter);
+    
+    if (storage == nullptr) {
+        printf("❌ [ConfigStorage] 任务参数为空，无法启动\n");
+        vTaskDelete(nullptr);
+        return;
+    }
+    
+    printf("🎯 [ConfigStorage] 配置存储任务开始运行\n");
+    
+    if (storage->configQueue == nullptr) {
+        printf("❌ [ConfigStorage] 队列未初始化，任务退出\n");
+        storage->taskRunning = false;
+        vTaskDelete(nullptr);
+        return;
+    }
+    
+    ConfigRequest* request;
+    
+    while (storage->taskRunning) {
+        // 等待配置请求消息
+        if (xQueueReceive(storage->configQueue, &request, pdMS_TO_TICKS(100)) == pdTRUE) {
+            if (request != nullptr) {
+                // 处理配置请求
+                storage->processConfigRequest(request);
+                
+                // 通知请求者操作完成
+                if (request->responseSemaphore != nullptr) {
+                    xSemaphoreGive(request->responseSemaphore);
+                }
+            }
+        }
+        
+        // 短暂延时，避免占用过多CPU时间
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
+    
+    printf("🔚 [ConfigStorage] 配置存储任务结束\n");
+    vTaskDelete(nullptr);
+}
+
+// 内部任务处理方法实现
+void ConfigStorage::processConfigRequest(ConfigRequest* request) {
+    if (request == nullptr) {
+        printf("❌ [ConfigStorage] 无效的配置请求\n");
+        return;
+    }
+    
+    request->success = false;
+    
+    switch (request->operation) {
+        case CONFIG_OP_SAVE_WIFI: {
+            WiFiConfigData* data = static_cast<WiFiConfigData*>(request->data);
+            if (data != nullptr) {
+                request->success = saveWiFiConfig(data->ssid, data->password);
+            }
+            break;
+        }
+        
+        case CONFIG_OP_LOAD_WIFI: {
+            WiFiConfigData* result = static_cast<WiFiConfigData*>(request->result);
+            if (result != nullptr) {
+                request->success = loadWiFiConfig(result->ssid, result->password);
+            }
+            break;
+        }
+        
+        case CONFIG_OP_HAS_WIFI: {
+            bool* result = static_cast<bool*>(request->result);
+            if (result != nullptr) {
+                *result = hasWiFiConfig();
+                request->success = true;
+            }
+            break;
+        }
+        
+        case CONFIG_OP_CLEAR_WIFI: {
+            clearWiFiConfig();
+            request->success = true;
+            break;
+        }
+        
+        case CONFIG_OP_SAVE_MULTI_WIFI: {
+            MultiWiFiConfigData* data = static_cast<MultiWiFiConfigData*>(request->data);
+            if (data != nullptr) {
+                request->success = saveWiFiConfigs(data->configs);
+            }
+            break;
+        }
+        
+        case CONFIG_OP_LOAD_MULTI_WIFI: {
+            MultiWiFiConfigData* result = static_cast<MultiWiFiConfigData*>(request->result);
+            if (result != nullptr) {
+                request->success = loadWiFiConfigs(result->configs);
+            }
+            break;
+        }
+        
+        case CONFIG_OP_ADD_WIFI: {
+            WiFiConfigData* data = static_cast<WiFiConfigData*>(request->data);
+            if (data != nullptr) {
+                request->success = addWiFiConfig(data->ssid, data->password);
+            }
+            break;
+        }
+        
+        case CONFIG_OP_GET_WIFI_COUNT: {
+            int* result = static_cast<int*>(request->result);
+            if (result != nullptr) {
+                *result = getWiFiConfigCount();
+                request->success = true;
+            }
+            break;
+        }
+        
+        case CONFIG_OP_CLEAR_ALL_WIFI: {
+            clearAllWiFiConfigs();
+            request->success = true;
+            break;
+        }
+        
+        case CONFIG_OP_UPDATE_WIFI_PRIORITY: {
+            PriorityConfigData* data = static_cast<PriorityConfigData*>(request->data);
+            if (data != nullptr) {
+                request->success = updateWiFiPriority(data->index, data->priority);
+            }
+            break;
+        }
+        
+        case CONFIG_OP_SET_WIFI_PRIORITIES: {
+            PriorityConfigData* data = static_cast<PriorityConfigData*>(request->data);
+            if (data != nullptr) {
+                request->success = setWiFiPriorities(data->priorities);
+            }
+            break;
+        }
+        
+        case CONFIG_OP_SAVE_SYSTEM: {
+            SystemConfigData* data = static_cast<SystemConfigData*>(request->data);
+            if (data != nullptr) {
+                request->success = saveSystemConfig(data->deviceName, data->refreshRate);
+            }
+            break;
+        }
+        
+        case CONFIG_OP_LOAD_SYSTEM: {
+            SystemConfigData* result = static_cast<SystemConfigData*>(request->result);
+            if (result != nullptr) {
+                request->success = loadSystemConfig(result->deviceName, result->refreshRate);
+            }
+            break;
+        }
+        
+        case CONFIG_OP_SAVE_BRIGHTNESS: {
+            BrightnessConfigData* data = static_cast<BrightnessConfigData*>(request->data);
+            if (data != nullptr) {
+                request->success = saveBrightness(data->brightness);
+            }
+            break;
+        }
+        
+        case CONFIG_OP_LOAD_BRIGHTNESS: {
+            BrightnessConfigData* result = static_cast<BrightnessConfigData*>(request->result);
+            if (result != nullptr) {
+                result->brightness = loadBrightness();
+                request->success = true;
+            }
+            break;
+        }
+        
+        case CONFIG_OP_HAS_BRIGHTNESS: {
+            bool* result = static_cast<bool*>(request->result);
+            if (result != nullptr) {
+                *result = hasBrightnessConfig();
+                request->success = true;
+            }
+            break;
+        }
+        
+        case CONFIG_OP_RESET_ALL: {
+            request->success = resetAllConfig();
+            break;
+        }
+        
+        default:
+            printf("❌ [ConfigStorage] 未知的配置操作类型: %d\n", request->operation);
+            break;
+    }
+    
+    printf("🔄 [ConfigStorage] 配置操作完成，结果: %s\n", request->success ? "成功" : "失败");
+}
+
+// 辅助方法：发送请求并等待响应
+bool ConfigStorage::sendRequestAndWait(ConfigRequest* request, uint32_t timeoutMs) {
+    if (request == nullptr || configQueue == nullptr || !taskRunning || configTaskHandle == nullptr) {
+        printf("❌ [ConfigStorage] 无效的请求参数或任务未运行\n");
+        return false;
+    }
+    
+    // 创建响应信号量
+    request->responseSemaphore = xSemaphoreCreateBinary();
+    if (request->responseSemaphore == nullptr) {
+        printf("❌ [ConfigStorage] 创建响应信号量失败\n");
+        return false;
+    }
+    
+    // 发送请求到队列
+    BaseType_t queueResult = xQueueSend(configQueue, &request, pdMS_TO_TICKS(1000));
+    if (queueResult != pdTRUE) {
+        printf("❌ [ConfigStorage] 发送配置请求到队列失败\n");
+        vSemaphoreDelete(request->responseSemaphore);
+        return false;
+    }
+    
+    // 等待响应
+    bool success = false;
+    BaseType_t semResult = xSemaphoreTake(request->responseSemaphore, pdMS_TO_TICKS(timeoutMs));
+    if (semResult == pdTRUE) {
+        success = request->success;
+    } else {
+        printf("⏰ [ConfigStorage] 配置操作超时 (%d ms)\n", timeoutMs);
+    }
+    
+    // 清理信号量
+    vSemaphoreDelete(request->responseSemaphore);
+    request->responseSemaphore = nullptr;
+    
+    return success;
+}
+
+// 异步WiFi配置操作接口实现
+
+bool ConfigStorage::saveWiFiConfigAsync(const String& ssid, const String& password, uint32_t timeoutMs) {
+    WiFiConfigData data(ssid, password);
+    ConfigRequest request;
+    request.operation = CONFIG_OP_SAVE_WIFI;
+    request.data = &data;
+    
+    return sendRequestAndWait(&request, timeoutMs);
+}
+
+bool ConfigStorage::loadWiFiConfigAsync(String& ssid, String& password, uint32_t timeoutMs) {
+    WiFiConfigData result;
+    ConfigRequest request;
+    request.operation = CONFIG_OP_LOAD_WIFI;
+    request.result = &result;
+    
+    bool success = sendRequestAndWait(&request, timeoutMs);
+    if (success) {
+        ssid = result.ssid;
+        password = result.password;
+    }
+    
+    return success;
+}
+
+bool ConfigStorage::hasWiFiConfigAsync(uint32_t timeoutMs) {
+    bool result = false;
+    ConfigRequest request;
+    request.operation = CONFIG_OP_HAS_WIFI;
+    request.result = &result;
+    
+    bool success = sendRequestAndWait(&request, timeoutMs);
+    return success && result;
+}
+
+void ConfigStorage::clearWiFiConfigAsync(uint32_t timeoutMs) {
+    ConfigRequest request;
+    request.operation = CONFIG_OP_CLEAR_WIFI;
+    
+    sendRequestAndWait(&request, timeoutMs);
+}
+
+// 异步多WiFi配置操作接口实现
+
+bool ConfigStorage::saveWiFiConfigsAsync(const WiFiConfig configs[3], uint32_t timeoutMs) {
+    MultiWiFiConfigData data;
+    for (int i = 0; i < 3; i++) {
+        data.configs[i] = configs[i];
+    }
+    
+    ConfigRequest request;
+    request.operation = CONFIG_OP_SAVE_MULTI_WIFI;
+    request.data = &data;
+    
+    return sendRequestAndWait(&request, timeoutMs);
+}
+
+bool ConfigStorage::loadWiFiConfigsAsync(WiFiConfig configs[3], uint32_t timeoutMs) {
+    MultiWiFiConfigData result;
+    ConfigRequest request;
+    request.operation = CONFIG_OP_LOAD_MULTI_WIFI;
+    request.result = &result;
+    
+    bool success = sendRequestAndWait(&request, timeoutMs);
+    if (success) {
+        for (int i = 0; i < 3; i++) {
+            configs[i] = result.configs[i];
+        }
+    }
+    
+    return success;
+}
+
+bool ConfigStorage::addWiFiConfigAsync(const String& ssid, const String& password, uint32_t timeoutMs) {
+    WiFiConfigData data(ssid, password);
+    ConfigRequest request;
+    request.operation = CONFIG_OP_ADD_WIFI;
+    request.data = &data;
+    
+    return sendRequestAndWait(&request, timeoutMs);
+}
+
+int ConfigStorage::getWiFiConfigCountAsync(uint32_t timeoutMs) {
+    int result = 0;
+    ConfigRequest request;
+    request.operation = CONFIG_OP_GET_WIFI_COUNT;
+    request.result = &result;
+    
+    bool success = sendRequestAndWait(&request, timeoutMs);
+    return success ? result : 0;
+}
+
+void ConfigStorage::clearAllWiFiConfigsAsync(uint32_t timeoutMs) {
+    ConfigRequest request;
+    request.operation = CONFIG_OP_CLEAR_ALL_WIFI;
+    
+    sendRequestAndWait(&request, timeoutMs);
+}
+
+// 异步优先级管理接口实现
+
+bool ConfigStorage::updateWiFiPriorityAsync(int index, int priority, uint32_t timeoutMs) {
+    PriorityConfigData data;
+    data.index = index;
+    data.priority = priority;
+    
+    ConfigRequest request;
+    request.operation = CONFIG_OP_UPDATE_WIFI_PRIORITY;
+    request.data = &data;
+    
+    return sendRequestAndWait(&request, timeoutMs);
+}
+
+bool ConfigStorage::setWiFiPrioritiesAsync(const int priorities[3], uint32_t timeoutMs) {
+    PriorityConfigData data;
+    for (int i = 0; i < 3; i++) {
+        data.priorities[i] = priorities[i];
+    }
+    
+    ConfigRequest request;
+    request.operation = CONFIG_OP_SET_WIFI_PRIORITIES;
+    request.data = &data;
+    
+    return sendRequestAndWait(&request, timeoutMs);
+}
+
+// 异步系统配置操作接口实现
+
+bool ConfigStorage::saveSystemConfigAsync(const String& deviceName, int refreshRate, uint32_t timeoutMs) {
+    SystemConfigData data(deviceName, refreshRate);
+    ConfigRequest request;
+    request.operation = CONFIG_OP_SAVE_SYSTEM;
+    request.data = &data;
+    
+    return sendRequestAndWait(&request, timeoutMs);
+}
+
+bool ConfigStorage::loadSystemConfigAsync(String& deviceName, int& refreshRate, uint32_t timeoutMs) {
+    SystemConfigData result;
+    ConfigRequest request;
+    request.operation = CONFIG_OP_LOAD_SYSTEM;
+    request.result = &result;
+    
+    bool success = sendRequestAndWait(&request, timeoutMs);
+    if (success) {
+        deviceName = result.deviceName;
+        refreshRate = result.refreshRate;
+    }
+    
+    return success;
+}
+
+// 异步屏幕亮度配置操作接口实现
+
+bool ConfigStorage::saveBrightnessAsync(uint8_t brightness, uint32_t timeoutMs) {
+    BrightnessConfigData data(brightness);
+    ConfigRequest request;
+    request.operation = CONFIG_OP_SAVE_BRIGHTNESS;
+    request.data = &data;
+    
+    return sendRequestAndWait(&request, timeoutMs);
+}
+
+uint8_t ConfigStorage::loadBrightnessAsync(uint32_t timeoutMs) {
+    BrightnessConfigData result;
+    ConfigRequest request;
+    request.operation = CONFIG_OP_LOAD_BRIGHTNESS;
+    request.result = &result;
+    
+    bool success = sendRequestAndWait(&request, timeoutMs);
+    return success ? result.brightness : 80; // 默认值80%
+}
+
+bool ConfigStorage::hasBrightnessConfigAsync(uint32_t timeoutMs) {
+    bool result = false;
+    ConfigRequest request;
+    request.operation = CONFIG_OP_HAS_BRIGHTNESS;
+    request.result = &result;
+    
+    bool success = sendRequestAndWait(&request, timeoutMs);
+    return success && result;
+}
+
+// 异步配置重置操作接口实现
+
+bool ConfigStorage::resetAllConfigAsync(uint32_t timeoutMs) {
+    ConfigRequest request;
+    request.operation = CONFIG_OP_RESET_ALL;
+    
+    return sendRequestAndWait(&request, timeoutMs);
+}
+
+
+
+// 内部NVS操作方法实现 (原有方法改为private)
+
 bool ConfigStorage::saveWiFiConfig(const String& ssid, const String& password) {
-    printf("保存WiFi配置到NVS: SSID=%s\n", ssid.c_str());
+    printf("💾 [ConfigStorage] 保存WiFi配置到NVS: SSID=%s\n", ssid.c_str());
     
     if (!preferences.begin(WIFI_NAMESPACE, false)) {
         printf("打开WiFi配置命名空间失败\n");
@@ -544,4 +1049,58 @@ void ConfigStorage::resolveConflictingPriorities(WiFiConfig configs[3], int targ
     }
     
     printf("优先级冲突解决完成\n");
-} 
+}
+
+// 屏幕亮度配置方法实现
+
+bool ConfigStorage::saveBrightness(uint8_t brightness) {
+    printf("💾 [ConfigStorage] 保存屏幕亮度配置: %d%%\n", brightness);
+    
+    if (!preferences.begin(SYSTEM_NAMESPACE, false)) {
+        printf("❌ [ConfigStorage] 打开系统配置命名空间失败\n");
+        return false;
+    }
+    
+    // 保存亮度值 (0-100)
+    size_t result = preferences.putUChar(BRIGHTNESS_KEY, brightness);
+    preferences.end();
+    
+    if (result == 0) {
+        printf("❌ [ConfigStorage] 亮度配置保存失败\n");
+        return false;
+    }
+    
+    printf("✅ [ConfigStorage] 亮度配置保存成功: %d%%\n", brightness);
+    return true;
+}
+
+uint8_t ConfigStorage::loadBrightness() {
+    if (!preferences.begin(SYSTEM_NAMESPACE, true)) {
+        printf("⚠️ [ConfigStorage] 打开系统配置命名空间失败，使用默认亮度\n");
+        return 80; // 默认亮度80%
+    }
+    
+    uint8_t brightness = preferences.getUChar(BRIGHTNESS_KEY, 80); // 默认值80%
+    preferences.end();
+    
+    // 验证亮度值范围
+    if (brightness > 100) {
+        printf("⚠️ [ConfigStorage] 加载的亮度值超出范围(%d%%)，使用默认值80%%\n", brightness);
+        brightness = 80;
+    }
+    
+    printf("📖 [ConfigStorage] 加载屏幕亮度配置: %d%%\n", brightness);
+    return brightness;
+}
+
+bool ConfigStorage::hasBrightnessConfig() {
+    if (!preferences.begin(SYSTEM_NAMESPACE, true)) {
+        return false;
+    }
+    
+    bool exists = preferences.isKey(BRIGHTNESS_KEY);
+    preferences.end();
+    
+    printf("🔍 [ConfigStorage] 检查亮度配置存在性: %s\n", exists ? "存在" : "不存在");
+    return exists;
+}

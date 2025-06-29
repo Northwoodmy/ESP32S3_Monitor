@@ -96,9 +96,8 @@ static const sh8601_lcd_init_cmd_t lcd_init_cmds[] = {
   { 0x53, (uint8_t[]){ 0x20 }, 1, 10 },          // 显示控制模式设置
   { 0x2A, (uint8_t[]){ 0x00, 0x00, 0x01, 0x6F }, 4, 0 }, // 列地址设置 (0-367)
   { 0x2B, (uint8_t[]){ 0x00, 0x00, 0x01, 0xBF }, 4, 0 }, // 行地址设置 (0-447)
-  { 0x51, (uint8_t[]){ 0x00 }, 1, 10 },          // 亮度设置为0（最暗）
   { 0x29, (uint8_t[]){ 0x00 }, 0, 10 },          // 显示开启
-  { 0x51, (uint8_t[]){ 0xFF }, 1, 0 },           // 亮度设置为最大值
+  { 0x51, (uint8_t[]){ 0x80 }, 1, 0 },           // 亮度设置为中等值（50%）
 };
 
 /**
@@ -338,8 +337,15 @@ bool LVGLDriver::init() {
     
     printf("[LVGLDriver] 开始初始化LVGL驱动系统...\n");
     
-    // 调用原有的LVGL初始化函数
-    LVGL_Init();
+    // 调用LVGL初始化函数并获取显示器对象
+    m_display = LVGL_Init();
+    
+    if (m_display) {
+        printf("✅ [LVGLDriver] 显示器对象初始化成功: %p\n", m_display);
+    } else {
+        printf("❌ [LVGLDriver] 显示器对象初始化失败\n");
+        return false;
+    }
     
     // 不创建自己的互斥锁，使用全局的lvgl_mux
     m_mutex = nullptr;
@@ -517,8 +523,37 @@ void LVGLDriver::setBrightness(uint8_t brightness) {
     
     m_brightness = brightness;
     
-    // 这里可以添加硬件亮度控制代码
-    // 例如：通过PWM控制背光亮度
+    // SH8601 AMOLED显示屏通过QSPI命令控制背光亮度
+    // 将0-100的百分比转换为0-255的硬件值
+    uint8_t hw_brightness = (uint8_t)((brightness * 255) / 100);
+    
+    // 使用专用的SH8601亮度控制函数
+    if (m_display) {
+        lv_disp_drv_t* drv = m_display->driver;
+        if (drv && drv->user_data) {
+            esp_lcd_panel_handle_t panel_handle = (esp_lcd_panel_handle_t)drv->user_data;
+            
+            if (panel_handle) {
+                printf("🎯 [LVGLDriver] Panel句柄有效，设置亮度：%d%% -> 硬件值：%d\n", m_brightness, hw_brightness);
+                
+                // 调用SH8601专用的亮度控制函数
+                esp_err_t ret = esp_lcd_sh8601_set_brightness(panel_handle, hw_brightness);
+                
+                if (ret == ESP_OK) {
+                    printf("✅ [LVGLDriver] 硬件亮度设置成功：%d%% (硬件值：%d)\n", m_brightness, hw_brightness);
+                } else {
+                    printf("❌ [LVGLDriver] 硬件亮度设置失败，错误码：0x%x\n", ret);
+                }
+            } else {
+                printf("❌ [LVGLDriver] Panel句柄无效\n");
+            }
+        } else {
+            printf("[LVGLDriver] 显示驱动无效\n");
+        }
+    } else {
+        printf("[LVGLDriver] 显示器未初始化\n");
+    }
+    
     printf("[LVGLDriver] 设置显示亮度：%d%%\n", m_brightness);
 }
 
@@ -541,8 +576,10 @@ LVGLDriver* lvglDriver = nullptr;
  * 3. 触摸屏初始化
  * 4. LVGL图形库初始化
  * 5. 创建和启动相关任务
+ * 
+ * @return lv_disp_t* 返回创建的显示器对象，用于后续亮度控制等操作
  */
-void LVGL_Init(void) {
+lv_disp_t* LVGL_Init(void) {
 
   printf("[ESP_LCD_LVGL] ESP32 LCD LVGL项目启动中...\n");
   
@@ -688,5 +725,8 @@ void LVGL_Init(void) {
   }
   
   printf("[ESP_LCD_LVGL] 系统初始化完成！\n");
+  
+  // 返回创建的显示器对象
+  return disp;
 }
 

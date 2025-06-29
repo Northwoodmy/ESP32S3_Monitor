@@ -38,6 +38,9 @@ String WebServerManager::getIndexHTML() {
     html += "            <button class=\"tab-btn active\" onclick=\"switchTab('wifi')\" id=\"wifiTab\">\n";
     html += "                WiFi配置\n";
     html += "            </button>\n";
+    html += "            <button class=\"tab-btn\" onclick=\"switchTab('screen')\" id=\"screenTab\">\n";
+    html += "                屏幕配置\n";
+    html += "            </button>\n";
     html += "            <button class=\"tab-btn\" onclick=\"switchTab('system')\" id=\"systemTab\">\n";
     html += "                系统信息\n";
     html += "            </button>\n";
@@ -89,6 +92,65 @@ String WebServerManager::getIndexHTML() {
     html += "            </div>\n";
     html += "        </div>\n";
     html += "        \n";
+    html += "        <!-- 屏幕配置标签页 -->\n";
+    html += "        <div class=\"tab-content\" id=\"screenContent\">\n";
+    html += "            <div class=\"card\">\n";
+    html += "                <h2>屏幕亮度控制</h2>\n";
+    html += "                <div class=\"screen-config-section\">\n";
+    html += "                    <div class=\"brightness-control\">\n";
+    html += "                        <div class=\"slider-container\">\n";
+    html += "                            <label for=\"brightnessSlider\" class=\"slider-label\">亮度级别:</label>\n";
+    html += "                            <div class=\"slider-wrapper\">\n";
+    html += "                                <input type=\"range\" id=\"brightnessSlider\" class=\"brightness-slider\" \n";
+    html += "                                       min=\"10\" max=\"255\" value=\"128\" \n";
+    html += "                                       oninput=\"updateBrightnessValue(this.value)\"\n";
+    html += "                                       onchange=\"setBrightness(this.value)\">\n";
+    html += "                                <div class=\"slider-track\"></div>\n";
+    html += "                            </div>\n";
+    html += "                            <div class=\"brightness-display\">\n";
+    html += "                                <span id=\"brightnessValue\">50%</span>\n";
+    html += "                            </div>\n";
+    html += "                        </div>\n";
+    html += "                        <div class=\"brightness-presets\">\n";
+    html += "                            <h3>快速设置</h3>\n";
+    html += "                            <div class=\"preset-buttons\">\n";
+    html += "                                <button class=\"preset-btn\" onclick=\"setPresetBrightness(25)\">低 (10%)</button>\n";
+    html += "                                <button class=\"preset-btn\" onclick=\"setPresetBrightness(128)\">中 (50%)</button>\n";
+    html += "                                <button class=\"preset-btn\" onclick=\"setPresetBrightness(204)\">高 (80%)</button>\n";
+    html += "                                <button class=\"preset-btn\" onclick=\"setPresetBrightness(255)\">最高 (100%)</button>\n";
+    html += "                            </div>\n";
+    html += "                        </div>\n";
+    html += "                    </div>\n";
+    html += "                </div>\n";
+    html += "            </div>\n";
+    html += "            \n";
+    html += "            <div class=\"card\">\n";
+    html += "                <h2>屏幕设置</h2>\n";
+    html += "                <div class=\"screen-settings\">\n";
+    html += "                    <div class=\"setting-item\">\n";
+    html += "                        <label class=\"setting-label\">当前亮度:</label>\n";
+    html += "                        <span class=\"value\" id=\"currentBrightness\">加载中...</span>\n";
+    html += "                    </div>\n";
+    html += "                    <div class=\"setting-item\">\n";
+    html += "                        <label class=\"setting-label\">屏幕状态:</label>\n";
+    html += "                        <span class=\"value\" id=\"screenStatus\">加载中...</span>\n";
+    html += "                    </div>\n";
+    html += "                    <div class=\"setting-item\">\n";
+    html += "                        <label class=\"setting-label\">背光控制:</label>\n";
+    html += "                        <span class=\"value\" id=\"backlightStatus\">加载中...</span>\n";
+    html += "                    </div>\n";
+    html += "                </div>\n";
+    html += "                <div class=\"action-buttons\">\n";
+    html += "                    <button onclick=\"refreshScreenInfo()\" class=\"primary-btn\">\n";
+    html += "                        刷新信息\n";
+    html += "                    </button>\n";
+    html += "                    <button onclick=\"testScreen()\" class=\"success-btn\">\n";
+    html += "                        屏幕测试\n";
+    html += "                    </button>\n";
+    html += "                </div>\n";
+    html += "            </div>\n";
+    html += "        </div>\n";
+    html += "        \n";
     html += "        <!-- 系统信息标签页 -->\n";
     html += "        <div class=\"tab-content\" id=\"systemContent\">\n";
     html += "            <div class=\"card\">\n";
@@ -100,7 +162,7 @@ String WebServerManager::getIndexHTML() {
     html += "                    </div>\n";
     html += "                    <div class=\"info-item\">\n";
     html += "                        <span class=\"label\">固件版本:</span>\n";
-    html += "                        <span class=\"value\" id=\"firmwareVersion\">v4.2.3</span>\n";
+    html += "                        <span class=\"value\" id=\"firmwareVersion\">v5.0.1</span>\n";
     html += "                    </div>\n";
     html += "                    <div class=\"info-item\">\n";
     html += "                        <span class=\"label\">CPU频率:</span>\n";
@@ -1186,6 +1248,142 @@ String WebServerManager::getCSS() {
             box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
         }
         
+        /* 屏幕配置相关样式 */
+        .screen-config-section {
+            padding: 20px 0;
+        }
+        
+        .brightness-control {
+            margin-bottom: 24px;
+        }
+        
+        .slider-container {
+            margin-bottom: 20px;
+        }
+        
+        .slider-label {
+            display: block;
+            margin-bottom: 12px;
+            font-weight: 600;
+            color: #374151;
+            font-size: 1.1rem;
+        }
+        
+        .slider-wrapper {
+            position: relative;
+            margin-bottom: 12px;
+        }
+        
+        .brightness-slider {
+            width: 100%;
+            height: 8px;
+            border-radius: 8px;
+            background: linear-gradient(to right, #f3f4f6, #3b82f6);
+            outline: none;
+            -webkit-appearance: none;
+            cursor: pointer;
+        }
+        
+        .brightness-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .brightness-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 16px rgba(59, 130, 246, 0.6);
+        }
+        
+        .brightness-slider::-moz-range-thumb {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+            cursor: pointer;
+            border: none;
+            transition: all 0.3s ease;
+        }
+        
+        .brightness-display {
+            text-align: center;
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #1f2937;
+            background: #f8fafc;
+            padding: 12px;
+            border-radius: 12px;
+            border: 2px solid #e2e8f0;
+        }
+        
+        .brightness-presets {
+            margin-top: 24px;
+        }
+        
+        .brightness-presets h3 {
+            margin-bottom: 16px;
+            color: #374151;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        
+        .preset-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 12px;
+        }
+        
+        .preset-btn {
+            padding: 12px 16px;
+            border: none;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #6b7280, #4b5563);
+            color: white;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+        
+        .preset-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(107, 114, 128, 0.4);
+        }
+        
+        .preset-btn.active {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+        
+        .screen-settings {
+            margin-bottom: 24px;
+        }
+        
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .setting-item:last-child {
+            border-bottom: none;
+        }
+        
+        .setting-label {
+            font-weight: 500;
+            color: #374151;
+            font-size: 1rem;
+        }
+        
         @media (max-width: 640px) {
             .container {
                 padding: 16px;
@@ -1254,6 +1452,8 @@ String WebServerManager::getJavaScript() {
     js += "        loadSystemInfo();\n";
     js += "    } else if (tabName === 'wifi') {\n";
     js += "        loadSavedWiFiConfigs();\n";
+    js += "    } else if (tabName === 'screen') {\n";
+    js += "        loadScreenConfig();\n";
     js += "    }\n";
     js += "}\n\n";
     
@@ -1714,6 +1914,88 @@ String WebServerManager::getJavaScript() {
     js += "}\n\n";
 
 
+    
+    js += "// 屏幕配置相关函数\n";
+    js += "async function loadScreenConfig() {\n";
+    js += "    try {\n";
+    js += "        const response = await fetch('/api/screen/config');\n";
+    js += "        const data = await response.json();\n";
+    js += "        if (data.success) {\n";
+    js += "            document.getElementById('brightnessSlider').value = data.brightness || 128;\n";
+    js += "            updateBrightnessValue(data.brightness || 128);\n";
+    js += "            document.getElementById('currentBrightness').textContent = Math.round((data.brightness / 255) * 100) + '%';\n";
+    js += "            document.getElementById('screenStatus').textContent = data.screenOn ? '开启' : '关闭';\n";
+    js += "            document.getElementById('backlightStatus').textContent = data.backlightOn ? '开启' : '关闭';\n";
+    js += "        }\n";
+    js += "    } catch (error) {\n";
+    js += "        console.error('加载屏幕配置失败:', error);\n";
+    js += "        showToast('加载屏幕配置失败', 'error');\n";
+    js += "    }\n";
+    js += "}\n\n";
+    
+    js += "function updateBrightnessValue(value) {\n";
+    js += "    const percentage = Math.round((value / 255) * 100);\n";
+    js += "    document.getElementById('brightnessValue').textContent = percentage + '%';\n";
+    js += "    // 更新预设按钮状态\n";
+    js += "    const presetBtns = document.querySelectorAll('.preset-btn');\n";
+    js += "    presetBtns.forEach(btn => btn.classList.remove('active'));\n";
+    js += "    // 根据当前值高亮对应的预设按钮\n";
+    js += "    if (value <= 30) {\n";
+    js += "        presetBtns[0]?.classList.add('active');\n";
+    js += "    } else if (value <= 140) {\n";
+    js += "        presetBtns[1]?.classList.add('active');\n";
+    js += "    } else if (value <= 220) {\n";
+    js += "        presetBtns[2]?.classList.add('active');\n";
+    js += "    } else {\n";
+    js += "        presetBtns[3]?.classList.add('active');\n";
+    js += "    }\n";
+    js += "}\n\n";
+    
+    js += "async function setBrightness(value) {\n";
+    js += "    try {\n";
+    js += "        const response = await fetch('/api/screen/brightness', {\n";
+    js += "            method: 'POST',\n";
+    js += "            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },\n";
+    js += "            body: 'brightness=' + value\n";
+    js += "        });\n";
+    js += "        const data = await response.json();\n";
+    js += "        if (data.success) {\n";
+    js += "            showToast('亮度设置成功', 'success');\n";
+    js += "            document.getElementById('currentBrightness').textContent = Math.round((value / 255) * 100) + '%';\n";
+    js += "        } else {\n";
+    js += "            showToast('亮度设置失败: ' + data.message, 'error');\n";
+    js += "        }\n";
+    js += "    } catch (error) {\n";
+    js += "        console.error('设置亮度失败:', error);\n";
+    js += "        showToast('设置亮度失败', 'error');\n";
+    js += "    }\n";
+    js += "}\n\n";
+    
+    js += "function setPresetBrightness(value) {\n";
+    js += "    document.getElementById('brightnessSlider').value = value;\n";
+    js += "    updateBrightnessValue(value);\n";
+    js += "    setBrightness(value);\n";
+    js += "}\n\n";
+    
+    js += "async function refreshScreenInfo() {\n";
+    js += "    loadScreenConfig();\n";
+    js += "    showToast('屏幕信息已刷新', 'success');\n";
+    js += "}\n\n";
+    
+    js += "async function testScreen() {\n";
+    js += "    try {\n";
+    js += "        const response = await fetch('/api/screen/test', { method: 'POST' });\n";
+    js += "        const data = await response.json();\n";
+    js += "        if (data.success) {\n";
+    js += "            showToast('屏幕测试已启动', 'success');\n";
+    js += "        } else {\n";
+    js += "            showToast('屏幕测试失败: ' + data.message, 'error');\n";
+    js += "        }\n";
+    js += "    } catch (error) {\n";
+    js += "        console.error('屏幕测试失败:', error);\n";
+    js += "        showToast('屏幕测试失败', 'error');\n";
+    js += "    }\n";
+    js += "}\n\n";
     
     js += "window.addEventListener('beforeunload', function() {\n";
     js += "    if (statusInterval) { clearInterval(statusInterval); }\n";

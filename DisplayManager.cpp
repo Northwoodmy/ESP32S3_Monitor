@@ -140,6 +140,21 @@ bool DisplayManager::init(LVGLDriver* lvgl_driver, WiFiManager* wifi_manager, Co
         return false;
     }
     
+    // 从NVS加载保存的亮度设置
+    printf("📖 [DisplayManager] 从NVS异步加载亮度配置...\n");
+    if (m_configStorage->hasBrightnessConfigAsync(3000)) {
+        m_brightness = m_configStorage->loadBrightnessAsync(3000);
+        printf("✅ [DisplayManager] 加载保存的亮度: %d%%\n", m_brightness);
+        
+        // 立即应用加载的亮度到硬件
+        if (m_lvglDriver) {
+            m_lvglDriver->setBrightness(m_brightness);
+            printf("🎯 [DisplayManager] 应用亮度到硬件: %d%%\n", m_brightness);
+        }
+    } else {
+        printf("⚠️ [DisplayManager] 没有保存的亮度配置，使用默认值: %d%%\n", m_brightness);
+    }
+    
     m_initialized = true;
     printf("[DisplayManager] 显示管理器初始化完成\n");
     return true;
@@ -149,19 +164,27 @@ bool DisplayManager::init(LVGLDriver* lvgl_driver, WiFiManager* wifi_manager, Co
  * @brief 启动显示管理器任务
  */
 bool DisplayManager::start() {
+    printf("🎬 [DisplayManager] start()被调用\n");
+    printf("🔍 [DisplayManager] 检查初始化状态: m_initialized = %s\n", m_initialized ? "true" : "false");
+    
     if (!m_initialized) {
-        printf("[DisplayManager] 错误：未初始化，无法启动任务\n");
+        printf("❌ [DisplayManager] 错误：未初始化，无法启动任务\n");
         return false;
     }
     
+    printf("🔍 [DisplayManager] 检查运行状态: m_running = %s\n", m_running ? "true" : "false");
     if (m_running) {
-        printf("[DisplayManager] 警告：任务已在运行\n");
+        printf("⚠️ [DisplayManager] 警告：任务已在运行\n");
         return true;
     }
     
+    // ⚠️ 重要：在创建任务之前设置m_running = true，避免竞态条件
+    m_running = true;
+    printf("🔄 [DisplayManager] 设置m_running = true，准备创建任务\n");
+    
     if (m_psramManager && m_psramManager->isPSRAMAvailable()) {
         // 使用PSRAM栈创建任务
-        printf("[DisplayManager] 使用PSRAM栈创建显示管理器任务\n");
+        printf("🧠 [DisplayManager] 使用PSRAM栈创建显示管理器任务\n");
         m_taskHandle = m_psramManager->createTaskWithPSRAMStack(
             displayTaskEntry,           // 任务函数
             "DisplayManager",           // 任务名称
@@ -172,15 +195,15 @@ bool DisplayManager::start() {
         );
         
         if (m_taskHandle == nullptr) {
-            printf("[DisplayManager] 错误：创建PSRAM栈任务失败\n");
+            printf("❌ [DisplayManager] 错误：创建PSRAM栈任务失败\n");
+            m_running = false;  // 失败时重置状态
             return false;
         }
         
-        m_running = true;
-        printf("[DisplayManager] 显示管理器任务(PSRAM栈)已启动（核心%d，优先级%d）\n", TASK_CORE, TASK_PRIORITY);
+        printf("✅ [DisplayManager] 显示管理器任务(PSRAM栈)已启动（核心%d，优先级%d）\n", TASK_CORE, TASK_PRIORITY);
     } else {
         // 回退到SRAM栈创建任务
-        printf("[DisplayManager] 使用SRAM栈创建显示管理器任务\n");
+        printf("💾 [DisplayManager] 使用SRAM栈创建显示管理器任务\n");
         BaseType_t result = xTaskCreatePinnedToCore(
             displayTaskEntry,           // 任务函数
             "DisplayManager",           // 任务名称
@@ -192,12 +215,12 @@ bool DisplayManager::start() {
         );
         
         if (result != pdPASS) {
-            printf("[DisplayManager] 错误：创建SRAM栈任务失败\n");
+            printf("❌ [DisplayManager] 错误：创建SRAM栈任务失败\n");
+            m_running = false;  // 失败时重置状态
             return false;
         }
         
-        m_running = true;
-        printf("[DisplayManager] 显示管理器任务(SRAM栈)已启动（核心%d，优先级%d）\n", TASK_CORE, TASK_PRIORITY);
+        printf("✅ [DisplayManager] 显示管理器任务(SRAM栈)已启动（核心%d，优先级%d）\n", TASK_CORE, TASK_PRIORITY);
     }
     return true;
 }
@@ -235,15 +258,25 @@ void DisplayManager::displayTaskEntry(void* arg) {
  * @brief 显示管理器任务执行函数
  */
 void DisplayManager::displayTask() {
-    printf("[DisplayManager] 显示管理器任务开始运行\n");
+    printf("🚀 [DisplayManager] 显示管理器任务开始运行\n");
+    printf("🔧 [DisplayManager] m_running = %s, m_messageQueue = %p\n", 
+           m_running ? "true" : "false", m_messageQueue);
     
     DisplayMessage msg;
     TickType_t lastUpdateTime = 0;
     const TickType_t updateInterval = pdMS_TO_TICKS(1000); // 1秒更新间隔
+    uint32_t loopCount = 0;
     
     while (m_running) {
+        loopCount++;
+        if (loopCount % 200 == 0) { // 每10秒打印一次状态（200 * 50ms = 10s）
+            printf("💓 [DisplayManager] 任务正在运行，循环计数: %d\n", loopCount);
+        }
+        
         // 处理消息队列中的消息
-        if (xQueueReceive(m_messageQueue, &msg, pdMS_TO_TICKS(100)) == pdTRUE) {
+        BaseType_t queueResult = xQueueReceive(m_messageQueue, &msg, pdMS_TO_TICKS(100));
+        if (queueResult == pdTRUE) {
+            printf("📥 [DisplayManager] 从队列接收到消息，类型: %d\n", (int)msg.type);
             processMessage(msg);
         }
         
@@ -261,7 +294,8 @@ void DisplayManager::displayTask() {
         vTaskDelay(pdMS_TO_TICKS(50));
     }
     
-    printf("[DisplayManager] 显示管理器任务结束\n");
+    printf("🛑 [DisplayManager] 显示管理器任务结束，m_running = %s\n", 
+           m_running ? "true" : "false");
 }
 
 /**
@@ -299,9 +333,31 @@ void DisplayManager::processMessage(const DisplayMessage& msg) {
             
         case DisplayMessage::MSG_SET_BRIGHTNESS:
             // 设置亮度
+            printf("📨 [DisplayManager] 处理MSG_SET_BRIGHTNESS消息\n");
             m_brightness = msg.data.brightness.brightness;
-            m_lvglDriver->setBrightness(m_brightness);
-            printf("[DisplayManager] 设置亮度：%d%%\n", m_brightness);
+            printf("💡 [DisplayManager] 更新内部亮度变量: %d%%\n", m_brightness);
+            
+            // 异步保存亮度到NVS
+            if (m_configStorage) {
+                printf("💾 [DisplayManager] 异步保存亮度到NVS: %d%%\n", m_brightness);
+                bool saveSuccess = m_configStorage->saveBrightnessAsync(m_brightness, 3000);
+                if (saveSuccess) {
+                    printf("✅ [DisplayManager] 亮度设置已保存到NVS\n");
+                } else {
+                    printf("❌ [DisplayManager] 亮度设置保存到NVS失败\n");
+                }
+            } else {
+                printf("⚠️ [DisplayManager] ConfigStorage未初始化，无法保存亮度\n");
+            }
+            
+            // 应用亮度到硬件
+            if (m_lvglDriver) {
+                printf("🔄 [DisplayManager] 调用LVGLDriver::setBrightness(%d)\n", m_brightness);
+                m_lvglDriver->setBrightness(m_brightness);
+                printf("✅ [DisplayManager] LVGLDriver调用完成\n");
+            } else {
+                printf("❌ [DisplayManager] LVGLDriver未初始化\n");
+            }
             break;
             
         case DisplayMessage::MSG_SET_THEME:
@@ -451,7 +507,7 @@ void DisplayManager::createHomePage() {
     
          // 版本信息
      lv_obj_t* version_label = lv_label_create(m_pages[PAGE_HOME]);
-     lv_label_set_text(version_label, "版本: v4.2.1");
+     lv_label_set_text(version_label, "版本: v5.0.1");
      lv_obj_set_style_text_color(version_label, lv_color_hex(0x757575), 0);
      lv_obj_align(version_label, LV_ALIGN_BOTTOM_MID, 0, -20);
 }
@@ -594,12 +650,22 @@ void DisplayManager::updateSystemInfo(uint32_t free_heap, uint32_t uptime, float
 }
 
 void DisplayManager::setBrightness(uint8_t brightness) {
+    printf("🔧 [DisplayManager] setBrightness()调用，亮度: %d%%\n", brightness);
+    
     DisplayMessage msg;
     msg.type = DisplayMessage::MSG_SET_BRIGHTNESS;
     msg.data.brightness.brightness = brightness;
     
     if (m_messageQueue) {
-        xQueueSend(m_messageQueue, &msg, pdMS_TO_TICKS(100));
+        printf("📤 [DisplayManager] 发送MSG_SET_BRIGHTNESS消息到队列\n");
+        BaseType_t result = xQueueSend(m_messageQueue, &msg, pdMS_TO_TICKS(100));
+        if (result == pdTRUE) {
+            printf("✅ [DisplayManager] 消息发送成功\n");
+        } else {
+            printf("❌ [DisplayManager] 消息发送失败，队列可能满了\n");
+        }
+    } else {
+        printf("❌ [DisplayManager] 消息队列未初始化\n");
     }
 }
 

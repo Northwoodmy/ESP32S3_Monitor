@@ -24,12 +24,25 @@ void WiFiManager::setPSRAMManager(PSRAMManager* psramManager) {
     m_psramManager = psramManager;
 }
 
-void WiFiManager::init() {
+void WiFiManager::init(ConfigStorage* storage) {
     printf("初始化WiFi管理器...\n");
     
-    // 创建独立的配置存储实例
-    configStorage = new ConfigStorage();
-    configStorage->init();
+    // 使用传入的配置存储实例，如果没有传入则创建新的
+    if (storage != nullptr) {
+        configStorage = storage;
+        printf("使用外部配置存储实例\n");
+    } else {
+        printf("创建独立的配置存储实例\n");
+        configStorage = new ConfigStorage();
+        configStorage->init();
+        
+        // 启动配置存储任务
+        printf("启动配置存储任务...\n");
+        if (!configStorage->startTask()) {
+            printf("❌ [WiFiManager] 配置存储任务启动失败\n");
+            return;
+        }
+    }
     
     printf("WiFi模块状态检查...\n");
     
@@ -179,9 +192,9 @@ bool WiFiManager::connectToWiFi(const String& ssid, const String& password) {
         printf("WiFi连接成功\n");
         printf("IP地址: %s\n", WiFi.localIP().toString().c_str());
         
-        // 保存配置到NVS (使用新的多WiFi配置系统)
+        // 异步保存配置到NVS (使用新的多WiFi配置系统)
         if (configStorage) {
-            bool saveResult = configStorage->addWiFiConfig(ssid, password);
+            bool saveResult = configStorage->addWiFiConfigAsync(ssid, password, 5000);
             if (!saveResult) {
                 printf("⚠ 警告: WiFi连接成功但配置保存失败\n");
             }
@@ -254,7 +267,7 @@ void WiFiManager::wifiTask() {
             printf("WiFi连接丢失，尝试重新连接...\n");
             
             // 优先尝试多WiFi配置
-            if (configStorage && configStorage->getWiFiConfigCount() > 0) {
+            if (configStorage && configStorage->getWiFiConfigCountAsync(3000) > 0) {
                 printf("尝试多WiFi配置重连\n");
                 if (!connectToMultiWiFi()) {
                     printf("多WiFi配置重连失败，启动AP模式\n");
@@ -263,7 +276,7 @@ void WiFiManager::wifiTask() {
             } else {
                 // 回退到单WiFi配置
                 String ssid, password;
-                if (configStorage && configStorage->loadWiFiConfig(ssid, password)) {
+                if (configStorage && configStorage->loadWiFiConfigAsync(ssid, password, 3000)) {
                     if (!connectToWiFi(ssid, password)) {
                         printf("单WiFi配置重连失败，启动AP模式\n");
                         startConfigMode();
@@ -285,7 +298,7 @@ void WiFiManager::wifiTask() {
 
 void WiFiManager::tryStoredCredentials() {
     // 优先尝试多WiFi配置
-    if (configStorage && configStorage->getWiFiConfigCount() > 0) {
+    if (configStorage && configStorage->getWiFiConfigCountAsync(3000) > 0) {
         printf("尝试使用多WiFi配置连接\n");
         if (connectToMultiWiFi()) {
             return;
@@ -293,13 +306,13 @@ void WiFiManager::tryStoredCredentials() {
     }
     
     // 回退到单WiFi配置
-    if (!configStorage || !configStorage->hasWiFiConfig()) {
+    if (!configStorage || !configStorage->hasWiFiConfigAsync(3000)) {
         printf("没有存储的WiFi配置\n");
         return;
     }
     
     String ssid, password;
-    if (configStorage->loadWiFiConfig(ssid, password)) {
+    if (configStorage->loadWiFiConfigAsync(ssid, password, 3000)) {
         printf("尝试使用单WiFi配置连接\n");
         connectToWiFi(ssid, password);
     }
@@ -316,7 +329,7 @@ bool WiFiManager::connectToMultiWiFi() {
     }
     
     WiFiConfig configs[3];
-    if (!configStorage->loadWiFiConfigs(configs)) {
+    if (!configStorage->loadWiFiConfigsAsync(configs, 3000)) {
         printf("加载多WiFi配置失败\n");
         return false;
     }

@@ -56,6 +56,17 @@ typedef struct {
 esp_err_t esp_lcd_new_panel_sh8601(const esp_lcd_panel_io_handle_t io, const esp_lcd_panel_dev_config_t *panel_dev_config, esp_lcd_panel_handle_t *ret_panel);
 
 /**
+ * @brief Set brightness for SH8601 LCD panel
+ *
+ * @param[in] panel LCD panel handle  
+ * @param[in] brightness Brightness value (0-255, where 0 is darkest and 255 is brightest)
+ * @return
+ *      - ESP_OK: Success
+ *      - Otherwise: Fail
+ */
+esp_err_t esp_lcd_sh8601_set_brightness(esp_lcd_panel_handle_t panel, uint8_t brightness);
+
+/**
  * @brief LCD panel bus configuration structure
  *
  */

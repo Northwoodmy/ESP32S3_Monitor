@@ -527,3 +527,26 @@ static esp_err_t panel_sh8601_disp_on_off(esp_lcd_panel_t *panel, bool on_off)
     ESP_RETURN_ON_ERROR(tx_param(sh8601, io, command, NULL, 0), TAG, "发送显示控制命令失败");
     return ESP_OK;
 }
+
+/**
+ * @brief 设置SH8601 LCD面板亮度
+ * 
+ * 通过发送0x51命令来控制SH8601 AMOLED显示屏的背光亮度
+ * 
+ * @param panel LCD面板句柄
+ * @param brightness 亮度值 (0-255, 0为最暗，255为最亮)
+ * @return ESP_OK 成功，其他值表示错误
+ */
+esp_err_t esp_lcd_sh8601_set_brightness(esp_lcd_panel_handle_t panel, uint8_t brightness)
+{
+    ESP_RETURN_ON_FALSE(panel, ESP_ERR_INVALID_ARG, TAG, "面板句柄无效");
+    
+    sh8601_panel_t *sh8601 = __containerof(panel, sh8601_panel_t, base);
+    esp_lcd_panel_io_handle_t io = sh8601->io;
+    
+    // 发送亮度控制命令 0x51，参数为亮度值
+    ESP_RETURN_ON_ERROR(tx_param(sh8601, io, 0x51, (uint8_t[]){brightness}, 1), TAG, "发送亮度控制命令失败");
+    
+    ESP_LOGD(TAG, "成功设置面板亮度为: %d", brightness);
+    return ESP_OK;
+}

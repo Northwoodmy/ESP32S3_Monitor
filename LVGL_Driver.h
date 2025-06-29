@@ -178,7 +178,7 @@ extern "C" {
      * 
      * 提供C接口用于初始化LVGL系统
      */
-    void LVGL_Init(void);
+    lv_disp_t* LVGL_Init(void);
 }
 
 #endif // LVGL_DRIVER_H

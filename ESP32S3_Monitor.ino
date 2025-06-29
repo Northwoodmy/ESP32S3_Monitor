@@ -1,6 +1,6 @@
 /*
  * ESP32S3监控项目 - WiFi配置管理器
- * 版本: v4.2.1
+ * 版本: v5.0.0
  * 作者: ESP32S3_Monitor
  * 日期: 2024
  * 
@@ -55,7 +55,7 @@ PSRAMManager psramManager;
 void setup() {
   
   printf("=== ESP32S3 WiFi配置管理器启动 ===\n");
-      printf("版本: v4.2.1\n");
+      printf("版本: v5.0.1\n");
   printf("编译时间: %s %s\n", __DATE__, __TIME__);
   
   // 初始化PSRAM管理器（优先初始化）
@@ -73,9 +73,17 @@ void setup() {
   printf("\n初始化系统组件...\n");
   configStorage.init();
   
+  // 启动配置存储任务
+  printf("启动配置存储任务...\n");
+  if (!configStorage.startTask()) {
+    printf("❌ 配置存储任务启动失败\n");
+  } else {
+    printf("✅ 配置存储任务启动成功\n");
+  }
+  
   // 初始化WiFi管理器
   wifiManager.setPSRAMManager(&psramManager);
-  wifiManager.init();
+  wifiManager.init(&configStorage);
   
   // 初始化LVGL驱动系统
   printf("开始LVGL驱动系统初始化...\n");
@@ -108,6 +116,7 @@ void setup() {
   
   // 初始化并启动Web服务器
   webServerManager->setPSRAMManager(&psramManager);
+  webServerManager->setDisplayManager(&displayManager);
   webServerManager->init();
   webServerManager->start();
   

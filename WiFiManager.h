@@ -21,7 +21,7 @@ public:
     ~WiFiManager();
     
     // 初始化WiFi管理器
-    void init();
+    void init(ConfigStorage* storage = nullptr);
     void setPSRAMManager(PSRAMManager* psramManager);
     
     // 启动AP配置模式

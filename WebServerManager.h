@@ -17,6 +17,7 @@
 
 // 前向声明
 class PSRAMManager;
+class DisplayManager;
 
 class WebServerManager {
 public:
@@ -28,6 +29,9 @@ public:
     
     // 设置PSRAM管理器
     void setPSRAMManager(PSRAMManager* psramManager);
+    
+    // 设置显示管理器
+    void setDisplayManager(DisplayManager* displayManager);
     
     // 启动服务器
     void start();
@@ -45,6 +49,7 @@ private:
     OTAManager* otaManager;
     FileManager* fileManager;
     PSRAMManager* m_psramManager;
+    DisplayManager* m_displayManager;
     TaskHandle_t serverTaskHandle;
     bool isRunning;
     
@@ -89,6 +94,11 @@ private:
     void handleFileSystemStatus();
     void handleFileSystemFormat();
     void handleFileSystemFormatStatus();
+    
+    // 屏幕配置相关API
+    void handleScreenConfig();
+    void handleSetBrightness();
+    void handleScreenTest();
     
     // 获取主页HTML
     String getIndexHTML();

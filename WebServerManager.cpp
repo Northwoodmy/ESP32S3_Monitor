@@ -5,6 +5,7 @@
 
 #include "WebServerManager.h"
 #include "PSRAMManager.h"
+#include "DisplayManager.h"
 #include "Arduino.h"
 
 WebServerManager::WebServerManager(WiFiManager* wifiMgr, ConfigStorage* configStore, OTAManager* otaMgr, FileManager* fileMgr) :
@@ -14,6 +15,7 @@ WebServerManager::WebServerManager(WiFiManager* wifiMgr, ConfigStorage* configSt
     otaManager(otaMgr),
     fileManager(fileMgr),
     m_psramManager(nullptr),
+    m_displayManager(nullptr),
     serverTaskHandle(nullptr),
     isRunning(false) {
     server = new WebServer(80);
@@ -73,6 +75,12 @@ void WebServerManager::init() {
     server->on("/api/filesystem/status", HTTP_GET, [this]() { handleFileSystemStatus(); });
     server->on("/api/filesystem/format", HTTP_POST, [this]() { handleFileSystemFormat(); });
     server->on("/api/filesystem/format-status", HTTP_GET, [this]() { handleFileSystemFormatStatus(); });
+    
+    // 屏幕配置路由
+    server->on("/api/screen/config", HTTP_GET, [this]() { handleScreenConfig(); });
+    server->on("/api/screen/brightness", HTTP_POST, [this]() { handleSetBrightness(); });
+    server->on("/api/screen/test", HTTP_POST, [this]() { handleScreenTest(); });
+    
     server->onNotFound([this]() { handleNotFound(); });
     
     printf("Web服务器路由配置完成\n");
@@ -80,6 +88,10 @@ void WebServerManager::init() {
 
 void WebServerManager::setPSRAMManager(PSRAMManager* psramManager) {
     m_psramManager = psramManager;
+}
+
+void WebServerManager::setDisplayManager(DisplayManager* displayManager) {
+    m_displayManager = displayManager;
 }
 
 void WebServerManager::start() {
@@ -193,7 +205,7 @@ void WebServerManager::handleSystemInfo() {
     
     DynamicJsonDocument doc(1024);
     doc["device"] = "ESP32S3 Monitor";
-    doc["version"] = "v4.2.3";
+    doc["version"] = "v5.0.1";
     doc["chipModel"] = ESP.getChipModel();
     doc["chipRevision"] = ESP.getChipRevision();
     doc["cpuFreq"] = ESP.getCpuFreqMHz();
@@ -251,8 +263,8 @@ void WebServerManager::handleResetConfig() {
     
     DynamicJsonDocument doc(256);
     
-    // 执行配置重置
-    bool success = configStorage->resetAllConfig();
+    // 异步执行配置重置
+    bool success = configStorage->resetAllConfigAsync(5000);
     
     doc["success"] = success;
     
@@ -316,8 +328,8 @@ void WebServerManager::handleSaveWiFi() {
         // 等待NVS刷新数据
         vTaskDelay(pdMS_TO_TICKS(100));
         
-        // 检查配置是否已保存
-        bool configSaved = configStorage->hasWiFiConfig();
+        // 异步检查配置是否已保存
+        bool configSaved = configStorage->hasWiFiConfigAsync(3000);
         if (configSaved) {
             doc["message"] = "WiFi连接成功，配置已保存";
         } else {
@@ -370,7 +382,7 @@ void WebServerManager::handleGetWiFiConfigs() {
     JsonArray configs = doc.createNestedArray("configs");
     
     WiFiConfig wifiConfigs[3];
-    if (configStorage->loadWiFiConfigs(wifiConfigs)) {
+    if (configStorage->loadWiFiConfigsAsync(wifiConfigs, 3000)) {
         printf("成功加载WiFi配置，开始构建响应\n");
         for (int i = 0; i < ConfigStorage::MAX_WIFI_CONFIGS; i++) {
             if (wifiConfigs[i].isValid && wifiConfigs[i].ssid.length() > 0) {
@@ -387,7 +399,7 @@ void WebServerManager::handleGetWiFiConfigs() {
         printf("加载WiFi配置失败\n");
     }
     
-    int configCount = configStorage->getWiFiConfigCount();
+    int configCount = configStorage->getWiFiConfigCountAsync(3000);
     doc["count"] = configCount;
     doc["maxConfigs"] = ConfigStorage::MAX_WIFI_CONFIGS;
     
@@ -418,10 +430,10 @@ void WebServerManager::handleDeleteWiFiConfig() {
     
     DynamicJsonDocument doc(256);
     
-    // 加载现有配置
+    // 异步加载现有配置
     WiFiConfig configs[3];
-    printf("开始加载WiFi配置...\n");
-    if (configStorage->loadWiFiConfigs(configs)) {
+    printf("开始异步加载WiFi配置...\n");
+    if (configStorage->loadWiFiConfigsAsync(configs, 3000)) {
         printf("成功加载WiFi配置\n");
         
         // 打印所有配置状态
@@ -438,9 +450,9 @@ void WebServerManager::handleDeleteWiFiConfig() {
             configs[index] = WiFiConfig();
             printf("已清除配置 %d\n", index);
             
-            // 重新保存配置
-            printf("开始保存更新后的配置...\n");
-            bool success = configStorage->saveWiFiConfigs(configs);
+            // 异步重新保存配置
+            printf("开始异步保存更新后的配置...\n");
+            bool success = configStorage->saveWiFiConfigsAsync(configs, 5000);
             printf("配置保存结果: %s\n", success ? "成功" : "失败");
             
             // 等待NVS数据刷新
@@ -491,9 +503,9 @@ void WebServerManager::handleConnectWiFiConfig() {
     
     DynamicJsonDocument doc(256);
     
-    // 加载WiFi配置
+    // 异步加载WiFi配置
     WiFiConfig configs[3];
-    if (configStorage->loadWiFiConfigs(configs)) {
+    if (configStorage->loadWiFiConfigsAsync(configs, 3000)) {
         if (configs[index].isValid && configs[index].ssid.length() > 0) {
             printf("手动连接WiFi配置 %d: %s\n", index, configs[index].ssid.c_str());
             
@@ -1558,7 +1570,7 @@ void WebServerManager::handleUpdateWiFiPriority() {
     
     DynamicJsonDocument doc(256);
     
-    bool success = configStorage->updateWiFiPriority(index, priority);
+    bool success = configStorage->updateWiFiPriorityAsync(index, priority, 3000);
     
     doc["success"] = success;
     if (success) {
@@ -1622,7 +1634,7 @@ void WebServerManager::handleSetWiFiPriorities() {
     
     DynamicJsonDocument doc(256);
     
-    bool success = configStorage->setWiFiPriorities(priorities);
+    bool success = configStorage->setWiFiPrioritiesAsync(priorities, 3000);
     
     doc["success"] = success;
     if (success) {
@@ -1631,6 +1643,113 @@ void WebServerManager::handleSetWiFiPriorities() {
     } else {
         doc["message"] = "WiFi优先级批量设置失败";
         printf("WiFi优先级批量设置失败\n");
+    }
+    
+    String response;
+    serializeJson(doc, response);
+    server->send(200, "application/json", response);
+}
+
+void WebServerManager::handleScreenConfig() {
+    printf("处理屏幕配置获取请求\n");
+    
+    DynamicJsonDocument doc(512);
+    
+    if (m_displayManager) {
+        // 获取当前亮度（DisplayManager使用0-100范围，转换为0-255）
+        uint8_t currentBrightness = m_displayManager->getBrightness();
+        uint8_t brightness255 = (currentBrightness * 255) / 100;
+        
+        doc["success"] = true;
+        doc["brightness"] = brightness255;
+        doc["brightnessPercent"] = currentBrightness;
+        doc["screenOn"] = true;  // 假设屏幕开启
+        doc["backlightOn"] = true;  // 假设背光开启
+        doc["message"] = "屏幕配置获取成功";
+        
+        printf("当前屏幕亮度: %d%% (%d/255)\n", currentBrightness, brightness255);
+    } else {
+        doc["success"] = false;
+        doc["message"] = "显示管理器未初始化";
+        doc["brightness"] = 128;  // 默认值
+        doc["brightnessPercent"] = 50;
+        doc["screenOn"] = false;
+        doc["backlightOn"] = false;
+        
+        printf("显示管理器未初始化\n");
+    }
+    
+    String response;
+    serializeJson(doc, response);
+    server->send(200, "application/json", response);
+}
+
+void WebServerManager::handleSetBrightness() {
+    printf("处理屏幕亮度设置请求\n");
+    
+    if (!server->hasArg("brightness")) {
+        printf("⚠️ 缺少brightness参数\n");
+        server->send(400, "application/json", "{\"success\":false,\"message\":\"缺少brightness参数\"}");
+        return;
+    }
+    
+    int brightness255 = server->arg("brightness").toInt();
+    printf("📥 接收到亮度设置请求: %d/255\n", brightness255);
+    
+    if (brightness255 < 10 || brightness255 > 255) {
+        printf("❌ 无效的亮度值: %d\n", brightness255);
+        server->send(400, "application/json", "{\"success\":false,\"message\":\"亮度值必须在10-255之间\"}");
+        return;
+    }
+    
+    DynamicJsonDocument doc(256);
+    
+    if (m_displayManager) {
+        // 将0-255范围转换为0-100范围
+        uint8_t brightness100 = (brightness255 * 100) / 255;
+        printf("📊 转换亮度: %d/255 -> %d%%\n", brightness255, brightness100);
+        printf("🔄 准备调用DisplayManager::setBrightness(%d)\n", brightness100);
+        
+        m_displayManager->setBrightness(brightness100);
+        
+        doc["success"] = true;
+        doc["message"] = "亮度设置成功";
+        doc["brightness"] = brightness255;
+        doc["brightnessPercent"] = brightness100;
+        
+        printf("✅ 屏幕亮度设置请求完成: %d%% (%d/255)\n", brightness100, brightness255);
+    } else {
+        doc["success"] = false;
+        doc["message"] = "显示管理器未初始化";
+        
+        printf("❌ 显示管理器未初始化，无法设置亮度\n");
+    }
+    
+    String response;
+    serializeJson(doc, response);
+    server->send(200, "application/json", response);
+}
+
+void WebServerManager::handleScreenTest() {
+    printf("处理屏幕测试请求\n");
+    
+    DynamicJsonDocument doc(256);
+    
+    if (m_displayManager) {
+        // 执行屏幕测试：循环显示不同亮度
+        m_displayManager->showNotification("屏幕测试：亮度循环", 5000);
+        
+        // 启动一个简单的亮度测试序列
+        // 这里可以创建一个任务来执行测试，暂时只显示通知
+        doc["success"] = true;
+        doc["message"] = "屏幕测试已启动";
+        
+        printf("屏幕测试已启动\n");
+    } else {
+        doc["success"] = false;
+        doc["message"] = "显示管理器未初始化";
+        
+        printf("显示管理器未初始化，无法执行屏幕测试\n");
     }
     
     String response;
