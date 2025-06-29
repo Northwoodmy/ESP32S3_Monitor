@@ -193,26 +193,26 @@ String WebServerManager::getIndexHTML() {
     html += "            \n";
     html += "            <div class=\"card\">\n";
     html += "                <h2>设备管理</h2>\n";
-    html += "                <div class=\"action-buttons\">\n";
-    html += "                    <button onclick=\"refreshInfo()\" class=\"primary-btn\">\n";
-    html += "                        刷新信息\n";
-    html += "                    </button>\n";
-    html += "                    <button onclick=\"window.location.href='/settings'\" class=\"primary-btn\">\n";
-    html += "                        系统设置\n";
-    html += "                    </button>\n";
-    html += "                    <button onclick=\"window.location.href='/files'\" class=\"success-btn\">\n";
-    html += "                        文件管理器\n";
-    html += "                    </button>\n";
-    html += "                    <button onclick=\"window.location.href='/ota'\" class=\"warning-btn\">\n";
-    html += "                        固件升级\n";
-    html += "                    </button>\n";
-    html += "                    <button onclick=\"rebootDevice()\" class=\"warning-btn\">\n";
-    html += "                        重启设备\n";
-    html += "                    </button>\n";
-    html += "                    <button onclick=\"resetConfig()\" class=\"danger-btn\">\n";
-    html += "                        恢复默认配置\n";
-    html += "                    </button>\n";
-    html += "                </div>\n";
+                html += "                <div class=\"action-buttons\">\n";
+            html += "                    <button onclick=\"refreshInfo()\" class=\"refresh-btn\">\n";
+            html += "                        刷新信息\n";
+            html += "                    </button>\n";
+            html += "                    <button onclick=\"window.location.href='/settings'\" class=\"settings-btn\">\n";
+            html += "                        系统设置\n";
+            html += "                    </button>\n";
+            html += "                    <button onclick=\"window.location.href='/files'\" class=\"files-btn\">\n";
+            html += "                        文件管理器\n";
+            html += "                    </button>\n";
+            html += "                    <button onclick=\"window.location.href='/ota'\" class=\"ota-btn\">\n";
+            html += "                        固件升级\n";
+            html += "                    </button>\n";
+            html += "                    <button onclick=\"rebootDevice()\" class=\"reboot-btn\">\n";
+            html += "                        重启设备\n";
+            html += "                    </button>\n";
+            html += "                    <button onclick=\"resetConfig()\" class=\"reset-btn\">\n";
+            html += "                        恢复默认配置\n";
+            html += "                    </button>\n";
+            html += "                </div>\n";
     html += "            </div>\n";
     html += "        </div>\n";
     html += "    </div>\n";
@@ -240,6 +240,7 @@ String WebServerManager::getOTAPageHTML() {
     html += "    <title>固件升级 - ESP32S3 Monitor</title>\n";
     html += "    <style>\n";
     html += getCSS();
+    html += getOTAPageCSS();
     html += "    </style>\n";
     html += "</head>\n";
     html += "<body>\n";
@@ -247,8 +248,7 @@ String WebServerManager::getOTAPageHTML() {
     html += "        <header class=\"header\">\n";
     html += "            <h1>小屏幕配置</h1>\n";
     html += "            <div class=\"subtitle\">固件升级</div>\n";
-    html += "        </header>\n";
-            html += "        \n";
+    html += "        </header>\n";            html += "        \n";
     html += "        <div class=\"card\">\n";
     html += "            <button onclick=\"window.location.href='/'\" class=\"back-home-btn\">\n";
     html += "                返回首页\n";
@@ -965,6 +965,77 @@ String WebServerManager::getCSS() {
             box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
         }
         
+        /* 设备管理按钮 - 统一基础样式和字体大小 */
+        .refresh-btn, .settings-btn, .files-btn, .ota-btn, .reboot-btn, .reset-btn {
+            padding: 12px 16px;
+            border: none;
+            border-radius: 12px;
+            font-weight: 500;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+        
+        .refresh-btn, .settings-btn, .files-btn, .ota-btn, .reboot-btn, .reset-btn {
+            transform: translateY(0);
+        }
+        
+        .refresh-btn:hover, .settings-btn:hover, .files-btn:hover, 
+        .ota-btn:hover, .reboot-btn:hover, .reset-btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .refresh-btn {
+            background: linear-gradient(135deg, #06b6d4, #0891b2);
+        }
+        
+        .refresh-btn:hover {
+            box-shadow: 0 8px 25px rgba(6, 182, 212, 0.4);
+        }
+        
+        .settings-btn {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+        }
+        
+        .settings-btn:hover {
+            box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+        }
+        
+        .files-btn {
+            background: linear-gradient(135deg, #10b981, #059669);
+        }
+        
+        .files-btn:hover {
+            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
+        }
+        
+        .ota-btn {
+            background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+        }
+        
+        .ota-btn:hover {
+            box-shadow: 0 8px 25px rgba(139, 92, 246, 0.4);
+        }
+        
+        .reboot-btn {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+        }
+        
+        .reboot-btn:hover {
+            box-shadow: 0 8px 25px rgba(245, 158, 11, 0.4);
+        }
+        
+        .reset-btn {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+        }
+        
+        .reset-btn:hover {
+            box-shadow: 0 8px 25px rgba(239, 68, 68, 0.4);
+        }
 
         
         .toast {
@@ -3010,6 +3081,498 @@ String WebServerManager::getSystemSettingsCSS() {
             to {
                 opacity: 1;
                 transform: translateY(0);
+            }
+        }
+    )";
+}
+
+String WebServerManager::getOTAPageCSS() {
+    return R"(
+        /* OTA页面专用样式 */
+        .ota-section {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+        
+        .ota-info {
+            text-align: center;
+            padding: 24px;
+            background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+            border-radius: 16px;
+            border: 1px solid #cbd5e1;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .ota-info::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.1), transparent);
+            animation: infoShine 3s infinite;
+        }
+        
+        @keyframes infoShine {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+        
+        .info-text {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+
+        
+        .warning-text {
+            color: #dc2626;
+            font-weight: 500;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(220, 38, 38, 0.1);
+            border-radius: 8px;
+            border: 1px solid rgba(220, 38, 38, 0.2);
+            margin: 0 auto;
+            max-width: fit-content;
+        }
+        
+
+        
+        /* 文件上传区域 */
+        .file-upload-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            padding: 32px;
+            background: white;
+            border-radius: 20px;
+            border: 2px dashed #cbd5e1;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .file-upload-section:hover {
+            border-color: #3b82f6;
+            background: #f8fafc;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(59, 130, 246, 0.1);
+        }
+        
+        .file-select-btn {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            border-radius: 16px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+        
+
+        
+        .file-select-btn::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+        
+        .file-select-btn:hover::after {
+            left: 100%;
+        }
+        
+        .file-select-btn:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 8px 30px rgba(59, 130, 246, 0.4);
+        }
+        
+        .file-select-btn:active {
+            transform: translateY(-1px) scale(0.98);
+        }
+        
+        /* 文件信息显示 */
+        .file-info {
+            background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+            border: 1px solid #0ea5e9;
+            border-radius: 12px;
+            padding: 20px;
+            width: 100%;
+            max-width: 400px;
+            animation: slideInDown 0.5s ease-out;
+        }
+        
+        @keyframes slideInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .file-info p {
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+            color: #0f172a;
+        }
+        
+        .file-info p:last-child {
+            margin-bottom: 0;
+        }
+        
+        .file-info strong {
+            color: #0369a1;
+            font-weight: 600;
+        }
+        
+        /* 上传按钮区域 */
+        .upload-section {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .upload-btn {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            border: none;
+            padding: 18px 40px;
+            border-radius: 16px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            box-shadow: 0 6px 25px rgba(16, 185, 129, 0.3);
+            position: relative;
+            overflow: hidden;
+            min-width: 200px;
+            min-height: 56px;
+        }
+        
+        .upload-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+        
+        .upload-btn:hover:not(:disabled)::before {
+            left: 100%;
+        }
+        
+        .upload-btn:hover:not(:disabled) {
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 10px 40px rgba(16, 185, 129, 0.4);
+        }
+        
+        .upload-btn:disabled {
+            background: linear-gradient(135deg, #9ca3af, #6b7280);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: 0 2px 8px rgba(156, 163, 175, 0.2);
+        }
+        
+        .btn-loading {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        /* 进度显示区域 */
+        .ota-progress {
+            background: white;
+            border-radius: 20px;
+            padding: 32px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            animation: fadeInUp 0.5s ease-out;
+        }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .progress-info {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        
+        .progress-info h3 {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+
+        
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .progress-info p {
+            color: #6b7280;
+            font-size: 1rem;
+        }
+        
+        /* 进度条美化 */
+        .progress-bar {
+            width: 100%;
+            height: 12px;
+            background: #f1f5f9;
+            border-radius: 6px;
+            overflow: hidden;
+            margin-bottom: 16px;
+            position: relative;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #10b981, #059669, #34d399);
+            border-radius: 6px;
+            width: 0%;
+            transition: width 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .progress-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(255,255,255,0.4),
+                transparent
+            );
+            animation: progressShine 2s infinite;
+        }
+        
+        @keyframes progressShine {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        
+        .progress-text {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+            color: #4b5563;
+            font-weight: 500;
+        }
+        
+        /* 结果显示区域 */
+        .ota-result {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+            animation: bounceIn 0.6s ease-out;
+        }
+        
+        @keyframes bounceIn {
+            0% {
+                opacity: 0;
+                transform: scale(0.3);
+            }
+            50% {
+                opacity: 1;
+                transform: scale(1.05);
+            }
+            70% {
+                transform: scale(0.9);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+        
+        .result-success {
+            color: #059669;
+        }
+        
+        .result-success h3 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+        
+
+        
+        .result-success p {
+            font-size: 1.1rem;
+            line-height: 1.6;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        
+        .result-error {
+            color: #dc2626;
+        }
+        
+        .result-error h3 {
+            font-size: 1.6rem;
+            font-weight: 700;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+        
+
+        
+        .result-error p {
+            font-size: 1rem;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+        
+        .retry-btn {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .retry-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(245, 158, 11, 0.4);
+        }
+        
+        /* 加载动画 */
+        .spinner-sm {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* 隐藏元素 */
+        .hidden {
+            display: none !important;
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .file-upload-section {
+                padding: 24px 16px;
+            }
+            
+            .file-select-btn {
+                padding: 14px 24px;
+                font-size: 1rem;
+            }
+            
+            .upload-btn {
+                padding: 16px 32px;
+                font-size: 1.1rem;
+                min-width: 180px;
+            }
+            
+            .ota-progress, .ota-result {
+                padding: 24px 20px;
+            }
+            
+            .result-success h3, .result-error h3 {
+                font-size: 1.4rem;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .container {
+                padding: 16px;
+            }
+            
+            .card {
+                padding: 20px;
+                padding-top: 60px;
+            }
+            
+            .file-upload-section {
+                padding: 20px 12px;
+            }
+            
+            .upload-btn {
+                min-width: 160px;
+                padding: 14px 24px;
             }
         }
     )";

@@ -132,6 +132,9 @@ private:
     
     // 获取系统设置CSS样式
     String getSystemSettingsCSS();
+    
+    // 获取OTA页面CSS样式
+    String getOTAPageCSS();
 };
 
 #endif // WEBSERVERMANAGER_H 
