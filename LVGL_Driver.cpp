@@ -16,6 +16,7 @@
  */
 
 #include <stdio.h>
+#include <math.h>               // 数学函数库（fabs等）
 
 // === FreeRTOS系统相关头文件 ===
 #include "freertos/FreeRTOS.h"    // FreeRTOS实时操作系统
@@ -311,8 +312,25 @@ LVGLDriver::LVGLDriver()
     , m_mutex(nullptr)
     , m_display(nullptr)
     , m_brightness(80)
+#if USE_GYROSCOPE
+    , m_gyro_initialized(false)
+    , m_current_rotation(SCREEN_ROTATION_0)
+    , m_last_gyro_check_time(0)
+    , m_orientation_stable_time(0)
+    , m_pending_rotation(SCREEN_ROTATION_0)
+#endif
 {
     printf("[LVGLDriver] LVGL驱动实例已创建\n");
+    
+#if USE_GYROSCOPE
+    // 初始化陀螺仪配置
+    m_gyro_config.threshold = 8.0f;               // 8m/s²阈值
+    m_gyro_config.stable_time_ms = 1000;          // 1秒稳定时间
+    m_gyro_config.detection_interval_ms = 200;    // 200ms检测间隔
+    m_gyro_config.auto_rotation_enabled = true;   // 默认启用自动旋转
+    
+    printf("[LVGLDriver] 陀螺仪配置已初始化\n");
+#endif
 }
 
 /**
@@ -320,6 +338,15 @@ LVGLDriver::LVGLDriver()
  */
 LVGLDriver::~LVGLDriver() {
     stop();
+    
+#if USE_GYROSCOPE
+    // 清理陀螺仪资源
+    if (m_gyro_initialized) {
+        QMI8658_Deinit();
+        m_gyro_initialized = false;
+        printf("[LVGLDriver] 陀螺仪资源已清理\n");
+    }
+#endif
     
     // 不需要删除互斥锁，因为使用的是全局的lvgl_mux
     
@@ -352,6 +379,16 @@ bool LVGLDriver::init() {
     
     m_initialized = true;
     printf("[LVGLDriver] LVGL驱动初始化完成\n");
+    
+#if USE_GYROSCOPE
+    // 初始化陀螺仪（可选，如果失败不影响显示功能）
+    if (initGyroscope()) {
+        printf("[LVGLDriver] 陀螺仪功能已启用\n");
+    } else {
+        printf("[LVGLDriver] 警告：陀螺仪初始化失败，将禁用自动旋转功能\n");
+    }
+#endif
+    
     return true;
 }
 
@@ -451,6 +488,11 @@ void LVGLDriver::lvglTask() {
             vTaskDelay(pdMS_TO_TICKS(100));
             continue;
         }
+        
+#if USE_GYROSCOPE
+        // 处理陀螺仪数据和屏幕自动旋转
+        processGyroscopeData();
+#endif
         
         // 限制任务延迟时间在合理范围内
         if (task_delay_ms > LVGL_TASK_MAX_DELAY_MS) {
@@ -559,6 +601,261 @@ void LVGLDriver::setBrightness(uint8_t brightness) {
 uint8_t LVGLDriver::getBrightness() const {
     return m_brightness;
 }
+
+#if USE_GYROSCOPE
+/**
+ * @brief 初始化陀螺仪功能
+ */
+bool LVGLDriver::initGyroscope() {
+    if (m_gyro_initialized) {
+        printf("[LVGLDriver] 陀螺仪已经初始化\n");
+        return true;
+    }
+    
+    printf("[LVGLDriver] 初始化QMI8658陀螺仪...\n");
+    
+    // 初始化QMI8658
+    if (QMI8658_Init() != 0) {
+        printf("[LVGLDriver] 错误：QMI8658陀螺仪初始化失败\n");
+        return false;
+    }
+    
+    // 配置加速度计（用于检测重力方向）
+    if (QMI8658_ConfigAccelerometer(QMI8658_ACC_RANGE_4G, 
+                                   QMI8658_ACC_ODR_125Hz, 
+                                   QMI8658_LPF_MODE_2) != 0) {
+        printf("[LVGLDriver] 错误：加速度计配置失败\n");
+        return false;
+    }
+    
+    // 启用加速度计
+    if (QMI8658_EnableAccelerometer() != 0) {
+        printf("[LVGLDriver] 错误：加速度计启用失败\n");
+        return false;
+    }
+    
+    m_gyro_initialized = true;
+    printf("[LVGLDriver] QMI8658陀螺仪初始化成功\n");
+    return true;  
+}
+
+/**
+ * @brief 启用/禁用自动屏幕旋转
+ */
+void LVGLDriver::setAutoRotationEnabled(bool enabled) {
+    m_gyro_config.auto_rotation_enabled = enabled;
+    printf("[LVGLDriver] 自动屏幕旋转 %s\n", enabled ? "已启用" : "已禁用");
+}
+
+/**
+ * @brief 检查自动旋转是否启用
+ */
+bool LVGLDriver::isAutoRotationEnabled() const {
+    return m_gyro_config.auto_rotation_enabled;
+}
+
+/**
+ * @brief 手动设置屏幕旋转角度
+ */
+void LVGLDriver::setScreenRotation(screen_rotation_t rotation) {
+    if (rotation != m_current_rotation) {
+        performScreenRotation(rotation);
+    }
+}
+
+/**
+ * @brief 获取当前屏幕旋转角度
+ */
+screen_rotation_t LVGLDriver::getScreenRotation() const {
+    return m_current_rotation;
+}
+
+/**
+ * @brief 配置陀螺仪旋转检测参数
+ */
+void LVGLDriver::configureGyroRotation(const gyro_rotation_config_t& config) {
+    m_gyro_config = config;
+    printf("[LVGLDriver] 陀螺仪旋转检测参数已更新\n");
+    printf("  - 阈值: %.1f m/s²\n", config.threshold);
+    printf("  - 稳定时间: %d ms\n", config.stable_time_ms);
+    printf("  - 检测间隔: %d ms\n", config.detection_interval_ms);
+    printf("  - 自动旋转: %s\n", config.auto_rotation_enabled ? "启用" : "禁用");
+}
+
+/**
+ * @brief 获取当前陀螺仪数据
+ */
+bool LVGLDriver::getGyroData(QMI8658_IMUData_t* accel, QMI8658_IMUData_t* gyro) {
+    if (!m_gyro_initialized) {
+        return false;
+    }
+    
+    bool success = true;
+    
+    if (accel) {
+        if (QMI8658_GetAccelerometerData(accel) == 0) {  // 修复：0表示失败
+            success = false;
+        }
+    }
+    
+    if (gyro) {
+        if (QMI8658_GetGyroscopeData(gyro) == 0) {  // 修复：0表示失败
+            success = false;
+        }
+    }
+    
+    return success;
+}
+
+/**
+ * @brief 陀螺仪数据处理函数
+ */
+void LVGLDriver::processGyroscopeData() {
+    if (!m_gyro_initialized || !m_gyro_config.auto_rotation_enabled) {
+        return;
+    }
+    
+    uint32_t current_time = xTaskGetTickCount() * portTICK_PERIOD_MS;
+    
+    // 检查是否到了检测时间
+    if (current_time - m_last_gyro_check_time < m_gyro_config.detection_interval_ms) {
+        return;
+    }
+    
+    m_last_gyro_check_time = current_time;
+    
+    // 读取加速度计数据
+    QMI8658_IMUData_t accel;
+    if (QMI8658_GetAccelerometerData(&accel) == 0) {  // 修复：0表示失败
+        printf("[LVGLDriver] 错误：读取加速度计数据失败\n");
+        return;  // 读取失败
+    }
+    
+    // 打印调试数据
+    static int debug_counter = 0;
+    if (++debug_counter % 10 == 0) {  // 每10次打印一次，避免刷屏
+        printf("[LVGLDriver] 加速度计数据: X=%.3f, Y=%.3f, Z=%.3f (m/s²)\n", 
+               accel.x, accel.y, accel.z);
+    }
+    
+    // 根据加速度计数据判断设备方向
+    screen_rotation_t new_rotation = determineOrientationFromAccel(accel);
+    
+    // 打印方向判断结果
+    if (new_rotation != m_current_rotation) {
+        printf("[LVGLDriver] 检测到方向变化: %d -> %d\n", m_current_rotation, new_rotation);
+    }
+    
+    // 检查方向是否发生变化
+    if (new_rotation != m_current_rotation) {
+        if (new_rotation == m_pending_rotation) {
+            // 方向稳定时间累积
+            uint32_t stable_duration = current_time - m_orientation_stable_time;
+            if (stable_duration >= m_gyro_config.stable_time_ms) {
+                // 方向已稳定足够时间，执行旋转
+                printf("[LVGLDriver] 方向稳定时间达到，执行旋转: %d (稳定时间: %d ms)\n", 
+                       new_rotation, stable_duration);
+                performScreenRotation(new_rotation);
+                m_pending_rotation = new_rotation;
+            } else {
+                printf("[LVGLDriver] 方向稳定中: %d (已稳定: %d/%d ms)\n", 
+                       new_rotation, stable_duration, m_gyro_config.stable_time_ms);
+            }
+        } else {
+            // 新方向，重新开始计时
+            printf("[LVGLDriver] 新方向检测，开始稳定计时: %d\n", new_rotation);
+            m_pending_rotation = new_rotation;
+            m_orientation_stable_time = current_time;
+        }
+    }
+}
+
+/**
+ * @brief 根据加速度计数据判断设备方向
+ */
+screen_rotation_t LVGLDriver::determineOrientationFromAccel(const QMI8658_IMUData_t& accel) {
+    // 判断哪个轴的重力分量最大
+    float abs_x = fabs(accel.x);
+    float abs_y = fabs(accel.y);
+    float abs_z = fabs(accel.z);
+    
+    // 确保重力加速度足够大，避免误判
+    if (abs_x < m_gyro_config.threshold && 
+        abs_y < m_gyro_config.threshold && 
+        abs_z < m_gyro_config.threshold) {
+        return m_current_rotation;  // 保持当前方向
+    }
+    
+    // 根据重力方向判断屏幕方向
+    if (abs_y > abs_x && abs_y > abs_z) {
+        // Y轴重力最大
+        if (accel.y > 0) {
+            return SCREEN_ROTATION_0;    // 正常方向
+        } else {
+            return SCREEN_ROTATION_180;  // 倒置
+        }
+    } else if (abs_x > abs_y && abs_x > abs_z) {
+        // X轴重力最大
+        if (accel.x > 0) {
+            return SCREEN_ROTATION_270;  // 左旋90度
+        } else {
+            return SCREEN_ROTATION_90;   // 右旋90度
+        }
+    }
+    
+    // 其他情况保持当前方向
+    return m_current_rotation;
+}
+
+/**
+ * @brief 执行屏幕旋转
+ */
+void LVGLDriver::performScreenRotation(screen_rotation_t rotation) {
+    if (!m_display || rotation == m_current_rotation) {
+        return;
+    }
+    
+    printf("[LVGLDriver] 执行屏幕旋转：%d -> %d\n", m_current_rotation, rotation);
+    
+    // 获取LVGL锁
+    if (lock(1000)) {
+        // 转换为LVGL旋转枚举
+        lv_disp_rot_t lv_rotation;
+        switch (rotation) {
+            case SCREEN_ROTATION_0:
+                lv_rotation = LV_DISP_ROT_NONE;
+                break;
+            case SCREEN_ROTATION_90:
+                lv_rotation = LV_DISP_ROT_90;
+                break;
+            case SCREEN_ROTATION_180:
+                lv_rotation = LV_DISP_ROT_180;
+                break;
+            case SCREEN_ROTATION_270:
+                lv_rotation = LV_DISP_ROT_270;
+                break;
+            default:
+                lv_rotation = LV_DISP_ROT_NONE;
+                break;
+        }
+        
+        // 设置LVGL显示旋转
+        lv_disp_set_rotation(m_display, lv_rotation);
+        
+        // 更新当前旋转状态
+        m_current_rotation = rotation;
+        
+        // 强制刷新显示
+        lv_disp_trig_activity(m_display);
+        
+        unlock();
+        
+        printf("[LVGLDriver] 屏幕旋转完成：角度 %d\n", rotation * 90);
+    } else {
+        printf("[LVGLDriver] 错误：获取LVGL锁失败，无法执行屏幕旋转\n");
+    }
+}
+#endif
 
 // 全局LVGL驱动实例指针
 LVGLDriver* lvglDriver = nullptr;

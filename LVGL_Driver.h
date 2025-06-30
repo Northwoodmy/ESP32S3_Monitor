@@ -6,12 +6,14 @@
  * - 使用QSPI接口提供高速数据传输
  * - 集成LVGL图形库进行UI渲染
  * - 支持电容触摸屏输入
+ * - 集成QMI8658陀螺仪实现自动屏幕旋转
  * - 多任务架构，确保UI响应流畅
  * 
  * 硬件配置：
  * - LCD分辨率：368x448像素，16位色深
  * - 接口类型：QSPI (4线SPI)
- * - 触摸接口：I2C
+ * - 触摸接口：I2C (与陀螺仪共用)
+ * - 陀螺仪接口：I2C (QMI8658)
  * - 缓冲区：双缓冲机制，提高刷新效率
  */
 
@@ -23,12 +25,40 @@
 #include "freertos/semphr.h"
 #include "lvgl.h"
 
+// 陀螺仪功能配置
+#define USE_GYROSCOPE 1  // 1：启用陀螺仪功能，0：禁用陀螺仪功能
+
+#if USE_GYROSCOPE
+#include "qmi8658_bsp.h"
+#endif
+
+/**
+ * @brief 屏幕旋转角度枚举
+ */
+typedef enum {
+    SCREEN_ROTATION_0 = 0,      ///< 0度（正常方向）
+    SCREEN_ROTATION_90 = 1,     ///< 90度顺时针旋转
+    SCREEN_ROTATION_180 = 2,    ///< 180度旋转
+    SCREEN_ROTATION_270 = 3     ///< 270度顺时针旋转
+} screen_rotation_t;
+
+/**
+ * @brief 陀螺仪旋转检测配置
+ */
+typedef struct {
+    float threshold;            ///< 重力加速度阈值（判断旋转的临界值）
+    uint32_t stable_time_ms;    ///< 稳定时间（毫秒），防止抖动
+    uint32_t detection_interval_ms; ///< 检测间隔（毫秒）
+    bool auto_rotation_enabled; ///< 自动旋转使能标志
+} gyro_rotation_config_t;
+
 /**
  * @brief LVGL驱动管理类
  * 
  * 该类封装了LVGL显示系统的所有功能，包括：
  * - LCD显示驱动初始化
  * - 触摸屏输入处理
+ * - 陀螺仪数据处理和屏幕自动旋转
  * - LVGL任务管理
  * - 显示刷新控制
  * - 触摸事件处理
@@ -52,6 +82,7 @@ public:
      * - SPI总线配置
      * - LCD面板初始化
      * - 触摸屏初始化
+     * - 陀螺仪初始化
      * - LVGL库初始化
      * - 显示缓冲区配置
      * - 输入设备注册
@@ -68,6 +99,7 @@ public:
      * - UI渲染
      * - 事件处理
      * - 动画更新
+     * - 陀螺仪数据处理
      * 
      * @return true 任务启动成功，false 任务启动失败
      */
@@ -139,6 +171,59 @@ public:
      */
     uint8_t getBrightness() const;
 
+#if USE_GYROSCOPE
+    /**
+     * @brief 初始化陀螺仪功能
+     * 
+     * @return true 初始化成功，false 初始化失败
+     */
+    bool initGyroscope();
+    
+    /**
+     * @brief 启用/禁用自动屏幕旋转
+     * 
+     * @param enabled true 启用，false 禁用
+     */
+    void setAutoRotationEnabled(bool enabled);
+    
+    /**
+     * @brief 检查自动旋转是否启用
+     * 
+     * @return true 已启用，false 已禁用
+     */
+    bool isAutoRotationEnabled() const;
+    
+    /**
+     * @brief 手动设置屏幕旋转角度
+     * 
+     * @param rotation 旋转角度
+     */
+    void setScreenRotation(screen_rotation_t rotation);
+    
+    /**
+     * @brief 获取当前屏幕旋转角度
+     * 
+     * @return 当前旋转角度
+     */
+    screen_rotation_t getScreenRotation() const;
+    
+    /**
+     * @brief 配置陀螺仪旋转检测参数
+     * 
+     * @param config 配置参数
+     */
+    void configureGyroRotation(const gyro_rotation_config_t& config);
+    
+    /**
+     * @brief 获取当前陀螺仪数据
+     * 
+     * @param accel 加速度计数据
+     * @param gyro 陀螺仪数据
+     * @return true 读取成功，false 读取失败
+     */
+    bool getGyroData(QMI8658_IMUData_t* accel, QMI8658_IMUData_t* gyro);
+#endif
+
 private:
     /**
      * @brief LVGL主任务静态入口函数
@@ -153,6 +238,30 @@ private:
      * 执行LVGL的主循环处理
      */
     void lvglTask();
+
+#if USE_GYROSCOPE
+    /**
+     * @brief 陀螺仪数据处理函数
+     * 
+     * 读取陀螺仪数据，判断设备方向，执行屏幕旋转
+     */
+    void processGyroscopeData();
+    
+    /**
+     * @brief 根据加速度计数据判断设备方向
+     * 
+     * @param accel 加速度计数据
+     * @return 应该设置的屏幕旋转角度
+     */
+    screen_rotation_t determineOrientationFromAccel(const QMI8658_IMUData_t& accel);
+    
+    /**
+     * @brief 执行屏幕旋转
+     * 
+     * @param rotation 目标旋转角度
+     */
+    void performScreenRotation(screen_rotation_t rotation);
+#endif
     
     // 成员变量
     bool m_initialized;           ///< 初始化状态标志
@@ -161,6 +270,16 @@ private:
     SemaphoreHandle_t m_mutex;    ///< LVGL互斥锁
     lv_disp_t* m_display;         ///< LVGL显示器句柄
     uint8_t m_brightness;         ///< 当前亮度值
+    
+#if USE_GYROSCOPE
+    // 陀螺仪相关成员变量
+    bool m_gyro_initialized;      ///< 陀螺仪初始化状态
+    screen_rotation_t m_current_rotation; ///< 当前屏幕旋转角度
+    gyro_rotation_config_t m_gyro_config; ///< 陀螺仪旋转检测配置
+    uint32_t m_last_gyro_check_time; ///< 上次陀螺仪检测时间
+    uint32_t m_orientation_stable_time; ///< 方向稳定时间
+    screen_rotation_t m_pending_rotation; ///< 待执行的旋转角度
+#endif
     
     // 任务配置常量
     static const uint32_t TASK_STACK_SIZE = 12 * 1024;  ///< 任务栈大小
