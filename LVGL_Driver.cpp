@@ -319,6 +319,7 @@ LVGLDriver::LVGLDriver()
     , m_mutex(nullptr)
     , m_display(nullptr)
     , m_brightness(80)
+    , m_tca9554_initialized(false)  // 初始化TCA9554状态标志
 #if USE_GYROSCOPE
     , m_rotation_initialized(false)
     , m_current_rotation(SCREEN_ROTATION_0)
@@ -355,6 +356,13 @@ LVGLDriver::~LVGLDriver() {
     }
 #endif
     
+    // 清理TCA9554资源
+    if (m_tca9554_initialized) {
+        // TCA9554不需要特殊的反初始化操作，I2C驱动会自动清理
+        m_tca9554_initialized = false;
+        printf("[LVGLDriver] TCA9554资源已清理\n");
+    }
+    
     // 不需要删除互斥锁，因为使用的是全局的lvgl_mux
     
     printf("[LVGLDriver] LVGL驱动实例已销毁\n");
@@ -370,6 +378,24 @@ bool LVGLDriver::init() {
     }
     
     printf("[LVGLDriver] 开始初始化LVGL驱动系统...\n");
+    
+    // === 1. 首先初始化I2C总线管理器（统一管理所有I2C设备） ===
+    printf("[LVGLDriver] 初始化I2C总线管理器...\n");
+    esp_err_t i2c_ret = I2CBus_Init();
+    if (i2c_ret != ESP_OK) {
+        printf("[LVGLDriver] 错误：I2C总线管理器初始化失败，错误码: 0x%x\n", i2c_ret);
+        return false;
+    }
+    printf("[LVGLDriver] ✓ I2C总线管理器初始化成功\n");
+    
+    // === 2. 初始化TCA9554 IO扩展芯片（在所有I2C设备之前） ===
+    if (!initTCA9554()) {
+        printf("[LVGLDriver] 错误：TCA9554初始化失败\n");
+        return false;
+    }
+    
+    // === 3. 执行屏幕和触控复位序列 ===
+    performDisplayReset();
     
     // 调用LVGL初始化函数并获取显示器对象
     m_display = LVGL_Init();
@@ -1039,4 +1065,130 @@ lv_disp_t* LVGL_Init(void) {
   // 返回创建的显示器对象
   return disp;
 }
+
+// === TCA9554 IO扩展芯片功能实现 ===
+
+/**
+ * @brief 初始化TCA9554 IO扩展芯片
+ */
+bool LVGLDriver::initTCA9554() {
+    if (m_tca9554_initialized) {
+        printf("[LVGLDriver] TCA9554已初始化，跳过重复初始化\n");
+        return true;
+    }
+    
+    printf("[LVGLDriver] 开始初始化TCA9554 IO扩展芯片...\n");
+    
+    // 使用传统C接口初始化TCA9554（避免I2C总线冲突）
+    uint8_t result = TCA9554_Init(TCA9554_I2C_ADDRESS);
+    if (result != 0) {
+        printf("[LVGLDriver] 错误：TCA9554初始化失败，错误码: %d\n", result);
+        return false;
+    }
+    
+    // 配置复位引脚为输出模式（默认高电平）
+    result = TCA9554_SetPinDirection(TCA9554_LCD_RESET_PIN, TCA9554_GPIO_OUTPUT);
+    if (result != 0) {
+        printf("[LVGLDriver] 错误：配置LCD复位引脚失败\n");
+        return false;
+    }
+    
+    result = TCA9554_SetPinDirection(TCA9554_TOUCH_RESET_PIN, TCA9554_GPIO_OUTPUT);
+    if (result != 0) {
+        printf("[LVGLDriver] 错误：配置触控复位引脚失败\n");
+        return false;
+    }
+    
+    result = TCA9554_SetPinDirection(TCA9554_GYRO_RESET_PIN, TCA9554_GPIO_OUTPUT);
+    if (result != 0) {
+        printf("[LVGLDriver] 错误：配置陀螺仪复位引脚失败\n");
+        return false;
+    }
+    
+    // 设置所有复位引脚为高电平（非复位状态）
+    result = TCA9554_WritePinOutput(TCA9554_LCD_RESET_PIN, 1);
+    result |= TCA9554_WritePinOutput(TCA9554_TOUCH_RESET_PIN, 1);
+    result |= TCA9554_WritePinOutput(TCA9554_GYRO_RESET_PIN, 1);
+    
+    if (result != 0) {
+        printf("[LVGLDriver] 错误：设置复位引脚初始状态失败\n");
+        return false;
+    }
+    
+    // 验证TCA9554连接状态
+    if (!TCA9554_IsConnected()) {
+        printf("[LVGLDriver] 错误：TCA9554设备未响应\n");
+        return false;
+    }
+    
+    m_tca9554_initialized = true;
+    printf("[LVGLDriver] TCA9554初始化成功，地址: 0x%02X\n", TCA9554_I2C_ADDRESS);
+    
+    // 打印TCA9554状态信息
+    TCA9554_PrintStatus();
+    
+    return true;
+}
+
+/**
+ * @brief 执行屏幕和触控复位序列
+ */
+void LVGLDriver::performDisplayReset() {
+    if (!m_tca9554_initialized) {
+        printf("[LVGLDriver] 错误：TCA9554未初始化，无法执行复位\n");
+        return;
+    }
+    
+    printf("[LVGLDriver] 开始执行屏幕和触控复位序列...\n");
+    
+    // === 第一阶段：拉低所有复位引脚（进入复位状态） ===
+    uint8_t result = 0;
+    result |= TCA9554_WritePinOutput(TCA9554_LCD_RESET_PIN, 0);
+    result |= TCA9554_WritePinOutput(TCA9554_TOUCH_RESET_PIN, 0);
+    result |= TCA9554_WritePinOutput(TCA9554_GYRO_RESET_PIN, 0);
+    
+    if (result != 0) {
+        printf("[LVGLDriver] 警告：拉低复位引脚时出现错误\n");
+    }
+    
+    // 保持复位状态10ms（确保芯片完全复位）
+    vTaskDelay(pdMS_TO_TICKS(10));
+    
+    // === 第二阶段：先释放陀螺仪复位（陀螺仪需要最先启动） ===
+    TCA9554_WritePinOutput(TCA9554_GYRO_RESET_PIN, 1);
+    vTaskDelay(pdMS_TO_TICKS(5));  // 等待陀螺仪稳定
+    
+    // === 第三阶段：释放触控复位 ===
+    TCA9554_WritePinOutput(TCA9554_TOUCH_RESET_PIN, 1);
+    vTaskDelay(pdMS_TO_TICKS(20)); // 等待触控芯片稳定
+    
+    // === 第四阶段：最后释放LCD复位 ===
+    TCA9554_WritePinOutput(TCA9554_LCD_RESET_PIN, 1);
+    vTaskDelay(pdMS_TO_TICKS(50)); // 等待LCD控制器稳定
+    
+    printf("[LVGLDriver] 复位序列完成，所有设备应已准备就绪\n");
+    
+    // 验证复位后的状态
+    uint8_t output_status;
+    if (TCA9554_ReadOutput(&output_status) == 0) {
+        printf("[LVGLDriver] 复位后TCA9554输出状态: 0x%02X\n", output_status);
+        printf("[LVGLDriver] LCD复位引脚: %s, 触控复位引脚: %s, 陀螺仪复位引脚: %s\n",
+               (output_status & (1 << TCA9554_LCD_RESET_PIN)) ? "高" : "低",
+               (output_status & (1 << TCA9554_TOUCH_RESET_PIN)) ? "高" : "低",
+               (output_status & (1 << TCA9554_GYRO_RESET_PIN)) ? "高" : "低");
+    }
+}
+
+/**
+ * @brief 检查TCA9554连接状态
+ */
+bool LVGLDriver::isTCA9554Connected() {
+    if (!m_tca9554_initialized) {
+        return false;
+    }
+    
+    return TCA9554_IsConnected() != 0;
+}
+
+// === 全局C接口（保持向后兼容） ===
 

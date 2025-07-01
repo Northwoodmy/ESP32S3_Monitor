@@ -162,7 +162,7 @@ String WebServerManager::getIndexHTML() {
     html += "                    </div>\n";
     html += "                    <div class=\"info-item\">\n";
     html += "                        <span class=\"label\">固件版本:</span>\n";
-    html += "                        <span class=\"value\" id=\"firmwareVersion\">v5.1.1</span>\n";
+    html += "                        <span class=\"value\" id=\"firmwareVersion\">v5.3.0</span>\n";
     html += "                    </div>\n";
     html += "                    <div class=\"info-item\">\n";
     html += "                        <span class=\"label\">CPU频率:</span>\n";
@@ -2385,7 +2385,7 @@ String WebServerManager::getSystemSettingsHTML() {
     html += "                    </div>\n";
     html += "                    <div class=\"status-item\">\n";
     html += "                        <span class=\"label\">固件版本:</span>\n";
-    html += "                        <span class=\"value\">v5.1.1</span>\n";
+    html += "                        <span class=\"value\">v5.3.0</span>\n";
     html += "                    </div>\n";
     html += "                    <div class=\"status-item\">\n";
     html += "                        <span class=\"label\">WiFi状态:</span>\n";

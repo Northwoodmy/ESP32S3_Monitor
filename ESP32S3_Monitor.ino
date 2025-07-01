@@ -1,6 +1,6 @@
 /*
  * ESP32S3监控项目 - WiFi配置管理器
- * 版本: v5.2.4
+ * 版本: v5.3.0
  * 作者: ESP32S3_Monitor
  * 日期: 2024
  * 
@@ -60,7 +60,7 @@ TimeManager timeManager;
 void setup() {
   
   printf("=== ESP32S3 WiFi配置管理器启动 ===\n");
-  printf("版本: v5.2.4\n");
+  printf("版本: v5.3.0\n");
   printf("编译时间: %s %s\n", __DATE__, __TIME__);
   
   // 初始化PSRAM管理器（优先初始化）

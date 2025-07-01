@@ -24,6 +24,16 @@
 #include "freertos/task.h"
 #include "freertos/semphr.h"
 #include "lvgl.h"
+#include "I2CBusManager.h"    // 使用统一的I2C总线管理器
+#include "tca9554_bsp.h"      // TCA9554 BSP接口
+
+// === TCA9554控制引脚定义 ===
+#define TCA9554_LCD_RESET_PIN     0    // TCA9554 GPIO0 - LCD复位引脚
+#define TCA9554_TOUCH_RESET_PIN   1    // TCA9554 GPIO1 - 触控复位引脚
+#define TCA9554_GYRO_RESET_PIN    2    // TCA9554 GPIO2 - 陀螺仪复位引脚（预留）
+
+// === TCA9554 I2C配置（由I2CBusManager统一管理） ===
+#define TCA9554_I2C_ADDRESS       TCA9554_I2C_ADDRESS_000  // TCA9554 I2C地址（0x20）
 
 // 陀螺仪功能配置
 #define USE_GYROSCOPE 1  // 1：启用陀螺仪功能，0：禁用陀螺仪功能
@@ -171,6 +181,31 @@ public:
      */
     uint8_t getBrightness() const;
 
+    /**
+     * @brief 初始化TCA9554 IO扩展芯片
+     * 
+     * 初始化TCA9554芯片，配置控制屏幕和触控复位的引脚
+     * 注意：该函数会在LVGL初始化之前调用，以确保正确的复位时序
+     * 
+     * @return true 初始化成功，false 初始化失败
+     */
+    bool initTCA9554();
+    
+    /**
+     * @brief 执行屏幕和触控复位序列
+     * 
+     * 通过TCA9554控制LCD和触控芯片的复位引脚，执行正确的复位时序
+     * 复位时序：拉低复位引脚 -> 延时 -> 拉高复位引脚 -> 延时稳定
+     */
+    void performDisplayReset();
+    
+    /**
+     * @brief 检查TCA9554连接状态
+     * 
+     * @return true TCA9554已连接且正常工作，false 连接异常
+     */
+    bool isTCA9554Connected();
+
 #if USE_GYROSCOPE
     /**
      * @brief 初始化屏幕自动旋转功能（基于加速度计）
@@ -270,6 +305,9 @@ private:
     SemaphoreHandle_t m_mutex;    ///< LVGL互斥锁
     lv_disp_t* m_display;         ///< LVGL显示器句柄
     uint8_t m_brightness;         ///< 当前亮度值
+    
+    // TCA9554 IO扩展芯片相关
+    bool m_tca9554_initialized;   ///< TCA9554初始化状态标志
     
 #if USE_GYROSCOPE
     // 屏幕自动旋转相关成员变量

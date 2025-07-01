@@ -3,19 +3,12 @@
 #include <string.h>
 #include <math.h>
 #include "qmi8658_bsp.h"
-#include "driver/i2c.h"
+#include "I2CBusManager.h"       // 使用统一的I2C总线管理器
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
 static const char *TAG = "QMI8658_BSP";
-
-// === I2C 配置定义 ===
-#define QMI8658_I2C_HOST            I2C_NUM_0
-#define QMI8658_I2C_SDA_PIN         (15)        // 根据硬件配置调整
-#define QMI8658_I2C_SCL_PIN         (14)        // 根据硬件配置调整
-#define QMI8658_I2C_CLK_SPEED       (400000)    // 400kHz
-#define QMI8658_I2C_TIMEOUT_MS      (1000)
 
 // === 全局变量 ===
 static bool g_qmi8658_initialized = false;
@@ -32,7 +25,6 @@ static bool g_fifo_enabled = false;
 static QMI8658_FifoMode_t g_fifo_mode = QMI8658_FIFO_MODE_BYPASS;
 
 // === 内部函数声明 ===
-static esp_err_t qmi8658_i2c_init(void);
 static esp_err_t qmi8658_write_reg(uint8_t reg, uint8_t data);
 static esp_err_t qmi8658_read_reg(uint8_t reg, uint8_t *data);
 static esp_err_t qmi8658_read_regs(uint8_t reg, uint8_t *data, uint8_t len);
@@ -44,178 +36,51 @@ static esp_err_t qmi8658_wait_for_ready(uint32_t timeout_ms);
 static esp_err_t qmi8658_write_command(QMI8658_CommandTable_t cmd, uint32_t wait_ms);
 static uint8_t qmi8658_mg_to_bytes(float mg);
 
-// === I2C 底层实现 ===
-static esp_err_t qmi8658_i2c_init(void)
-{
-    printf("[QMI8658_BSP] === qmi8658_i2c_init() 开始执行 ===\n");
-    
-    // 检查I2C是否已经初始化（由触摸屏驱动初始化）
-    // 如果I2C已经初始化，则直接返回成功
-    // 这里我们假设触摸屏驱动会先初始化I2C
-    
-    printf("[QMI8658_BSP] QMI8658使用已初始化的I2C总线（与触摸屏共用）\n");
-    
-    // 添加I2C总线扫描功能，查看总线上有哪些设备
-    printf("[QMI8658_BSP] ==========================================\n");
-    printf("[QMI8658_BSP] === 开始扫描I2C总线设备 ===\n");
-    printf("[QMI8658_BSP] ==========================================\n");
-    uint8_t devices_found = 0;
-    
-    for (uint8_t addr = 0x08; addr < 0x78; addr++) {
-        if (I2C_Lock(50)) {
-            // 创建I2C命令链路进行设备检测
-            i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-            i2c_master_start(cmd);
-            i2c_master_write_byte(cmd, (addr << 1) | I2C_MASTER_WRITE, true);
-            i2c_master_stop(cmd);
-            
-            esp_err_t ret = i2c_master_cmd_begin(QMI8658_I2C_HOST, cmd, pdMS_TO_TICKS(50));
-            i2c_cmd_link_delete(cmd);
-            I2C_Unlock();
-            
-            if (ret == ESP_OK) {
-                printf("[QMI8658_BSP] >>> 发现I2C设备，地址: 0x%02X <<<\n", addr);
-                devices_found++;
-                
-                // 特殊设备识别
-                if (addr == 0x38) {
-                    printf("[QMI8658_BSP]     -> 这是触摸屏设备(FT3168)\n");
-                } else if (addr == 0x6A || addr == 0x6B) {
-                    printf("[QMI8658_BSP]     -> 这可能是QMI8658陀螺仪\n");
-                } else {
-                    printf("[QMI8658_BSP]     -> 未知设备\n");
-                }
-            }
-        }
-        vTaskDelay(pdMS_TO_TICKS(1));
-    }
-    
-    printf("[QMI8658_BSP] ==========================================\n");
-    printf("[QMI8658_BSP] I2C总线扫描完成，共发现 %d 个设备\n", devices_found);
-    printf("[QMI8658_BSP] ==========================================\n");
-    
-    // 尝试读取芯片ID来验证I2C通信是否正常
-    uint8_t chip_id = 0;
-    
-    // 尝试主地址 (0x6B)
-    g_qmi8658_addr = QMI8658_L_SLAVE_ADDRESS;
-    esp_err_t ret = qmi8658_read_reg(QMI8658_REG_WHOAMI, &chip_id);
-    
-    if (ret == ESP_OK && chip_id == QMI8658_REG_WHOAMI_DEFAULT) {
-        printf("[QMI8658_BSP] QMI8658检测成功，地址: 0x%02X，芯片ID: 0x%02X\n", g_qmi8658_addr, chip_id);
-        return ESP_OK;
-    }
-    
-    // 尝试备用地址 (0x6A)
-    g_qmi8658_addr = QMI8658_H_SLAVE_ADDRESS;
-    ret = qmi8658_read_reg(QMI8658_REG_WHOAMI, &chip_id);
-    
-    if (ret == ESP_OK && chip_id == QMI8658_REG_WHOAMI_DEFAULT) {
-        printf("[QMI8658_BSP] QMI8658检测成功，地址: 0x%02X，芯片ID: 0x%02X\n", g_qmi8658_addr, chip_id);
-        return ESP_OK;
-    }
-    
-    ESP_LOGE(TAG, "QMI8658检测失败，可能原因：");
-    ESP_LOGE(TAG, "1. QMI8658硬件未连接或未上电");
-    ESP_LOGE(TAG, "2. I2C地址配置错误");
-    ESP_LOGE(TAG, "3. I2C总线时序问题");
-    ESP_LOGE(TAG, "4. 与触摸屏的I2C总线冲突");
-    
-    return ESP_FAIL;
-}
-
+// === I2C 底层实现（使用I2CBusManager） ===
 static esp_err_t qmi8658_write_reg(uint8_t reg, uint8_t data)
 {
-    // 获取I2C总线互斥锁
-    if (!I2C_Lock(QMI8658_I2C_TIMEOUT_MS)) {
-        ESP_LOGW(TAG, "获取I2C锁失败，写寄存器0x%02X被跳过", reg);
-        return ESP_ERR_TIMEOUT;
-    }
-    
     uint8_t write_buf[2] = {reg, data};
-    esp_err_t ret = i2c_master_write_to_device(QMI8658_I2C_HOST, g_qmi8658_addr, 
-                                              write_buf, 2, 
-                                              pdMS_TO_TICKS(QMI8658_I2C_TIMEOUT_MS));
+    esp_err_t ret = I2CBus_Write(g_qmi8658_addr, write_buf, 2, 1000);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "写寄存器0x%02X失败: %s", reg, esp_err_to_name(ret));
     }
-    
-    // 释放I2C总线互斥锁
-    I2C_Unlock();
-    
     return ret;
 }
 
 static esp_err_t qmi8658_read_reg(uint8_t reg, uint8_t *data)
 {
-    // 获取I2C总线互斥锁
-    if (!I2C_Lock(QMI8658_I2C_TIMEOUT_MS)) {
-        ESP_LOGW(TAG, "获取I2C锁失败，读寄存器0x%02X被跳过", reg);
-        return ESP_ERR_TIMEOUT;
-    }
-    
-    esp_err_t ret = i2c_master_write_read_device(QMI8658_I2C_HOST, g_qmi8658_addr,
-                                                &reg, 1, data, 1,
-                                                pdMS_TO_TICKS(QMI8658_I2C_TIMEOUT_MS));
+    esp_err_t ret = I2CBus_WriteRead(g_qmi8658_addr, &reg, 1, data, 1, 1000);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "读寄存器0x%02X失败: %s", reg, esp_err_to_name(ret));
     }
-    
-    // 释放I2C总线互斥锁
-    I2C_Unlock();
-    
     return ret;
 }
 
 static esp_err_t qmi8658_read_regs(uint8_t reg, uint8_t *data, uint8_t len)
 {
-    // 获取I2C总线互斥锁
-    if (!I2C_Lock(QMI8658_I2C_TIMEOUT_MS)) {
-        ESP_LOGW(TAG, "获取I2C锁失败，读多个寄存器0x%02X被跳过", reg);
-        return ESP_ERR_TIMEOUT;
-    }
-    
-    esp_err_t ret = i2c_master_write_read_device(QMI8658_I2C_HOST, g_qmi8658_addr,
-                                                &reg, 1, data, len,
-                                                pdMS_TO_TICKS(QMI8658_I2C_TIMEOUT_MS));
+    esp_err_t ret = I2CBus_WriteRead(g_qmi8658_addr, &reg, 1, data, len, 1000);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "读多个寄存器0x%02X失败: %s", reg, esp_err_to_name(ret));
     }
-    
-    // 释放I2C总线互斥锁
-    I2C_Unlock();
-    
     return ret;
 }
 
 static esp_err_t qmi8658_write_regs(uint8_t reg, const uint8_t *data, uint8_t len)
 {
-    // 获取I2C总线互斥锁
-    if (!I2C_Lock(QMI8658_I2C_TIMEOUT_MS)) {
-        ESP_LOGW(TAG, "获取I2C锁失败，写多个寄存器0x%02X被跳过", reg);
-        return ESP_ERR_TIMEOUT;
-    }
-    
     uint8_t *write_buf = malloc(len + 1);
     if (!write_buf) {
-        I2C_Unlock();
         return ESP_ERR_NO_MEM;
     }
     
     write_buf[0] = reg;
     memcpy(&write_buf[1], data, len);
     
-    esp_err_t ret = i2c_master_write_to_device(QMI8658_I2C_HOST, g_qmi8658_addr,
-                                              write_buf, len + 1,
-                                              pdMS_TO_TICKS(QMI8658_I2C_TIMEOUT_MS));
+    esp_err_t ret = I2CBus_Write(g_qmi8658_addr, write_buf, len + 1, 1000);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "写多个寄存器0x%02X失败: %s", reg, esp_err_to_name(ret));
     }
     
     free(write_buf);
-    // 释放I2C总线互斥锁
-    I2C_Unlock();
-    
     return ret;
 }
 
@@ -352,18 +217,58 @@ static uint8_t qmi8658_mg_to_bytes(float mg)
 
 uint8_t QMI8658_Init(void)
 {
-    printf("[QMI8658_BSP] 初始化QMI8658传感器...\n");
+    printf("[QMI8658_BSP] 初始化QMI8658传感器（使用I2CBusManager）...\n");
     
     if (g_qmi8658_initialized) {
         printf("[QMI8658_BSP] 警告：QMI8658已经初始化\n");
         return 0;
     }
     
-    // 初始化I2C并检测传感器
-    esp_err_t init_result = qmi8658_i2c_init();
+    // === 检查I2C总线管理器是否已初始化 ===
+    if (!I2CBus_IsInitialized()) {
+        ESP_LOGE(TAG, "I2C总线管理器未初始化，请先调用I2CBus_Init()");
+        return 1;
+    }
+    ESP_LOGI(TAG, "✓ I2C总线管理器已初始化，可以进行通信");
     
-    if (init_result != ESP_OK) {
-        ESP_LOGE(TAG, "I2C初始化失败或传感器检测失败");
+    // === 扫描设备并确定地址 ===
+    ESP_LOGI(TAG, "==========================================");
+    ESP_LOGI(TAG, "=== 开始扫描QMI8658设备 ===");
+    ESP_LOGI(TAG, "==========================================");
+    
+    // 尝试主地址 (0x6B)
+    g_qmi8658_addr = QMI8658_L_SLAVE_ADDRESS;
+    if (I2CBus_ScanDevice(g_qmi8658_addr)) {
+        uint8_t chip_id = 0;
+        esp_err_t ret = qmi8658_read_reg(QMI8658_REG_WHOAMI, &chip_id);
+        if (ret == ESP_OK && chip_id == QMI8658_REG_WHOAMI_DEFAULT) {
+            ESP_LOGI(TAG, ">>> QMI8658检测成功，地址: 0x%02X，芯片ID: 0x%02X", g_qmi8658_addr, chip_id);
+        } else {
+            ESP_LOGW(TAG, "地址0x%02X响应但芯片ID不正确: 0x%02X", g_qmi8658_addr, chip_id);
+            g_qmi8658_addr = 0;  // 清除地址
+        }
+    }
+    
+    // 如果主地址失败，尝试备用地址 (0x6A)
+    if (g_qmi8658_addr == 0) {
+        g_qmi8658_addr = QMI8658_H_SLAVE_ADDRESS;
+        if (I2CBus_ScanDevice(g_qmi8658_addr)) {
+            uint8_t chip_id = 0;
+            esp_err_t ret = qmi8658_read_reg(QMI8658_REG_WHOAMI, &chip_id);
+            if (ret == ESP_OK && chip_id == QMI8658_REG_WHOAMI_DEFAULT) {
+                ESP_LOGI(TAG, ">>> QMI8658检测成功，地址: 0x%02X，芯片ID: 0x%02X", g_qmi8658_addr, chip_id);
+            } else {
+                ESP_LOGW(TAG, "地址0x%02X响应但芯片ID不正确: 0x%02X", g_qmi8658_addr, chip_id);
+                g_qmi8658_addr = 0;  // 清除地址
+            }
+        }
+    }
+    
+    if (g_qmi8658_addr == 0) {
+        ESP_LOGE(TAG, "QMI8658检测失败，可能原因：");
+        ESP_LOGE(TAG, "1. QMI8658硬件未连接或未上电");
+        ESP_LOGE(TAG, "2. I2C地址配置错误");
+        ESP_LOGE(TAG, "3. I2C总线时序问题");
         return 1;
     }
     
@@ -419,7 +324,7 @@ uint8_t QMI8658_Init(void)
     vTaskDelay(pdMS_TO_TICKS(100));  // 额外等待100ms
     
     g_qmi8658_initialized = true;
-    ESP_LOGI(TAG, "QMI8658初始化完成");
+    ESP_LOGI(TAG, "✓ QMI8658初始化完成（使用I2CBusManager）");
     
     return 0;
 }
@@ -434,8 +339,7 @@ void QMI8658_Deinit(void)
     QMI8658_DisableAccelerometer();
     QMI8658_DisableGyroscope();
     
-    // 卸载I2C驱动
-    i2c_driver_delete(QMI8658_I2C_HOST);
+    // 注意：不删除I2C驱动，由I2CBusManager管理
     
     g_qmi8658_initialized = false;
     ESP_LOGI(TAG, "QMI8658反初始化完成");
@@ -447,12 +351,8 @@ uint8_t QMI8658_IsConnected(void)
         return 0;
     }
     
-    uint8_t chip_id;
-    if (qmi8658_read_reg(QMI8658_REG_WHOAMI, &chip_id) != ESP_OK) {
-        return 0;
-    }
-    
-    return (chip_id == QMI8658_REG_WHOAMI_DEFAULT) ? 1 : 0;
+    // 使用I2CBusManager进行设备检测
+    return I2CBus_ScanDevice(g_qmi8658_addr) ? 1 : 0;
 }
 
 uint8_t QMI8658_GetChipID(void)
