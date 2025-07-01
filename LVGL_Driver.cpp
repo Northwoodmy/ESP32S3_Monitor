@@ -142,22 +142,6 @@ static void lvgl_flush_cb(lv_disp_drv_t *drv, const lv_area_t *area, lv_color_t 
 }
 
 /**
- * @brief LVGL显示驱动更新回调函数（已禁用硬件旋转）
- * 
- * 注意：此函数已被禁用，因为QMI8658不支持硬件旋转。
- * 现在使用LVGL的纯软件旋转功能来实现屏幕旋转。
- * 
- * @param drv LVGL显示驱动结构
- */
-/*
-static void lvgl_update_cb(lv_disp_drv_t *drv) {
-  // 硬件旋转已禁用，使用LVGL软件旋转
-  // 此回调函数不再需要，因为所有旋转处理都由LVGL内部完成
-  (void)drv;  // 避免未使用变量警告
-}
-*/
-
-/**
  * @brief LVGL区域舍入回调函数
  * 
  * 将LVGL的刷新区域坐标调整为偶数边界，
@@ -1003,8 +987,8 @@ lv_disp_t* LVGL_Init(void) {
   disp_drv.ver_res = LCD_V_RES;                 // 垂直分辨率
   disp_drv.flush_cb = lvgl_flush_cb;            // 刷新回调函数
   disp_drv.rounder_cb = lvgl_rounder_cb;        // 区域舍入回调
-  //disp_drv.drv_update_cb = lvgl_update_cb;      // 驱动更新回调（已禁用硬件旋转）
   disp_drv.sw_rotate = 1;                       // 启用LVGL软件旋转功能
+  disp_drv.rotated = LV_DISP_ROT_NONE;          // 设置默认旋转角度为0度
   disp_drv.draw_buf = &disp_buf;                        // 绘图缓冲区
   disp_drv.user_data = panel_handle;                    // 用户数据（面板句柄）
   lv_disp_t *disp = lv_disp_drv_register(&disp_drv);   // 注册显示驱动

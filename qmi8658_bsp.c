@@ -98,27 +98,21 @@ static esp_err_t qmi8658_i2c_init(void)
     uint8_t chip_id = 0;
     
     // 尝试主地址 (0x6B)
-    printf("[QMI8658_BSP] 尝试QMI8658主地址 0x6B...\n");
     g_qmi8658_addr = QMI8658_L_SLAVE_ADDRESS;
     esp_err_t ret = qmi8658_read_reg(QMI8658_REG_WHOAMI, &chip_id);
     
     if (ret == ESP_OK && chip_id == QMI8658_REG_WHOAMI_DEFAULT) {
         printf("[QMI8658_BSP] QMI8658检测成功，地址: 0x%02X，芯片ID: 0x%02X\n", g_qmi8658_addr, chip_id);
         return ESP_OK;
-    } else {
-        printf("[QMI8658_BSP] 地址0x6B检测失败，返回值: %s，芯片ID: 0x%02X\n", esp_err_to_name(ret), chip_id);
     }
     
     // 尝试备用地址 (0x6A)
-    printf("[QMI8658_BSP] 尝试QMI8658备用地址 0x6A...\n");
     g_qmi8658_addr = QMI8658_H_SLAVE_ADDRESS;
     ret = qmi8658_read_reg(QMI8658_REG_WHOAMI, &chip_id);
     
     if (ret == ESP_OK && chip_id == QMI8658_REG_WHOAMI_DEFAULT) {
         printf("[QMI8658_BSP] QMI8658检测成功，地址: 0x%02X，芯片ID: 0x%02X\n", g_qmi8658_addr, chip_id);
         return ESP_OK;
-    } else {
-        printf("[QMI8658_BSP] 地址0x6A检测失败，返回值: %s，芯片ID: 0x%02X\n", esp_err_to_name(ret), chip_id);
     }
     
     ESP_LOGE(TAG, "QMI8658检测失败，可能原因：");
@@ -358,7 +352,6 @@ static uint8_t qmi8658_mg_to_bytes(float mg)
 
 uint8_t QMI8658_Init(void)
 {
-    printf("[QMI8658_BSP] === QMI8658_Init() 开始执行 ===\n");
     printf("[QMI8658_BSP] 初始化QMI8658传感器...\n");
     
     if (g_qmi8658_initialized) {
@@ -367,26 +360,20 @@ uint8_t QMI8658_Init(void)
     }
     
     // 初始化I2C并检测传感器
-    printf("[QMI8658_BSP] 调用 qmi8658_i2c_init()...\n");
     esp_err_t init_result = qmi8658_i2c_init();
-    printf("[QMI8658_BSP] qmi8658_i2c_init() 返回结果: %s\n", esp_err_to_name(init_result));
     
     if (init_result != ESP_OK) {
         ESP_LOGE(TAG, "I2C初始化失败或传感器检测失败");
         return 1;
     }
-            printf("[QMI8658_BSP] I2C初始化成功，继续后续初始化...\n");
     
     // 软重置传感器
-    printf("[QMI8658_BSP] 执行传感器软重置...\n");
     if (QMI8658_Reset() != 0) {
         ESP_LOGE(TAG, "传感器重置失败");
         return 1;
     }
-    printf("[QMI8658_BSP] 传感器重置成功\n");
     
     // 等待传感器稳定（重置后需要时间稳定）
-    printf("[QMI8658_BSP] 等待传感器稳定...\n");
     vTaskDelay(pdMS_TO_TICKS(50));  // 等待50ms让传感器稳定
     
     // 验证传感器是否可以正常通信
@@ -395,7 +382,6 @@ uint8_t QMI8658_Init(void)
         ESP_LOGE(TAG, "传感器重置后通信异常，芯片ID: 0x%02X", test_id);
         return 1;
     }
-    printf("[QMI8658_BSP] 传感器稳定完成，通信正常\n");
     
     // 使能地址自动递增和使用STATUS_INT.bit7作为CTRL9握手
     qmi8658_write_reg(QMI8658_REG_CTRL1, 0x40);  // Little-Endian / 地址自动递增
@@ -430,27 +416,7 @@ uint8_t QMI8658_Init(void)
     QMI8658_EnableGyroscope();
     
     // 等待传感器开始产生数据
-    printf("[QMI8658_BSP] 等待传感器开始产生数据...\n");
     vTaskDelay(pdMS_TO_TICKS(100));  // 额外等待100ms
-    
-    // 检查传感器是否开始工作
-    uint8_t status_check;
-    int retry_count = 0;
-    while (retry_count < 10) {
-        if (qmi8658_read_reg(QMI8658_REG_STATUS0, &status_check) == ESP_OK) {
-            printf("[QMI8658_BSP] 状态检查 #%d: STATUS0=0x%02X\n", retry_count + 1, status_check);
-            if (status_check & 0x01) {  // 加速度计数据就绪
-                printf("[QMI8658_BSP] 加速度计数据就绪！\n");
-                break;
-            }
-        }
-        vTaskDelay(pdMS_TO_TICKS(50));
-        retry_count++;
-    }
-    
-    if (retry_count >= 10) {
-        printf("[QMI8658_BSP] 警告：传感器在等待时间内未产生数据就绪信号\n");
-    }
     
     g_qmi8658_initialized = true;
     ESP_LOGI(TAG, "QMI8658初始化完成");
@@ -680,62 +646,17 @@ uint8_t QMI8658_DisableGyroscope(void)
 uint8_t QMI8658_GetAccelerometerData(QMI8658_IMUData_t *data)
 {
     if (!g_qmi8658_initialized || !g_accel_enabled || !data) {
-        printf("[QMI8658_BSP] 获取加速度计数据失败: initialized=%d, enabled=%d, data=%p\n", 
-               g_qmi8658_initialized, g_accel_enabled, data);
         return 0;
     }
-    
-    // 添加调试：检查状态寄存器和配置寄存器
-    static int debug_count = 0;
-    if (debug_count % 20 == 0) {  // 每20次打印一次详细调试信息
-        uint8_t status0, status1, ctrl7, ctrl2, ctrl1;
-        if (qmi8658_read_reg(QMI8658_REG_STATUS0, &status0) == ESP_OK) {
-            printf("[QMI8658_BSP] STATUS0: 0x%02X (bit0=%s, bit1=%s)\n", 
-                   status0, 
-                   (status0 & 0x01) ? "加速度计就绪" : "加速度计未就绪",
-                   (status0 & 0x02) ? "陀螺仪就绪" : "陀螺仪未就绪");
-        }
-        if (qmi8658_read_reg(QMI8658_REG_STATUS1, &status1) == ESP_OK) {
-            printf("[QMI8658_BSP] STATUS1: 0x%02X\n", status1);
-        }
-        if (qmi8658_read_reg(QMI8658_REG_CTRL7, &ctrl7) == ESP_OK) {
-            printf("[QMI8658_BSP] CTRL7: 0x%02X (bit0=%s, bit1=%s)\n", 
-                   ctrl7,
-                   (ctrl7 & 0x01) ? "加速度计使能" : "加速度计禁用",
-                   (ctrl7 & 0x02) ? "陀螺仪使能" : "陀螺仪禁用");
-        }
-        if (qmi8658_read_reg(QMI8658_REG_CTRL2, &ctrl2) == ESP_OK) {
-            uint8_t range = (ctrl2 >> 4) & 0x03;
-            uint8_t odr = ctrl2 & 0x0F;
-            printf("[QMI8658_BSP] CTRL2: 0x%02X (量程=%d, ODR=%d)\n", ctrl2, range, odr);
-        }
-        if (qmi8658_read_reg(QMI8658_REG_CTRL1, &ctrl1) == ESP_OK) {
-            printf("[QMI8658_BSP] CTRL1: 0x%02X\n", ctrl1);
-        }
-    }
-    debug_count++;
     
     uint8_t raw_data[6];
     if (qmi8658_read_regs(QMI8658_REG_AX_L, raw_data, 6) != ESP_OK) {
-        printf("[QMI8658_BSP] 读取加速度计寄存器失败\n");
         return 0;
-    }
-    
-    // 打印原始数据（偶尔打印）
-    if (debug_count % 20 == 0) {
-        printf("[QMI8658_BSP] 原始数据: [0x%02X 0x%02X] [0x%02X 0x%02X] [0x%02X 0x%02X]\n", 
-               raw_data[0], raw_data[1], raw_data[2], raw_data[3], raw_data[4], raw_data[5]);
     }
     
     int16_t x_raw = qmi8658_bytes_to_int16(raw_data[0], raw_data[1]);
     int16_t y_raw = qmi8658_bytes_to_int16(raw_data[2], raw_data[3]);
     int16_t z_raw = qmi8658_bytes_to_int16(raw_data[4], raw_data[5]);
-    
-    // 打印原始整数值
-    if (debug_count % 20 == 0) {
-        printf("[QMI8658_BSP] 原始整数: X=%d, Y=%d, Z=%d, scale=%.6f\n", 
-               x_raw, y_raw, z_raw, g_accel_scale);
-    }
     
     data->x = x_raw * g_accel_scale;
     data->y = y_raw * g_accel_scale;
