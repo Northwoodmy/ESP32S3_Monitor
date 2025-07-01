@@ -142,36 +142,20 @@ static void lvgl_flush_cb(lv_disp_drv_t *drv, const lv_area_t *area, lv_color_t 
 }
 
 /**
- * @brief LVGL显示驱动更新回调函数
+ * @brief LVGL显示驱动更新回调函数（已禁用硬件旋转）
  * 
- * 当LVGL显示驱动参数更新时（如屏幕旋转），此函数被调用
- * 来相应地调整LCD面板的显示方向。
+ * 注意：此函数已被禁用，因为QMI8658不支持硬件旋转。
+ * 现在使用LVGL的纯软件旋转功能来实现屏幕旋转。
  * 
  * @param drv LVGL显示驱动结构
- 
+ */
+/*
 static void lvgl_update_cb(lv_disp_drv_t *drv) {
-  esp_lcd_panel_handle_t panel_handle = (esp_lcd_panel_handle_t)drv->user_data;
-
-  // 根据LVGL的旋转设置调整LCD面板显示方向
-  switch (drv->rotated) {
-    case LV_DISP_ROT_NONE:      // 0度（正常方向）
-      esp_lcd_panel_swap_xy(panel_handle, false);    // 不交换XY轴
-      esp_lcd_panel_mirror(panel_handle, true, false); // X轴镜像
-      break;
-    case LV_DISP_ROT_90:        // 90度顺时针旋转
-      esp_lcd_panel_swap_xy(panel_handle, true);     // 交换XY轴
-      esp_lcd_panel_mirror(panel_handle, true, true); // XY轴都镜像
-      break;
-    case LV_DISP_ROT_180:       // 180度旋转
-      esp_lcd_panel_swap_xy(panel_handle, false);    // 不交换XY轴
-      esp_lcd_panel_mirror(panel_handle, false, true); // Y轴镜像
-      break;
-    case LV_DISP_ROT_270:       // 270度顺时针旋转
-      esp_lcd_panel_swap_xy(panel_handle, true);     // 交换XY轴
-      esp_lcd_panel_mirror(panel_handle, false, false); // 不镜像
-      break;
-  }
+  // 硬件旋转已禁用，使用LVGL软件旋转
+  // 此回调函数不再需要，因为所有旋转处理都由LVGL内部完成
+  (void)drv;  // 避免未使用变量警告
 }
+*/
 
 /**
  * @brief LVGL区域舍入回调函数
@@ -198,29 +182,68 @@ void lvgl_rounder_cb(struct _lv_disp_drv_t *disp_drv, lv_area_t *area) {
 
 #if USE_TOUCH
 /**
- * @brief LVGL触摸输入回调函数
+ * @brief LVGL触摸输入回调函数（支持软件旋转）
  * 
  * LVGL调用此函数读取触摸屏状态，包括触摸位置和按压状态。
- * 注意：此处进行了坐标轴交换以匹配显示方向。
+ * 在软件旋转模式下，需要根据当前屏幕旋转角度来转换触摸坐标。
  * 
  * @param drv 输入设备驱动结构
  * @param data 触摸数据结构，用于返回触摸信息
  */
 static void lvgl_touch_cb(lv_indev_drv_t *drv, lv_indev_data_t *data) {
-  uint16_t tp_x, tp_y;  // 触摸坐标
+  uint16_t tp_x, tp_y;  // 原始触摸坐标
   uint8_t win;          // 触摸状态
   
   // 读取触摸屏状态和坐标
   win = getTouch(&tp_x, &tp_y);
   
   if (win) {
-    // 有触摸事件：进行坐标转换以匹配屏幕方向
-    data->point.x = tp_y;  // 注意：这里交换了XY轴
-    data->point.y = tp_x;
+    // 有触摸事件：根据当前屏幕旋转角度转换坐标
+    lv_coord_t final_x, final_y;
+    
+#if USE_GYROSCOPE
+    // 获取当前屏幕旋转角度
+    screen_rotation_t current_rotation = SCREEN_ROTATION_0;
+    if (lvglDriver && lvglDriver->isInitialized()) {
+      current_rotation = lvglDriver->getScreenRotation();
+    }
+    
+    // 根据旋转角度转换触摸坐标
+    switch (current_rotation) {
+      case SCREEN_ROTATION_0:   // 0度（正常方向）
+        final_x = tp_y;
+        final_y = tp_x;
+        break;
+      case SCREEN_ROTATION_90:  // 90度顺时针旋转
+        final_x = tp_x;
+        final_y = LCD_H_RES - tp_y - 1;
+        break;
+      case SCREEN_ROTATION_180: // 180度旋转
+        final_x = LCD_V_RES - tp_y - 1;
+        final_y = LCD_H_RES - tp_x - 1;
+        break;
+      case SCREEN_ROTATION_270: // 270度顺时针旋转
+        final_x = LCD_V_RES - tp_x - 1;
+        final_y = tp_y;
+        break;
+      default:
+        final_x = tp_y;
+        final_y = tp_x;
+        break;
+    }
+#else
+    // 未启用陀螺仪时使用默认坐标转换
+    final_x = tp_y;
+    final_y = tp_x;
+#endif
+    
+    data->point.x = final_x;
+    data->point.y = final_y;
     data->state = LV_INDEV_STATE_PRESSED;  // 设置为按下状态
     
     // 输出调试信息到串口
-    //printf("触摸坐标 X: %d, Y: %d\n", tp_x, tp_y);
+    //printf("触摸坐标 原始X: %d, Y: %d -> 转换后X: %d, Y: %d (旋转: %d)\n", 
+    //       tp_x, tp_y, final_x, final_y, current_rotation);
   } else {
     // 无触摸事件
     data->state = LV_INDEV_STATE_RELEASED;  // 设置为释放状态
@@ -323,13 +346,13 @@ LVGLDriver::LVGLDriver()
     printf("[LVGLDriver] LVGL驱动实例已创建\n");
     
 #if USE_GYROSCOPE
-    // 初始化屏幕自动旋转配置
-    m_rotation_config.threshold = 8.0f;               // 8m/s²阈值
-    m_rotation_config.stable_time_ms = 1000;          // 1秒稳定时间
-    m_rotation_config.detection_interval_ms = 200;    // 200ms检测间隔
+    // 初始化屏幕自动旋转配置（优化QMI8658参数）
+    m_rotation_config.threshold = 6.0f;               // 6m/s²阈值（降低灵敏度）
+    m_rotation_config.stable_time_ms = 800;           // 800ms稳定时间（提高响应速度）
+    m_rotation_config.detection_interval_ms = 150;    // 150ms检测间隔（提高检测频率）
     m_rotation_config.auto_rotation_enabled = true;   // 默认启用自动旋转
     
-    printf("[LVGLDriver] 屏幕自动旋转配置已初始化\n");
+    printf("[LVGLDriver] 屏幕自动旋转配置已初始化（软件旋转模式）\n");
 #endif
 }
 
@@ -786,20 +809,20 @@ screen_rotation_t LVGLDriver::determineOrientationFromAccel(const QMI8658_IMUDat
         return m_current_rotation;  // 保持当前方向
     }
     
-    // 根据重力方向判断屏幕方向
-    if (abs_y > abs_x && abs_y > abs_z) {
-        // Y轴重力最大
-        if (accel.y > 0) {
-            return SCREEN_ROTATION_0;    // 正常方向
-        } else {
-            return SCREEN_ROTATION_180;  // 倒置
-        }
-    } else if (abs_x > abs_y && abs_x > abs_z) {
+    // 根据重力方向判断屏幕方向（修正坐标系映射）
+    if (abs_x > abs_y && abs_x > abs_z) {
         // X轴重力最大
         if (accel.x > 0) {
-            return SCREEN_ROTATION_270;  // 左旋90度
+            return SCREEN_ROTATION_0;    // X轴正方向对应0度（正常方向）
         } else {
-            return SCREEN_ROTATION_90;   // 右旋90度
+            return SCREEN_ROTATION_180;  // X轴负方向对应180度（倒置）
+        }
+    } else if (abs_y > abs_x && abs_y > abs_z) {
+        // Y轴重力最大
+        if (accel.y > 0) {
+            return SCREEN_ROTATION_270;  // Y轴正方向对应270度旋转
+        } else {
+            return SCREEN_ROTATION_90;   // Y轴负方向对应90度旋转
         }
     }
     
@@ -808,14 +831,17 @@ screen_rotation_t LVGLDriver::determineOrientationFromAccel(const QMI8658_IMUDat
 }
 
 /**
- * @brief 执行屏幕旋转
+ * @brief 执行屏幕旋转（纯软件旋转）
+ * 
+ * 使用LVGL的软件旋转功能，不依赖硬件旋转。
+ * 这种方式适用于所有LCD控制器，包括不支持硬件旋转的QMI8658。
  */
 void LVGLDriver::performScreenRotation(screen_rotation_t rotation) {
     if (!m_display || rotation == m_current_rotation) {
         return;
     }
     
-    printf("[LVGLDriver] 执行屏幕旋转：%d -> %d\n", m_current_rotation, rotation);
+    printf("[LVGLDriver] 执行软件屏幕旋转：%d -> %d\n", m_current_rotation, rotation);
     
     // 获取LVGL锁
     if (lock(1000)) {
@@ -839,18 +865,24 @@ void LVGLDriver::performScreenRotation(screen_rotation_t rotation) {
                 break;
         }
         
-        // 设置LVGL显示旋转
+        // 使用LVGL纯软件旋转（不触发硬件旋转回调）
         lv_disp_set_rotation(m_display, lv_rotation);
         
         // 更新当前旋转状态
         m_current_rotation = rotation;
         
-        // 强制刷新显示
-        lv_disp_trig_activity(m_display);
+        // 立即刷新整个显示屏以确保旋转效果立即生效
+        lv_obj_invalidate(lv_scr_act());
+        lv_refr_now(m_display);
         
         unlock();
         
-        printf("[LVGLDriver] 屏幕旋转完成：角度 %d\n", rotation * 90);
+        printf("[LVGLDriver] 软件屏幕旋转完成：角度 %d度\n", rotation * 90);
+        printf("[LVGLDriver] 显示分辨率：%dx%d -> %dx%d\n", 
+               (rotation % 2 == 0) ? LCD_H_RES : LCD_V_RES,
+               (rotation % 2 == 0) ? LCD_V_RES : LCD_H_RES,
+               lv_disp_get_hor_res(m_display),
+               lv_disp_get_ver_res(m_display));
     } else {
         printf("[LVGLDriver] 错误：获取LVGL锁失败，无法执行屏幕旋转\n");
     }
@@ -965,13 +997,14 @@ lv_disp_t* LVGL_Init(void) {
   lv_disp_draw_buf_init(&disp_buf, buf1, buf2, LCD_H_RES * LVGL_BUF_HEIGHT);
 
   // === 10. 注册LVGL显示驱动 ===
-  printf("[ESP_LCD_LVGL] 向LVGL注册显示驱动\n");
+  printf("[ESP_LCD_LVGL] 向LVGL注册显示驱动（启用软件旋转）\n");
   lv_disp_drv_init(&disp_drv);
   disp_drv.hor_res = LCD_H_RES;                 // 水平分辨率
   disp_drv.ver_res = LCD_V_RES;                 // 垂直分辨率
   disp_drv.flush_cb = lvgl_flush_cb;            // 刷新回调函数
   disp_drv.rounder_cb = lvgl_rounder_cb;        // 区域舍入回调
-  //disp_drv.drv_update_cb = lvgl_update_cb;      // 驱动更新回调
+  //disp_drv.drv_update_cb = lvgl_update_cb;      // 驱动更新回调（已禁用硬件旋转）
+  disp_drv.sw_rotate = 1;                       // 启用LVGL软件旋转功能
   disp_drv.draw_buf = &disp_buf;                        // 绘图缓冲区
   disp_drv.user_data = panel_handle;                    // 用户数据（面板句柄）
   lv_disp_t *disp = lv_disp_drv_register(&disp_drv);   // 注册显示驱动
@@ -1008,7 +1041,7 @@ lv_disp_t* LVGL_Init(void) {
   // === 14. 启动演示程序 ===
   printf("[ESP_LCD_LVGL] 启动LVGL演示程序\n");
   if (lvgl_lock(-1)) {  // 获取LVGL锁
-    //lv_demo_widgets();          // 启动控件演示程序
+    lv_demo_widgets();          // 启动控件演示程序
     // 其他可选的演示程序：
     // lv_demo_music();         // 现代音乐播放器演示
     // lv_demo_stress();        // LVGL压力测试

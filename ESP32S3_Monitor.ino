@@ -101,12 +101,12 @@ void setup() {
   printf("LVGL驱动系统初始化完成\n");
 
   // 初始化显示管理器
-  printf("开始初始化显示管理器...\n");
-  displayManager.init(&lvglDriverInstance, &wifiManager, &configStorage, &psramManager);
+  //printf("开始初始化显示管理器...\n");
+  //displayManager.init(&lvglDriverInstance, &wifiManager, &configStorage, &psramManager);
   
   // 启动显示管理器任务
-  printf("启动显示管理器任务...\n");
-  displayManager.start();
+  //printf("启动显示管理器任务...\n");
+  //displayManager.start();
   
   printf("显示管理器初始化完成\n");
 
