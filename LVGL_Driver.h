@@ -43,14 +43,14 @@ typedef enum {
 } screen_rotation_t;
 
 /**
- * @brief 陀螺仪旋转检测配置
+ * @brief 屏幕自动旋转配置（基于加速度计重力感应）
  */
 typedef struct {
     float threshold;            ///< 重力加速度阈值（判断旋转的临界值）
     uint32_t stable_time_ms;    ///< 稳定时间（毫秒），防止抖动
     uint32_t detection_interval_ms; ///< 检测间隔（毫秒）
     bool auto_rotation_enabled; ///< 自动旋转使能标志
-} gyro_rotation_config_t;
+} screen_rotation_config_t;
 
 /**
  * @brief LVGL驱动管理类
@@ -173,11 +173,11 @@ public:
 
 #if USE_GYROSCOPE
     /**
-     * @brief 初始化陀螺仪功能
+     * @brief 初始化屏幕自动旋转功能（基于加速度计）
      * 
      * @return true 初始化成功，false 初始化失败
      */
-    bool initGyroscope();
+    bool initScreenRotation();
     
     /**
      * @brief 启用/禁用自动屏幕旋转
@@ -208,20 +208,20 @@ public:
     screen_rotation_t getScreenRotation() const;
     
     /**
-     * @brief 配置陀螺仪旋转检测参数
+     * @brief 配置屏幕自动旋转检测参数
      * 
      * @param config 配置参数
      */
-    void configureGyroRotation(const gyro_rotation_config_t& config);
+    void configureScreenRotation(const screen_rotation_config_t& config);
     
     /**
-     * @brief 获取当前陀螺仪数据
+     * @brief 获取当前传感器数据
      * 
      * @param accel 加速度计数据
      * @param gyro 陀螺仪数据
      * @return true 读取成功，false 读取失败
      */
-    bool getGyroData(QMI8658_IMUData_t* accel, QMI8658_IMUData_t* gyro);
+    bool getSensorData(QMI8658_IMUData_t* accel, QMI8658_IMUData_t* gyro);
 #endif
 
 private:
@@ -241,11 +241,11 @@ private:
 
 #if USE_GYROSCOPE
     /**
-     * @brief 陀螺仪数据处理函数
+     * @brief 屏幕自动旋转处理函数
      * 
-     * 读取陀螺仪数据，判断设备方向，执行屏幕旋转
+     * 读取加速度计数据，判断设备方向，执行屏幕旋转
      */
-    void processGyroscopeData();
+    void processScreenRotation();
     
     /**
      * @brief 根据加速度计数据判断设备方向
@@ -272,11 +272,11 @@ private:
     uint8_t m_brightness;         ///< 当前亮度值
     
 #if USE_GYROSCOPE
-    // 陀螺仪相关成员变量
-    bool m_gyro_initialized;      ///< 陀螺仪初始化状态
+    // 屏幕自动旋转相关成员变量
+    bool m_rotation_initialized;      ///< 旋转功能初始化状态
     screen_rotation_t m_current_rotation; ///< 当前屏幕旋转角度
-    gyro_rotation_config_t m_gyro_config; ///< 陀螺仪旋转检测配置
-    uint32_t m_last_gyro_check_time; ///< 上次陀螺仪检测时间
+    screen_rotation_config_t m_rotation_config; ///< 屏幕旋转检测配置
+    uint32_t m_last_rotation_check_time; ///< 上次旋转检测时间
     uint32_t m_orientation_stable_time; ///< 方向稳定时间
     screen_rotation_t m_pending_rotation; ///< 待执行的旋转角度
 #endif
