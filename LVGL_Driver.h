@@ -29,8 +29,8 @@
 
 // === TCA9554控制引脚定义 ===
 #define TCA9554_LCD_RESET_PIN     0    // TCA9554 GPIO0 - LCD复位引脚
-#define TCA9554_TOUCH_RESET_PIN   1    // TCA9554 GPIO1 - 触控复位引脚
-#define TCA9554_GYRO_RESET_PIN    2    // TCA9554 GPIO2 - 陀螺仪复位引脚（预留）
+#define TCA9554_POWER_RESET_PIN   1    // TCA9554 GPIO1 - 电源复位引脚
+#define TCA9554_TOUCH_RESET_PIN   2    // TCA9554 GPIO2 - 触控复位引脚
 
 // === TCA9554 I2C配置（由I2CBusManager统一管理） ===
 #define TCA9554_I2C_ADDRESS       TCA9554_I2C_ADDRESS_000  // TCA9554 I2C地址（0x20）
@@ -184,7 +184,7 @@ public:
     /**
      * @brief 初始化TCA9554 IO扩展芯片
      * 
-     * 初始化TCA9554芯片，配置控制屏幕和触控复位的引脚
+     * 初始化TCA9554芯片，配置控制LCD、电源和触控复位的引脚
      * 注意：该函数会在LVGL初始化之前调用，以确保正确的复位时序
      * 
      * @return true 初始化成功，false 初始化失败
@@ -192,10 +192,10 @@ public:
     bool initTCA9554();
     
     /**
-     * @brief 执行屏幕和触控复位序列
+     * @brief 执行系统复位序列
      * 
-     * 通过TCA9554控制LCD和触控芯片的复位引脚，执行正确的复位时序
-     * 复位时序：拉低复位引脚 -> 延时 -> 拉高复位引脚 -> 延时稳定
+     * 通过TCA9554控制LCD、电源和触控芯片的复位引脚，执行正确的复位时序
+     * 复位时序：拉低复位引脚 -> 延时 -> 先释放电源 -> 释放触控 -> 释放LCD -> 延时稳定
      */
     void performDisplayReset();
     

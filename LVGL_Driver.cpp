@@ -1099,16 +1099,16 @@ bool LVGLDriver::initTCA9554() {
         return false;
     }
     
-    result = TCA9554_SetPinDirection(TCA9554_GYRO_RESET_PIN, TCA9554_GPIO_OUTPUT);
+    result = TCA9554_SetPinDirection(TCA9554_POWER_RESET_PIN, TCA9554_GPIO_OUTPUT);
     if (result != 0) {
-        printf("[LVGLDriver] 错误：配置陀螺仪复位引脚失败\n");
+        printf("[LVGLDriver] 错误：配置电源复位引脚失败\n");
         return false;
     }
     
     // 设置所有复位引脚为高电平（非复位状态）
     result = TCA9554_WritePinOutput(TCA9554_LCD_RESET_PIN, 1);
     result |= TCA9554_WritePinOutput(TCA9554_TOUCH_RESET_PIN, 1);
-    result |= TCA9554_WritePinOutput(TCA9554_GYRO_RESET_PIN, 1);
+    result |= TCA9554_WritePinOutput(TCA9554_POWER_RESET_PIN, 1);
     
     if (result != 0) {
         printf("[LVGLDriver] 错误：设置复位引脚初始状态失败\n");
@@ -1145,7 +1145,7 @@ void LVGLDriver::performDisplayReset() {
     uint8_t result = 0;
     result |= TCA9554_WritePinOutput(TCA9554_LCD_RESET_PIN, 0);
     result |= TCA9554_WritePinOutput(TCA9554_TOUCH_RESET_PIN, 0);
-    result |= TCA9554_WritePinOutput(TCA9554_GYRO_RESET_PIN, 0);
+    result |= TCA9554_WritePinOutput(TCA9554_POWER_RESET_PIN, 0);
     
     if (result != 0) {
         printf("[LVGLDriver] 警告：拉低复位引脚时出现错误\n");
@@ -1154,9 +1154,9 @@ void LVGLDriver::performDisplayReset() {
     // 保持复位状态10ms（确保芯片完全复位）
     vTaskDelay(pdMS_TO_TICKS(10));
     
-    // === 第二阶段：先释放陀螺仪复位（陀螺仪需要最先启动） ===
-    TCA9554_WritePinOutput(TCA9554_GYRO_RESET_PIN, 1);
-    vTaskDelay(pdMS_TO_TICKS(5));  // 等待陀螺仪稳定
+    // === 第二阶段：先释放电源复位（电源需要最先启动） ===
+    TCA9554_WritePinOutput(TCA9554_POWER_RESET_PIN, 1);
+    vTaskDelay(pdMS_TO_TICKS(5));  // 等待电源稳定
     
     // === 第三阶段：释放触控复位 ===
     TCA9554_WritePinOutput(TCA9554_TOUCH_RESET_PIN, 1);
@@ -1172,10 +1172,10 @@ void LVGLDriver::performDisplayReset() {
     uint8_t output_status;
     if (TCA9554_ReadOutput(&output_status) == 0) {
         printf("[LVGLDriver] 复位后TCA9554输出状态: 0x%02X\n", output_status);
-        printf("[LVGLDriver] LCD复位引脚: %s, 触控复位引脚: %s, 陀螺仪复位引脚: %s\n",
+        printf("[LVGLDriver] LCD复位引脚: %s, 触控复位引脚: %s, 电源复位引脚: %s\n",
                (output_status & (1 << TCA9554_LCD_RESET_PIN)) ? "高" : "低",
                (output_status & (1 << TCA9554_TOUCH_RESET_PIN)) ? "高" : "低",
-               (output_status & (1 << TCA9554_GYRO_RESET_PIN)) ? "高" : "低");
+               (output_status & (1 << TCA9554_POWER_RESET_PIN)) ? "高" : "低");
     }
 }
 
