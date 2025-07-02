@@ -1,6 +1,6 @@
 /*
  * ESP32S3监控项目 - WiFi配置管理器
- * 版本: v5.3.0
+ * 版本: v5.4.0
  * 作者: ESP32S3_Monitor
  * 日期: 2024
  * 
@@ -16,6 +16,9 @@
  * - LVGL显示驱动和触控按钮
  * - PSRAM内存管理和优化
  * - NTP网络时间同步功能
+ * - AudioManager音频播放管理
+ * - PCM音频文件循环播放功能
+ * - I2S音频接口和ES8311编解码器集成
  */
 
 #include <WiFi.h>
@@ -38,6 +41,7 @@
 #include "PSRAMManager.h"
 #include "TimeManager.h"
 #include "I2CBusManager.h"
+#include "AudioManager.h"
 
 // 外部变量声明
 extern LVGLDriver* lvglDriver;
@@ -55,13 +59,14 @@ FileManager fileManager;
 DisplayManager displayManager;
 PSRAMManager psramManager;
 TimeManager timeManager;
+AudioManager audioManager;
 
 // 传感器数据已集成到LVGL驱动中，无需独立任务
 
 void setup() {
   
   printf("=== ESP32S3 WiFi配置管理器启动 ===\n");
-  printf("版本: v5.3.0\n");
+  printf("版本: v5.4.0\n");
   printf("编译时间: %s %s\n", __DATE__, __TIME__);
   
   // 初始化PSRAM管理器（优先初始化）
@@ -125,6 +130,50 @@ void setup() {
   
   // 初始化文件管理器
   fileManager.init();
+  
+  // 初始化音频管理器
+  printf("开始初始化音频管理器...\n");
+  if (audioManager.init(&psramManager, &fileManager)) {
+    printf("✅ 音频管理器初始化成功\n");
+    
+    // 启动音频管理器
+    if (audioManager.start()) {
+      printf("✅ 音频管理器启动成功\n");
+      
+      // 设置初始音量为80%
+      audioManager.setVolume(70);
+      
+      // 启用调试模式查看详细信息
+      audioManager.setDebugMode(true);
+      
+      // 设置正确的音频格式匹配转换后的PCM文件
+      printf("🎯 音频文件已成功转换！\n");
+      printf("原文件: c3.pcm (ADPCM格式) -> c3_new.pcm (标准PCM)\n");
+      printf("格式: 16000Hz, 单声道, 16位, 时长3.09秒\n\n");
+      
+      // 设置匹配的音频格式
+      if (audioManager.setAudioFormat(16000, 1, 16)) {
+        printf("✅ 音频格式设置成功: 16000Hz, 单声道, 16位\n");
+        
+        // 开始播放转换后的PCM文件，使用间隔循环模式（每2秒播放一次）
+        if (audioManager.playPCMFile("/c3.pcm", AUDIO_MODE_INTERVAL_LOOP)) {
+          printf("🎵 开始循环播放音频文件: /c3.pcm (每2秒一次)\n");
+          printf("🎧 音频应该清晰无杂音，3.09秒时长\n");
+          printf("💡 请确保SPIFFS中已上传 c3_new.pcm 文件\n");
+        } else {
+          printf("⚠️ 音频文件播放启动失败，请检查文件是否存在\n");
+          printf("💡 需要将 c3_new.pcm 上传到SPIFFS文件系统\n");
+        }
+      } else {
+        printf("❌ 音频格式设置失败\n");
+      }
+    } else {
+      printf("❌ 音频管理器启动失败\n");
+    }
+  } else {
+    printf("❌ 音频管理器初始化失败\n");
+  }
+  printf("音频管理器初始化完成\n");
   
   // 创建Web服务器管理器实例
   webServerManager = new WebServerManager(&wifiManager, &configStorage, &otaManager, &fileManager);
@@ -243,6 +292,29 @@ void displaySystemStatus() {
   } else {
     printf("未同步\n");
     printf("NTP服务器: %s\n", timeManager.getNTPConfig().primaryServer.c_str());
+  }
+  
+  // 音频系统信息
+  printf("音频状态: ");
+  if (audioManager.isPlaying()) {
+    printf("播放中\n");
+    printf("当前文件: %s\n", audioManager.getCurrentFile().c_str());
+    printf("音量: %d%%\n", audioManager.getVolume());
+    printf("静音: %s\n", audioManager.isMuted() ? "是" : "否");
+    
+    AudioStatistics stats = audioManager.getStatistics();
+    printf("播放统计: 总计%lu次, 成功%lu次, 错误%lu次\n", 
+           stats.totalPlayCount, stats.successPlayCount, stats.errorCount);
+    printf("播放字节: %zu bytes\n", stats.bytesPlayed);
+  } else {
+    AudioState state = audioManager.getState();
+    switch (state) {
+      case AUDIO_STATE_IDLE: printf("空闲\n"); break;
+      case AUDIO_STATE_STOPPED: printf("已停止\n"); break;
+      case AUDIO_STATE_PAUSED: printf("已暂停\n"); break;
+      case AUDIO_STATE_ERROR: printf("错误\n"); break;
+      default: printf("未知状态\n"); break;
+    }
   }
   
   printf("==================\n");
