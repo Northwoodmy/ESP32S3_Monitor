@@ -46,12 +46,15 @@ extern "C" {
 #define I2C_ADDR_FT3168     0x38             // FT3168 触摸控制器
 #define I2C_ADDR_QMI8658_L  0x6B             // QMI8658 陀螺仪 (低地址)
 #define I2C_ADDR_QMI8658_H  0x6A             // QMI8658 陀螺仪 (高地址)
+#define I2C_ADDR_ES8311_0   0x18             // ES8311 音频编解码器 (CE引脚低电平)
+#define I2C_ADDR_ES8311_1   0x19             // ES8311 音频编解码器 (CE引脚高电平)
 
 // === 设备类型枚举 ===
 typedef enum {
     I2C_DEVICE_TCA9554 = 0,    // TCA9554 IO扩展芯片
     I2C_DEVICE_FT3168,         // FT3168 触摸控制器
     I2C_DEVICE_QMI8658,        // QMI8658 陀螺仪加速度计
+    I2C_DEVICE_ES8311,         // ES8311 音频编解码器
     I2C_DEVICE_UNKNOWN,        // 未知设备
     I2C_DEVICE_MAX             // 设备数量上限
 } I2C_DeviceType_t;

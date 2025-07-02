@@ -4,12 +4,9 @@
  */
 
 #include "I2CBusManager.h"
-#include "esp_log.h"
 #include "freertos/task.h"
 #include <stdio.h>
 #include <string.h>
-
-static const char* TAG = "I2CBusManager";
 
 // === 全局变量 ===
 static bool g_i2c_initialized = false;             // I2C总线初始化状态
@@ -27,19 +24,19 @@ static void i2c_add_device_to_status(uint8_t addr, I2C_DeviceType_t type, bool d
 esp_err_t I2CBus_Init(void)
 {
     if (g_i2c_initialized) {
-        ESP_LOGW(TAG, "I2C总线已经初始化");
+        printf("[I2CBusManager] 警告：I2C总线已经初始化\n");
         return ESP_OK;
     }
     
-    ESP_LOGI(TAG, "开始初始化I2C总线管理器...");
+    printf("[I2CBusManager] 开始初始化I2C总线管理器...\n");
     
     // === 1. 创建I2C互斥锁 ===
     g_i2c_mutex = xSemaphoreCreateMutex();
     if (g_i2c_mutex == NULL) {
-        ESP_LOGE(TAG, "创建I2C互斥锁失败");
+        printf("[I2CBusManager] 错误：创建I2C互斥锁失败\n");
         return ESP_ERR_NO_MEM;
     }
-    ESP_LOGI(TAG, "✓ I2C互斥锁创建成功");
+    printf("[I2CBusManager] ✓ I2C互斥锁创建成功\n");
     
     // === 2. 配置I2C总线参数 ===
     i2c_config_t conf = {};
@@ -53,22 +50,22 @@ esp_err_t I2CBus_Init(void)
     // === 3. 应用I2C配置 ===
     esp_err_t ret = i2c_param_config(I2C_BUS_NUM, &conf);
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "I2C参数配置失败: %s", esp_err_to_name(ret));
+        printf("[I2CBusManager] 错误：I2C参数配置失败: %s\n", esp_err_to_name(ret));
         vSemaphoreDelete(g_i2c_mutex);
         g_i2c_mutex = NULL;
         return ret;
     }
-    ESP_LOGI(TAG, "✓ I2C参数配置成功");
+    printf("[I2CBusManager] ✓ I2C参数配置成功\n");
     
     // === 4. 安装I2C驱动 ===
     ret = i2c_driver_install(I2C_BUS_NUM, conf.mode, 0, 0, 0);
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "I2C驱动安装失败: %s", esp_err_to_name(ret));
+        printf("[I2CBusManager] 错误：I2C驱动安装失败: %s\n", esp_err_to_name(ret));
         vSemaphoreDelete(g_i2c_mutex);
         g_i2c_mutex = NULL;
         return ret;
     }
-    ESP_LOGI(TAG, "✓ I2C驱动安装成功");
+    printf("[I2CBusManager] ✓ I2C驱动安装成功\n");
     
     // === 5. 初始化总线状态结构体 ===
     i2c_reset_bus_status();
@@ -79,33 +76,33 @@ esp_err_t I2CBus_Init(void)
     
     g_i2c_initialized = true;
     
-    ESP_LOGI(TAG, "✓ I2C总线初始化成功");
-    ESP_LOGI(TAG, "  - 总线: I2C_%d", I2C_BUS_NUM);
-    ESP_LOGI(TAG, "  - SCL引脚: GPIO_%d", I2C_BUS_SCL_PIN);
-    ESP_LOGI(TAG, "  - SDA引脚: GPIO_%d", I2C_BUS_SDA_PIN);
-    ESP_LOGI(TAG, "  - 频率: %d Hz", I2C_BUS_FREQ_HZ);
+    printf("[I2CBusManager] ✓ I2C总线初始化成功\n");
+    printf("[I2CBusManager]   - 总线: I2C_%d\n", I2C_BUS_NUM);
+    printf("[I2CBusManager]   - SCL引脚: GPIO_%d\n", I2C_BUS_SCL_PIN);
+    printf("[I2CBusManager]   - SDA引脚: GPIO_%d\n", I2C_BUS_SDA_PIN);
+    printf("[I2CBusManager]   - 频率: %d Hz\n", I2C_BUS_FREQ_HZ);
     
     // === 6. 扫描连接的设备 ===
-    ESP_LOGI(TAG, "开始扫描I2C设备...");
+    printf("[I2CBusManager] 开始扫描I2C设备...\n");
     I2CBus_ScanAllDevices();
     
-    ESP_LOGI(TAG, "I2C总线管理器初始化完成，检测到 %d 个设备", g_bus_status.device_count);
+    printf("[I2CBusManager] I2C总线管理器初始化完成，检测到 %d 个设备\n", g_bus_status.device_count);
     return ESP_OK;
 }
 
 void I2CBus_Deinit(void)
 {
     if (!g_i2c_initialized) {
-        ESP_LOGW(TAG, "I2C总线未初始化，无需反初始化");
+        printf("[I2CBusManager] 警告：I2C总线未初始化，无需反初始化\n");
         return;
     }
     
-    ESP_LOGI(TAG, "开始反初始化I2C总线管理器...");
+    printf("[I2CBusManager] 开始反初始化I2C总线管理器...\n");
     
     // 删除I2C驱动
     esp_err_t ret = i2c_driver_delete(I2C_BUS_NUM);
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "I2C驱动删除失败: %s", esp_err_to_name(ret));
+        printf("[I2CBusManager] 错误：I2C驱动删除失败: %s\n", esp_err_to_name(ret));
     }
     
     // 删除互斥锁
@@ -118,7 +115,7 @@ void I2CBus_Deinit(void)
     i2c_reset_bus_status();
     g_i2c_initialized = false;
     
-    ESP_LOGI(TAG, "I2C总线管理器反初始化完成");
+    printf("[I2CBusManager] I2C总线管理器反初始化完成\n");
 }
 
 bool I2CBus_IsInitialized(void)
@@ -133,7 +130,7 @@ bool I2CBus_IsInitialized(void)
 bool I2CBus_Lock(uint32_t timeout_ms)
 {
     if (!g_i2c_initialized || g_i2c_mutex == NULL) {
-        ESP_LOGW(TAG, "I2C总线未初始化，无法获取锁");
+        printf("[I2CBusManager] 警告：I2C总线未初始化，无法获取锁\n");
         return false;
     }
     
@@ -142,7 +139,7 @@ bool I2CBus_Lock(uint32_t timeout_ms)
     if (xSemaphoreTake(g_i2c_mutex, timeout_ticks) == pdTRUE) {
         return true;
     } else {
-        ESP_LOGW(TAG, "获取I2C互斥锁超时 (%d ms)", timeout_ms);
+        printf("[I2CBusManager] 警告：获取I2C互斥锁超时 (%d ms)\n", timeout_ms);
         return false;
     }
 }
@@ -150,7 +147,7 @@ bool I2CBus_Lock(uint32_t timeout_ms)
 void I2CBus_Unlock(void)
 {
     if (!g_i2c_initialized || g_i2c_mutex == NULL) {
-        ESP_LOGW(TAG, "I2C总线未初始化，无法释放锁");
+        printf("[I2CBusManager] 警告：I2C总线未初始化，无法释放锁\n");
         return;
     }
     
@@ -190,7 +187,7 @@ esp_err_t I2CBus_Write(uint8_t device_addr, const uint8_t *data, size_t len, uin
     I2CBus_Unlock();
     
     if (ret != ESP_OK) {
-        ESP_LOGW(TAG, "I2C写操作失败，设备地址: 0x%02X, 错误: %s", device_addr, esp_err_to_name(ret));
+        printf("[I2CBusManager] 警告：I2C写操作失败，设备地址: 0x%02X, 错误: %s\n", device_addr, esp_err_to_name(ret));
     }
     
     return ret;
@@ -220,7 +217,7 @@ esp_err_t I2CBus_Read(uint8_t device_addr, uint8_t *data, size_t len, uint32_t t
     I2CBus_Unlock();
     
     if (ret != ESP_OK) {
-        ESP_LOGW(TAG, "I2C读操作失败，设备地址: 0x%02X, 错误: %s", device_addr, esp_err_to_name(ret));
+        printf("[I2CBusManager] 警告：I2C读操作失败，设备地址: 0x%02X, 错误: %s\n", device_addr, esp_err_to_name(ret));
     }
     
     return ret;
@@ -252,7 +249,7 @@ esp_err_t I2CBus_WriteRead(uint8_t device_addr, const uint8_t *write_data, size_
     I2CBus_Unlock();
     
     if (ret != ESP_OK) {
-        ESP_LOGW(TAG, "I2C写-读操作失败，设备地址: 0x%02X, 错误: %s", device_addr, esp_err_to_name(ret));
+        printf("[I2CBusManager] 警告：I2C写-读操作失败，设备地址: 0x%02X, 错误: %s\n", device_addr, esp_err_to_name(ret));
     }
     
     return ret;
@@ -291,13 +288,13 @@ bool I2CBus_ScanDevice(uint8_t device_addr)
 void I2CBus_ScanAllDevices(void)
 {
     if (!g_i2c_initialized) {
-        ESP_LOGW(TAG, "I2C总线未初始化，无法扫描设备");
+        printf("[I2CBusManager] 警告：I2C总线未初始化，无法扫描设备\n");
         return;
     }
     
-    ESP_LOGI(TAG, "==========================================");
-    ESP_LOGI(TAG, "=== 开始扫描I2C总线设备 ===");
-    ESP_LOGI(TAG, "==========================================");
+    printf("[I2CBusManager] ==========================================\n");
+    printf("[I2CBusManager] === 开始扫描I2C总线设备 ===\n");
+    printf("[I2CBusManager] ==========================================\n");
     
     uint8_t devices_found = 0;
     
@@ -310,7 +307,7 @@ void I2CBus_ScanAllDevices(void)
             I2C_DeviceType_t device_type = I2CBus_GetDeviceType(addr);
             const char* device_name = I2CBus_GetDeviceName(device_type);
             
-            ESP_LOGI(TAG, ">>> 发现I2C设备，地址: 0x%02X (%s)", addr, device_name);
+            printf("[I2CBusManager] >>> 发现I2C设备，地址: 0x%02X (%s)\n", addr, device_name);
             
             // 添加到设备列表
             i2c_add_device_to_status(addr, device_type, true);
@@ -323,9 +320,9 @@ void I2CBus_ScanAllDevices(void)
     
     g_bus_status.device_count = devices_found;
     
-    ESP_LOGI(TAG, "==========================================");
-    ESP_LOGI(TAG, "I2C总线扫描完成，共发现 %d 个设备", devices_found);
-    ESP_LOGI(TAG, "==========================================");
+    printf("[I2CBusManager] ==========================================\n");
+    printf("[I2CBusManager] I2C总线扫描完成，共发现 %d 个设备\n", devices_found);
+    printf("[I2CBusManager] ==========================================\n");
 }
 
 I2C_DeviceType_t I2CBus_GetDeviceType(uint8_t device_addr)
@@ -338,6 +335,9 @@ I2C_DeviceType_t I2CBus_GetDeviceType(uint8_t device_addr)
         case I2C_ADDR_QMI8658_L:
         case I2C_ADDR_QMI8658_H:
             return I2C_DEVICE_QMI8658;
+        case I2C_ADDR_ES8311_0:
+        case I2C_ADDR_ES8311_1:
+            return I2C_DEVICE_ES8311;
         default:
             return I2C_DEVICE_UNKNOWN;
     }
@@ -352,6 +352,8 @@ const char* I2CBus_GetDeviceName(I2C_DeviceType_t type)
             return "FT3168 触摸控制器";
         case I2C_DEVICE_QMI8658:
             return "QMI8658 陀螺仪加速度计";
+        case I2C_DEVICE_ES8311:
+            return "ES8311 音频编解码器";
         case I2C_DEVICE_UNKNOWN:
         default:
             return "未知设备";
@@ -424,11 +426,11 @@ void I2CBus_PrintDeviceList(void)
 bool I2CBus_TestCommunication(void)
 {
     if (!g_i2c_initialized) {
-        ESP_LOGE(TAG, "I2C总线未初始化，无法测试通信");
+        printf("[I2CBusManager] 错误：I2C总线未初始化，无法测试通信\n");
         return false;
     }
     
-    ESP_LOGI(TAG, "开始测试I2C设备通信...");
+    printf("[I2CBusManager] 开始测试I2C设备通信...\n");
     
     bool all_devices_ok = true;
     uint8_t tested_devices = 0;
@@ -437,15 +439,15 @@ bool I2CBus_TestCommunication(void)
         const I2C_DeviceInfo_t *device = &g_bus_status.devices[i];
         
         if (device->is_detected) {
-            ESP_LOGI(TAG, "测试设备 0x%02X (%s)...", device->address, device->name);
+            printf("[I2CBusManager] 测试设备 0x%02X (%s)...\n", device->address, device->name);
             
             // 简单的设备存在性测试
             bool device_ok = I2CBus_ScanDevice(device->address);
             
             if (device_ok) {
-                ESP_LOGI(TAG, "✓ 设备 0x%02X 通信正常", device->address);
+                printf("[I2CBusManager] ✓ 设备 0x%02X 通信正常\n", device->address);
             } else {
-                ESP_LOGE(TAG, "✗ 设备 0x%02X 通信异常", device->address);
+                printf("[I2CBusManager] ✗ 设备 0x%02X 通信异常\n", device->address);
                 all_devices_ok = false;
             }
             
@@ -454,12 +456,12 @@ bool I2CBus_TestCommunication(void)
         }
     }
     
-    ESP_LOGI(TAG, "I2C通信测试完成，测试了 %d 个设备", tested_devices);
+    printf("[I2CBusManager] I2C通信测试完成，测试了 %d 个设备\n", tested_devices);
     
     if (all_devices_ok) {
-        ESP_LOGI(TAG, "✓ 所有设备通信正常");
+        printf("[I2CBusManager] ✓ 所有设备通信正常\n");
     } else {
-        ESP_LOGE(TAG, "✗ 存在通信异常的设备");
+        printf("[I2CBusManager] ✗ 存在通信异常的设备\n");
     }
     
     return all_devices_ok;
@@ -479,7 +481,7 @@ static void i2c_reset_bus_status(void)
 static void i2c_add_device_to_status(uint8_t addr, I2C_DeviceType_t type, bool detected)
 {
     if (g_bus_status.device_count >= 16) {
-        ESP_LOGW(TAG, "设备列表已满，无法添加设备 0x%02X", addr);
+        printf("[I2CBusManager] 警告：设备列表已满，无法添加设备 0x%02X\n", addr);
         return;
     }
     

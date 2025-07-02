@@ -41,6 +41,7 @@
 #include "LVGL_Driver.h"          // LVGL驱动头文件（必须先包含）
 #include "esp_lcd_sh8601.h"       // SH8601 LCD控制器驱动
 #include "touch_bsp.h"            // 触摸屏板级支持包
+#include "I2CBusManager.h"        // I2C总线管理器
 
 // === 常量定义 ===
 static const char *TAG = "ESP_LCD_LVGL";  // 日志标签
@@ -379,14 +380,12 @@ bool LVGLDriver::init() {
     
     printf("[LVGLDriver] 开始初始化LVGL驱动系统...\n");
     
-    // === 1. 首先初始化I2C总线管理器（统一管理所有I2C设备） ===
-    printf("[LVGLDriver] 初始化I2C总线管理器...\n");
-    esp_err_t i2c_ret = I2CBus_Init();
-    if (i2c_ret != ESP_OK) {
-        printf("[LVGLDriver] 错误：I2C总线管理器初始化失败，错误码: 0x%x\n", i2c_ret);
+    // === 1. 检查I2C总线管理器是否已初始化 ===
+    if (!I2CBus_IsInitialized()) {
+        printf("[LVGLDriver] 错误：I2C总线管理器未初始化，请在主程序中先调用 I2CBus_Init()\n");
         return false;
     }
-    printf("[LVGLDriver] ✓ I2C总线管理器初始化成功\n");
+    printf("[LVGLDriver] ✓ I2C总线管理器已就绪\n");
     
     // === 2. 初始化TCA9554 IO扩展芯片（在所有I2C设备之前） ===
     if (!initTCA9554()) {

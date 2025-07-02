@@ -37,6 +37,7 @@
 #include "DisplayManager.h"
 #include "PSRAMManager.h"
 #include "TimeManager.h"
+#include "I2CBusManager.h"
 
 // 外部变量声明
 extern LVGLDriver* lvglDriver;
@@ -89,6 +90,15 @@ void setup() {
   // 初始化WiFi管理器
   wifiManager.setPSRAMManager(&psramManager);
   wifiManager.init(&configStorage);
+  
+  // 初始化I2C总线管理器（在所有I2C设备初始化之前）
+  printf("初始化I2C总线管理器...\n");
+  esp_err_t i2c_ret = I2CBus_Init();
+  if (i2c_ret != ESP_OK) {
+    printf("❌ I2C总线管理器初始化失败，错误码: 0x%x\n", i2c_ret);
+  } else {
+    printf("✅ I2C总线管理器初始化成功\n");
+  }
   
   // 初始化LVGL驱动系统
   printf("开始LVGL驱动系统初始化...\n");
