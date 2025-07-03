@@ -8,6 +8,9 @@
 
 #include <Update.h>
 #include <ArduinoJson.h>
+#include <HTTPClient.h>
+#include <WiFiClient.h>
+#include <WiFiClientSecure.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
@@ -15,9 +18,16 @@
 enum class OTAStatus {
     IDLE,           // 空闲状态
     UPLOADING,      // 文件上传中
+    DOWNLOADING,    // 从服务器下载固件中
     WRITING,        // 固件写入中
     SUCCESS,        // 升级成功
     FAILED          // 升级失败
+};
+
+// OTA升级类型枚举
+enum class OTAType {
+    LOCAL,          // 本地上传升级
+    SERVER          // 服务器下载升级
 };
 
 class OTAManager {
@@ -28,6 +38,7 @@ public:
     // 初始化OTA管理器
     void init();
     
+    // 本地OTA升级相关方法
     // 开始OTA升级
     bool beginOTA(size_t fileSize);
     
@@ -40,11 +51,24 @@ public:
     // 结束OTA升级
     bool endOTA();
     
+    // 服务器OTA升级相关方法
+    // 从服务器下载并升级固件
+    bool downloadAndUpdateFromServer(const String& serverUrl, const String& firmwareFile = "");
+    
+    // 检查服务器上的固件版本
+    String checkServerFirmwareVersion(const String& serverUrl);
+    
+    // 获取服务器上的固件列表
+    String getServerFirmwareList(const String& serverUrl);
+    
     // 取消OTA升级
     void abortOTA();
     
     // 获取当前状态
     OTAStatus getStatus() const;
+    
+    // 获取当前OTA类型
+    OTAType getOTAType() const;
     
     // 获取升级进度百分比
     float getProgress() const;
@@ -63,10 +87,15 @@ public:
 
 private:
     OTAStatus status;
+    OTAType otaType;
     String errorMessage;
     size_t totalSize;
     size_t writtenSize;
     unsigned long lastProgressTime;
+    
+    // HTTP客户端
+    HTTPClient httpClient;
+    WiFiClientSecure wifiClientSecure;
     
     // 重置状态
     void resetStatus();
@@ -74,8 +103,26 @@ private:
     // 更新状态
     void updateStatus(OTAStatus newStatus, const String& error = "");
     
+    // 服务器OTA相关私有方法
+    // 下载固件数据并写入
+    bool downloadAndWriteFirmware(const String& downloadUrl);
+    
+    // 解析服务器响应
+    bool parseServerResponse(const String& response, String& firmwareUrl);
+    
+    // 验证下载的固件
+    bool validateFirmware(const String& firmwareData);
+    
     // 静态任务函数
     static void rebootTask(void* parameter);
+    static void serverOTATask(void* parameter);
+    
+    // 服务器OTA任务参数结构
+    struct ServerOTAParams {
+        OTAManager* manager;
+        String serverUrl;
+        String firmwareFile;
+    };
 };
 
 #endif // OTAMANAGER_H 

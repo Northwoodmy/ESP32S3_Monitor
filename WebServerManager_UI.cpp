@@ -255,28 +255,62 @@ String WebServerManager::getOTAPageHTML() {
     html += "            </button>\n";
     html += "            <div class=\"ota-section\">\n";
     html += "                <div class=\"ota-info\">\n";
-    html += "                    <p class=\"info-text\">请选择.bin固件文件进行升级</p>\n";
+    html += "                    <p class=\"info-text\">选择升级方式</p>\n";
     html += "                    <p class=\"warning-text\">升级过程中请勿断电或关闭页面</p>\n";
     html += "                </div>\n";
     html += "                \n";
-    html += "                <div class=\"file-upload-section\">\n";
-    html += "                    <input type=\"file\" id=\"firmwareFile\" accept=\".bin\" style=\"display: none;\">\n";
-    html += "                    <button id=\"selectFileBtn\" class=\"file-select-btn\">\n";
-    html += "                        选择固件文件\n";
-    html += "                    </button>\n";
-    html += "                    <div id=\"fileInfo\" class=\"file-info hidden\">\n";
-    html += "                        <p><strong>文件名:</strong> <span id=\"fileName\"></span></p>\n";
-    html += "                        <p><strong>文件大小:</strong> <span id=\"fileSize\"></span></p>\n";
+    html += "                <!-- OTA选项卡 -->\n";
+    html += "                <div class=\"ota-tabs\">\n";
+    html += "                    <button class=\"tab-btn active\" data-tab=\"local\">本地文件</button>\n";
+    html += "                    <button class=\"tab-btn\" data-tab=\"server\">服务器升级</button>\n";
+    html += "                </div>\n";
+    html += "                \n";
+    html += "                <!-- 本地文件上传 -->\n";
+    html += "                <div class=\"tab-content active\" id=\"localTab\">\n";
+    html += "                    <div class=\"file-upload-section\">\n";
+    html += "                        <input type=\"file\" id=\"firmwareFile\" accept=\".bin\" style=\"display: none;\">\n";
+    html += "                        <button id=\"selectFileBtn\" class=\"file-select-btn\">\n";
+    html += "                            选择固件文件\n";
+    html += "                        </button>\n";
+    html += "                        <div id=\"fileInfo\" class=\"file-info hidden\">\n";
+    html += "                            <p><strong>文件名:</strong> <span id=\"fileName\"></span></p>\n";
+    html += "                            <p><strong>文件大小:</strong> <span id=\"fileSize\"></span></p>\n";
+    html += "                        </div>\n";
+    html += "                    </div>\n";
+    html += "                    \n";
+    html += "                    <div class=\"upload-section\">\n";
+    html += "                        <button id=\"uploadBtn\" class=\"upload-btn\" disabled>\n";
+    html += "                            <span class=\"btn-text\">开始升级</span>\n";
+    html += "                            <div class=\"btn-loading hidden\">\n";
+    html += "                                <div class=\"spinner-sm\"></div>\n";
+    html += "                            </div>\n";
+    html += "                        </button>\n";
     html += "                    </div>\n";
     html += "                </div>\n";
     html += "                \n";
-    html += "                <div class=\"upload-section\">\n";
-    html += "                    <button id=\"uploadBtn\" class=\"upload-btn\" disabled>\n";
-    html += "                        <span class=\"btn-text\">开始升级</span>\n";
-    html += "                        <div class=\"btn-loading hidden\">\n";
-    html += "                            <div class=\"spinner-sm\"></div>\n";
+    html += "                <!-- 服务器OTA -->\n";
+    html += "                <div class=\"tab-content\" id=\"serverTab\">\n";
+    html += "                    <div class=\"server-ota-section\">\n";
+    html += "                        <div class=\"server-info\">\n";
+    html += "                            <p class=\"server-text\">从服务器下载最新固件</p>\n";
+    html += "                            <p class=\"server-url\">服务器地址: http://egota.yingdl.com</p>\n";
     html += "                        </div>\n";
-    html += "                    </button>\n";
+    html += "                        \n";
+    html += "                        <div class=\"server-actions\">\n";
+    html += "                            <button id=\"checkVersionBtn\" class=\"server-btn version-btn\">\n";
+    html += "                                检查版本\n";
+    html += "                            </button>\n";
+    html += "                            <button id=\"serverOTABtn\" class=\"server-btn ota-btn\">\n";
+    html += "                                开始服务器升级\n";
+    html += "                            </button>\n";
+    html += "                        </div>\n";
+    html += "                        \n";
+    html += "                        <div id=\"versionInfo\" class=\"version-info hidden\">\n";
+    html += "                            <h4>版本信息</h4>\n";
+    html += "                            <p><strong>当前版本:</strong> <span id=\"currentVersion\">v5.4.0</span></p>\n";
+    html += "                            <p><strong>服务器版本:</strong> <span id=\"serverVersion\">检查中...</span></p>\n";
+    html += "                        </div>\n";
+    html += "                    </div>\n";
     html += "                </div>\n";
     html += "                \n";
     html += "                <div id=\"otaProgress\" class=\"ota-progress hidden\">\n";
@@ -494,7 +528,7 @@ String WebServerManager::getCSS() {
         }
         
         /* 标签页导航样式 */
-        .tab-nav {
+        .tab-nav, .ota-tabs {
             display: flex;
             background: rgba(255,255,255,0.95);
             border-radius: 16px;
@@ -2103,17 +2137,59 @@ String WebServerManager::getOTAJavaScript() {
     
     js += "document.addEventListener('DOMContentLoaded', function() {\n";
     js += "    initOTAHandlers();\n";
+    js += "    initTabSwitching();\n";
     js += "});\n\n";
+    
+    js += "function initTabSwitching() {\n";
+    js += "    const tabButtons = document.querySelectorAll('.tab-btn');\n";
+    js += "    for (let i = 0; i < tabButtons.length; i++) {\n";
+    js += "        tabButtons[i].addEventListener('click', function() {\n";
+    js += "            const tabName = this.getAttribute('data-tab');\n";
+    js += "            switchOTATab(tabName);\n";
+    js += "        });\n";
+    js += "    }\n";
+    js += "}\n\n";
+    
+    js += "function switchOTATab(tabName) {\n";
+    js += "    // 移除所有标签页按钮的active类\n";
+    js += "    const tabButtons = document.querySelectorAll('.tab-btn');\n";
+    js += "    for (let i = 0; i < tabButtons.length; i++) {\n";
+    js += "        tabButtons[i].classList.remove('active');\n";
+    js += "    }\n";
+    js += "    \n";
+    js += "    // 移除所有标签页内容的active类\n";
+    js += "    const tabContents = document.querySelectorAll('.tab-content');\n";
+    js += "    for (let i = 0; i < tabContents.length; i++) {\n";
+    js += "        tabContents[i].classList.remove('active');\n";
+    js += "    }\n";
+    js += "    \n";
+    js += "    // 激活选中的标签页按钮\n";
+    js += "    const activeButton = document.querySelector('[data-tab=\"' + tabName + '\"]');\n";
+    js += "    if (activeButton) {\n";
+    js += "        activeButton.classList.add('active');\n";
+    js += "    }\n";
+    js += "    \n";
+    js += "    // 激活对应的标签页内容\n";
+    js += "    const activeContent = document.getElementById(tabName + 'Tab');\n";
+    js += "    if (activeContent) {\n";
+    js += "        activeContent.classList.add('active');\n";
+    js += "    }\n";
+    js += "}\n\n";
     
     js += "function initOTAHandlers() {\n";
     js += "    const selectFileBtn = document.getElementById('selectFileBtn');\n";
     js += "    const firmwareFile = document.getElementById('firmwareFile');\n";
     js += "    const uploadBtn = document.getElementById('uploadBtn');\n";
     js += "    const retryBtn = document.getElementById('retryBtn');\n";
+    js += "    const checkVersionBtn = document.getElementById('checkVersionBtn');\n";
+    js += "    const serverOTABtn = document.getElementById('serverOTABtn');\n";
+    js += "    \n";
     js += "    if (selectFileBtn) selectFileBtn.addEventListener('click', () => firmwareFile.click());\n";
     js += "    if (firmwareFile) firmwareFile.addEventListener('change', handleFileSelect);\n";
     js += "    if (uploadBtn) uploadBtn.addEventListener('click', startOTAUpload);\n";
     js += "    if (retryBtn) retryBtn.addEventListener('click', resetOTAUI);\n";
+    js += "    if (checkVersionBtn) checkVersionBtn.addEventListener('click', checkServerVersion);\n";
+    js += "    if (serverOTABtn) serverOTABtn.addEventListener('click', startServerOTA);\n";
     js += "}\n\n";
     
     js += "function handleFileSelect(event) {\n";
@@ -2268,6 +2344,92 @@ String WebServerManager::getOTAJavaScript() {
     js += "    \n";
     js += "    // 等待5秒后开始检测（给设备重启留时间）\n";
     js += "    setTimeout(checkDeviceStatus, 5000);\n";
+    js += "}\n\n";
+    
+    // 服务器OTA相关函数
+    js += "async function checkServerVersion() {\n";
+    js += "    const checkVersionBtn = document.getElementById('checkVersionBtn');\n";
+    js += "    const versionInfo = document.getElementById('versionInfo');\n";
+    js += "    const currentVersion = document.getElementById('currentVersion');\n";
+    js += "    const serverVersion = document.getElementById('serverVersion');\n";
+    js += "    \n";
+    js += "    checkVersionBtn.disabled = true;\n";
+    js += "    checkVersionBtn.textContent = '检查中...';\n";
+    js += "    \n";
+    js += "    try {\n";
+    js += "        const response = await fetch('/api/ota/firmware-version');\n";
+    js += "        const data = await response.json();\n";
+    js += "        \n";
+    js += "        if (data.success) {\n";
+    js += "            versionInfo.classList.remove('hidden');\n";
+    js += "            currentVersion.textContent = data.currentVersion || 'v5.4.0';\n";
+    js += "            \n";
+    js += "            if (data.serverVersion && data.serverVersion.version) {\n";
+    js += "                serverVersion.textContent = data.serverVersion.version;\n";
+    js += "                serverVersion.style.color = '#10b981';\n";
+    js += "            } else {\n";
+    js += "                serverVersion.textContent = '获取失败';\n";
+    js += "                serverVersion.style.color = '#ef4444';\n";
+    js += "            }\n";
+    js += "            \n";
+    js += "            showToast('版本信息获取成功', 'success');\n";
+    js += "        } else {\n";
+    js += "            showToast('版本信息获取失败: ' + data.message, 'error');\n";
+    js += "            versionInfo.classList.remove('hidden');\n";
+    js += "            serverVersion.textContent = '获取失败';\n";
+    js += "            serverVersion.style.color = '#ef4444';\n";
+    js += "        }\n";
+    js += "    } catch (error) {\n";
+    js += "        showToast('网络错误: ' + error.message, 'error');\n";
+    js += "        versionInfo.classList.remove('hidden');\n";
+    js += "        serverVersion.textContent = '网络错误';\n";
+    js += "        serverVersion.style.color = '#ef4444';\n";
+    js += "    } finally {\n";
+    js += "        checkVersionBtn.disabled = false;\n";
+    js += "        checkVersionBtn.textContent = '检查版本';\n";
+    js += "    }\n";
+    js += "}\n\n";
+    
+    js += "async function startServerOTA() {\n";
+    js += "    const serverOTABtn = document.getElementById('serverOTABtn');\n";
+    js += "    \n";
+    js += "    if (!confirm('确定要开始服务器OTA升级吗？\\n\\n注意：升级过程中请勿断开电源或WiFi连接。')) {\n";
+    js += "        return;\n";
+    js += "    }\n";
+    js += "    \n";
+    js += "    serverOTABtn.disabled = true;\n";
+    js += "    serverOTABtn.textContent = '启动中...';\n";
+    js += "    \n";
+    js += "    try {\n";
+    js += "        const formData = new FormData();\n";
+    js += "        formData.append('serverUrl', 'http://egota.yingdl.com');\n";
+    js += "        formData.append('firmwareFile', 'firmware.bin');\n";
+    js += "        \n";
+    js += "        const response = await fetch('/api/ota/server-start', {\n";
+    js += "            method: 'POST',\n";
+    js += "            body: formData\n";
+    js += "        });\n";
+    js += "        \n";
+    js += "        const data = await response.json();\n";
+    js += "        \n";
+    js += "        if (data.success) {\n";
+    js += "            showToast('服务器OTA升级已启动', 'success');\n";
+    js += "            \n";
+    js += "            document.getElementById('otaProgress').classList.remove('hidden');\n";
+    js += "            document.getElementById('otaStatusTitle').textContent = '服务器OTA升级进行中...';\n";
+    js += "            \n";
+    js += "            otaStatusInterval = setInterval(updateOTAStatus, 1000);\n";
+    js += "            \n";
+    js += "        } else {\n";
+    js += "            showToast('服务器OTA升级启动失败: ' + data.message, 'error');\n";
+    js += "            serverOTABtn.disabled = false;\n";
+    js += "            serverOTABtn.textContent = '开始服务器升级';\n";
+    js += "        }\n";
+    js += "    } catch (error) {\n";
+    js += "        showToast('网络错误: ' + error.message, 'error');\n";
+    js += "        serverOTABtn.disabled = false;\n";
+    js += "        serverOTABtn.textContent = '开始服务器升级';\n";
+    js += "    }\n";
     js += "}\n\n";
     
     return js;
@@ -3093,6 +3255,168 @@ String WebServerManager::getOTAPageCSS() {
             display: flex;
             flex-direction: column;
             gap: 24px;
+        }
+        
+        /* OTA选项卡样式 */
+        .ota-tabs {
+            display: flex;
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 4px;
+            margin-bottom: 24px;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .tab-btn {
+            flex: 1;
+            background: none;
+            border: none;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #64748b;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        
+        .tab-btn.active {
+            background: white;
+            color: #3b82f6;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+        }
+        
+        .tab-btn:hover:not(.active) {
+            color: #3b82f6;
+            background: rgba(59, 130, 246, 0.05);
+        }
+        
+        /* 选项卡内容样式 */
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* 服务器OTA样式 */
+        .server-ota-section {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+        
+        .server-info {
+            text-align: center;
+            padding: 24px;
+            background: linear-gradient(135deg, #e0f2fe, #b3e5fc);
+            border-radius: 16px;
+            border: 1px solid #0ea5e9;
+        }
+        
+        .server-text {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #0c4a6e;
+            margin-bottom: 8px;
+        }
+        
+        .server-url {
+            color: #0369a1;
+            font-weight: 500;
+            font-family: monospace;
+            background: rgba(255, 255, 255, 0.7);
+            padding: 8px 16px;
+            border-radius: 8px;
+            display: inline-block;
+            margin: 0;
+        }
+        
+        .server-actions {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .server-btn {
+            background: linear-gradient(135deg, #06b6d4, #0891b2);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 16px rgba(6, 182, 212, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .server-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(6, 182, 212, 0.4);
+        }
+        
+        .server-btn:active {
+            transform: translateY(0);
+        }
+        
+        .server-btn.version-btn {
+            background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+            box-shadow: 0 4px 16px rgba(139, 92, 246, 0.3);
+        }
+        
+        .server-btn.version-btn:hover {
+            box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
+        }
+        
+        .server-btn.ota-btn {
+            background: linear-gradient(135deg, #10b981, #059669);
+            box-shadow: 0 4px 16px rgba(16, 185, 129, 0.3);
+        }
+        
+        .server-btn.ota-btn:hover {
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+        }
+        
+        .version-info {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+        
+        .version-info h4 {
+            color: #1f2937;
+            margin-bottom: 16px;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        
+        .version-info p {
+            margin-bottom: 8px;
+            color: #4b5563;
+            font-size: 0.95rem;
+        }
+        
+        .version-info p:last-child {
+            margin-bottom: 0;
+        }
+        
+        .version-info strong {
+            color: #1f2937;
+            font-weight: 600;
         }
         
         .ota-info {

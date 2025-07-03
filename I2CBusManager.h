@@ -38,7 +38,7 @@ extern "C" {
 #define I2C_BUS_NUM         I2C_NUM_0        // 使用I2C_NUM_0总线
 #define I2C_BUS_SCL_PIN     GPIO_NUM_14      // SCL时钟引脚
 #define I2C_BUS_SDA_PIN     GPIO_NUM_15      // SDA数据引脚
-#define I2C_BUS_FREQ_HZ     300000           // I2C总线频率300kHz
+#define I2C_BUS_FREQ_HZ     400000           // I2C总线频率400kHz
 #define I2C_BUS_TIMEOUT_MS  1000             // 默认超时时间1秒
 
 // === 已知I2C设备地址定义 ===

@@ -61,6 +61,12 @@ void WebServerManager::init() {
     server->on("/ota-status", HTTP_GET, [this]() { handleOTAStatus(); });
     server->on("/ota-reboot", HTTP_POST, [this]() { handleOTAReboot(); });
     
+    // 服务器OTA升级相关路由
+    server->on("/api/ota/server-start", HTTP_POST, [this]() { handleServerOTAStart(); });
+    server->on("/api/ota/server-status", HTTP_GET, [this]() { handleServerOTAStatus(); });
+    server->on("/api/ota/firmware-list", HTTP_GET, [this]() { handleServerFirmwareList(); });
+    server->on("/api/ota/firmware-version", HTTP_GET, [this]() { handleServerFirmwareVersion(); });
+    
     // 文件管理路由
     server->on("/files", HTTP_GET, [this]() { handleFileManager(); });
     server->on("/api/files", HTTP_GET, [this]() { handleFileList(); });
@@ -1854,6 +1860,188 @@ void WebServerManager::handleSyncTime() {
         doc["success"] = false;
         doc["message"] = "设备未连接WiFi，无法同步时间";
         printf("设备未连接WiFi，无法同步时间\n");
+    }
+    
+    String response;
+    serializeJson(doc, response);
+    server->send(200, "application/json", response);
+}
+
+// 服务器OTA升级相关API处理函数
+void WebServerManager::handleServerOTAStart() {
+    printf("处理服务器OTA启动请求\n");
+    
+    DynamicJsonDocument doc(512);
+    
+    if (!wifiManager->isConnected()) {
+        doc["success"] = false;
+        doc["message"] = "设备未连接WiFi，无法进行服务器OTA升级";
+        printf("设备未连接WiFi，无法进行服务器OTA升级\n");
+        String response;
+        serializeJson(doc, response);
+        server->send(400, "application/json", response);
+        return;
+    }
+    
+    // 默认服务器地址
+    String serverUrl = "http://egota.yingdl.com";
+    String firmwareFile = "";
+    
+    // 检查是否有自定义参数
+    if (server->hasArg("serverUrl")) {
+        serverUrl = server->arg("serverUrl");
+    }
+    
+    if (server->hasArg("firmwareFile")) {
+        firmwareFile = server->arg("firmwareFile");
+    }
+    
+    printf("服务器OTA升级参数 - 服务器: %s, 固件文件: %s\n", 
+           serverUrl.c_str(), firmwareFile.c_str());
+    
+    // 启动服务器OTA升级
+    if (otaManager->downloadAndUpdateFromServer(serverUrl, firmwareFile)) {
+        doc["success"] = true;
+        doc["message"] = "服务器OTA升级已启动";
+        doc["serverUrl"] = serverUrl;
+        doc["firmwareFile"] = firmwareFile;
+        
+        printf("服务器OTA升级启动成功\n");
+        
+        String response;
+        serializeJson(doc, response);
+        server->send(200, "application/json", response);
+    } else {
+        doc["success"] = false;
+        doc["message"] = "服务器OTA升级启动失败";
+        doc["error"] = otaManager->getError();
+        
+        printf("服务器OTA升级启动失败: %s\n", otaManager->getError().c_str());
+        
+        String response;
+        serializeJson(doc, response);
+        server->send(500, "application/json", response);
+    }
+}
+
+void WebServerManager::handleServerOTAStatus() {
+    printf("处理服务器OTA状态查询请求\n");
+    
+    // 获取OTA状态JSON，已经包含所有必要信息
+    String statusJson = otaManager->getStatusJSON();
+    server->send(200, "application/json", statusJson);
+}
+
+void WebServerManager::handleServerFirmwareList() {
+    printf("处理服务器固件列表请求\n");
+    
+    DynamicJsonDocument doc(1024);
+    
+    if (!wifiManager->isConnected()) {
+        doc["success"] = false;
+        doc["message"] = "设备未连接WiFi，无法获取服务器固件列表";
+        printf("设备未连接WiFi，无法获取服务器固件列表\n");
+        String response;
+        serializeJson(doc, response);
+        server->send(400, "application/json", response);
+        return;
+    }
+    
+    // 默认服务器地址
+    String serverUrl = "http://egota.yingdl.com";
+    
+    // 检查是否有自定义服务器地址
+    if (server->hasArg("serverUrl")) {
+        serverUrl = server->arg("serverUrl");
+    }
+    
+    printf("从服务器获取固件列表: %s\n", serverUrl.c_str());
+    
+    // 获取服务器固件列表
+    String firmwareListJson = otaManager->getServerFirmwareList(serverUrl);
+    
+    if (firmwareListJson.length() > 0) {
+        // 解析服务器响应
+        DynamicJsonDocument serverDoc(1024);
+        if (deserializeJson(serverDoc, firmwareListJson) == DeserializationError::Ok) {
+            doc["success"] = true;
+            doc["message"] = "固件列表获取成功";
+            doc["serverUrl"] = serverUrl;
+            doc["firmwareList"] = serverDoc;
+            
+            printf("固件列表获取成功\n");
+        } else {
+            doc["success"] = false;
+            doc["message"] = "解析服务器响应失败";
+            doc["rawResponse"] = firmwareListJson;
+            
+            printf("解析服务器响应失败\n");
+        }
+    } else {
+        doc["success"] = false;
+        doc["message"] = "无法连接到服务器或服务器响应为空";
+        doc["serverUrl"] = serverUrl;
+        
+        printf("无法连接到服务器或服务器响应为空\n");
+    }
+    
+    String response;
+    serializeJson(doc, response);
+    server->send(200, "application/json", response);
+}
+
+void WebServerManager::handleServerFirmwareVersion() {
+    printf("处理服务器固件版本查询请求\n");
+    
+    DynamicJsonDocument doc(512);
+    
+    if (!wifiManager->isConnected()) {
+        doc["success"] = false;
+        doc["message"] = "设备未连接WiFi，无法查询服务器固件版本";
+        printf("设备未连接WiFi，无法查询服务器固件版本\n");
+        String response;
+        serializeJson(doc, response);
+        server->send(400, "application/json", response);
+        return;
+    }
+    
+    // 默认服务器地址
+    String serverUrl = "http://egota.yingdl.com";
+    
+    // 检查是否有自定义服务器地址
+    if (server->hasArg("serverUrl")) {
+        serverUrl = server->arg("serverUrl");
+    }
+    
+    printf("从服务器查询固件版本: %s\n", serverUrl.c_str());
+    
+    // 查询服务器固件版本
+    String versionJson = otaManager->checkServerFirmwareVersion(serverUrl);
+    
+    if (versionJson.length() > 0) {
+        // 解析服务器响应
+        DynamicJsonDocument serverDoc(512);
+        if (deserializeJson(serverDoc, versionJson) == DeserializationError::Ok) {
+            doc["success"] = true;
+            doc["message"] = "固件版本查询成功";
+            doc["serverUrl"] = serverUrl;
+            doc["currentVersion"] = "v5.4.0";  // 当前设备版本
+            doc["serverVersion"] = serverDoc;
+            
+            printf("固件版本查询成功\n");
+        } else {
+            doc["success"] = false;
+            doc["message"] = "解析服务器响应失败";
+            doc["rawResponse"] = versionJson;
+            
+            printf("解析服务器响应失败\n");
+        }
+    } else {
+        doc["success"] = false;
+        doc["message"] = "无法连接到服务器或服务器响应为空";
+        doc["serverUrl"] = serverUrl;
+        
+        printf("无法连接到服务器或服务器响应为空\n");
     }
     
     String response;

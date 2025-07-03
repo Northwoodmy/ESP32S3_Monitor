@@ -8,6 +8,7 @@
 
 OTAManager::OTAManager() :
     status(OTAStatus::IDLE),
+    otaType(OTAType::LOCAL),
     errorMessage(""),
     totalSize(0),
     writtenSize(0),
@@ -15,7 +16,7 @@ OTAManager::OTAManager() :
 }
 
 OTAManager::~OTAManager() {
-    if (status == OTAStatus::UPLOADING || status == OTAStatus::WRITING) {
+    if (status == OTAStatus::UPLOADING || status == OTAStatus::WRITING || status == OTAStatus::DOWNLOADING) {
         abortOTA();
     }
 }
@@ -23,6 +24,14 @@ OTAManager::~OTAManager() {
 void OTAManager::init() {
     printf("初始化OTA管理器...\n");
     resetStatus();
+    
+    // 初始化HTTP客户端
+    httpClient.setTimeout(30000);  // 30秒超时
+    httpClient.setReuse(false);
+    
+    // 配置HTTPS客户端（如果需要）
+    wifiClientSecure.setInsecure();  // 跳过SSL证书验证，如果服务器支持HTTPS
+    
     printf("OTA管理器初始化完成\n");
 }
 
@@ -37,6 +46,9 @@ bool OTAManager::beginOTA(size_t fileSize) {
         updateStatus(OTAStatus::FAILED, "OTA正在进行中，无法开始新的升级");
         return false;
     }
+    
+    // 设置为本地OTA类型
+    otaType = OTAType::LOCAL;
     
     // 对于动态大小（fileSize=0），跳过大小检查
     if (fileSize > 0) {
@@ -190,10 +202,84 @@ bool OTAManager::endOTA() {
     return true;
 }
 
+// 服务器OTA升级相关方法实现
+bool OTAManager::downloadAndUpdateFromServer(const String& serverUrl, const String& firmwareFile) {
+    printf("开始从服务器下载固件升级...\n");
+    printf("服务器地址: %s\n", serverUrl.c_str());
+    printf("固件文件: %s\n", firmwareFile.c_str());
+    
+    if (status != OTAStatus::IDLE) {
+        updateStatus(OTAStatus::FAILED, "OTA正在进行中，无法开始新的升级");
+        return false;
+    }
+    
+    // 设置为服务器OTA类型
+    otaType = OTAType::SERVER;
+    
+    // 创建服务器OTA任务
+    ServerOTAParams* params = new ServerOTAParams();
+    params->manager = this;
+    params->serverUrl = serverUrl;
+    params->firmwareFile = firmwareFile;
+    
+    // 创建任务来处理服务器OTA（避免阻塞主任务）
+    xTaskCreatePinnedToCore(
+        serverOTATask,
+        "ServerOTATask",
+        8192,  // 增加栈大小以支持HTTP操作
+        params,
+        5,     // 较高优先级
+        nullptr,
+        0      // 运行在核心0
+    );
+    
+    return true;
+}
+
+String OTAManager::checkServerFirmwareVersion(const String& serverUrl) {
+    printf("检查服务器固件版本...\n");
+    
+    String versionUrl = serverUrl + "/version.json";
+    httpClient.begin(versionUrl);
+    
+    int httpCode = httpClient.GET();
+    String response = "";
+    
+    if (httpCode == HTTP_CODE_OK) {
+        response = httpClient.getString();
+        printf("服务器响应: %s\n", response.c_str());
+    } else {
+        printf("HTTP请求失败，错误码: %d\n", httpCode);
+    }
+    
+    httpClient.end();
+    return response;
+}
+
+String OTAManager::getServerFirmwareList(const String& serverUrl) {
+    printf("获取服务器固件列表...\n");
+    
+    String listUrl = serverUrl + "/firmware-list.json";
+    httpClient.begin(listUrl);
+    
+    int httpCode = httpClient.GET();
+    String response = "";
+    
+    if (httpCode == HTTP_CODE_OK) {
+        response = httpClient.getString();
+        printf("固件列表响应: %s\n", response.c_str());
+    } else {
+        printf("HTTP请求失败，错误码: %d\n", httpCode);
+    }
+    
+    httpClient.end();
+    return response;
+}
+
 void OTAManager::abortOTA() {
     printf("取消OTA升级...\n");
     
-    if (status == OTAStatus::UPLOADING || status == OTAStatus::WRITING) {
+    if (status == OTAStatus::UPLOADING || status == OTAStatus::WRITING || status == OTAStatus::DOWNLOADING) {
         Update.abort();
         updateStatus(OTAStatus::FAILED, "OTA升级被取消");
         printf("OTA升级已取消\n");
@@ -202,6 +288,10 @@ void OTAManager::abortOTA() {
 
 OTAStatus OTAManager::getStatus() const {
     return status;
+}
+
+OTAType OTAManager::getOTAType() const {
+    return otaType;
 }
 
 float OTAManager::getProgress() const {
@@ -237,6 +327,10 @@ String OTAManager::getStatusJSON() const {
             doc["status"] = "uploading";
             doc["message"] = "文件上传中";
             break;
+        case OTAStatus::DOWNLOADING:
+            doc["status"] = "downloading";
+            doc["message"] = "从服务器下载固件中";
+            break;
         case OTAStatus::WRITING:
             doc["status"] = "writing";
             doc["message"] = "固件写入中";
@@ -256,6 +350,7 @@ String OTAManager::getStatusJSON() const {
     doc["progressText"] = String(progress, 1) + "%";
     doc["totalSize"] = (int)totalSize;
     doc["writtenSize"] = (int)writtenSize;
+    doc["otaType"] = (otaType == OTAType::LOCAL) ? "local" : "server";
     
     if (errorMessage.length() > 0) {
         doc["error"] = errorMessage;
@@ -291,6 +386,7 @@ bool OTAManager::hasEnoughSpace(size_t fileSize) const {
 
 void OTAManager::resetStatus() {
     status = OTAStatus::IDLE;
+    otaType = OTAType::LOCAL;
     errorMessage = "";
     totalSize = 0;
     writtenSize = 0;
@@ -311,8 +407,164 @@ void OTAManager::updateStatus(OTAStatus newStatus, const String& error) {
     }
 }
 
+// 服务器OTA相关私有方法实现
+bool OTAManager::downloadAndWriteFirmware(const String& downloadUrl) {
+    printf("开始下载固件: %s\n", downloadUrl.c_str());
+    
+    updateStatus(OTAStatus::DOWNLOADING, "");
+    
+    httpClient.begin(downloadUrl);
+    
+    int httpCode = httpClient.GET();
+    
+    if (httpCode != HTTP_CODE_OK) {
+        String error = "HTTP请求失败，错误码: ";
+        error += httpCode;
+        updateStatus(OTAStatus::FAILED, error);
+        httpClient.end();
+        return false;
+    }
+    
+    int contentLength = httpClient.getSize();
+    printf("固件大小: %d 字节\n", contentLength);
+    
+    if (contentLength <= 0) {
+        updateStatus(OTAStatus::FAILED, "无法获取固件大小");
+        httpClient.end();
+        return false;
+    }
+    
+    // 检查空间是否足够
+    if (!hasEnoughSpace(contentLength)) {
+        updateStatus(OTAStatus::FAILED, "存储空间不足");
+        httpClient.end();
+        return false;
+    }
+    
+    // 开始OTA升级
+    if (!Update.begin(contentLength)) {
+        String error = "OTA开始失败: ";
+        error += Update.errorString();
+        updateStatus(OTAStatus::FAILED, error);
+        httpClient.end();
+        return false;
+    }
+    
+    totalSize = contentLength;
+    writtenSize = 0;
+    lastProgressTime = millis();
+    updateStatus(OTAStatus::WRITING, "");
+    
+    // 获取数据流
+    WiFiClient* stream = httpClient.getStreamPtr();
+    uint8_t buffer[1024];
+    
+    while (httpClient.connected() && (contentLength > 0 || contentLength == -1)) {
+        size_t availableSize = stream->available();
+        if (availableSize) {
+            int readSize = stream->readBytes(buffer, ((availableSize > sizeof(buffer)) ? sizeof(buffer) : availableSize));
+            
+            size_t written = Update.write(buffer, readSize);
+            if (written != readSize) {
+                String error = "写入数据失败: ";
+                error += Update.errorString();
+                updateStatus(OTAStatus::FAILED, error);
+                httpClient.end();
+                return false;
+            }
+            
+            writtenSize += written;
+            
+            if (contentLength > 0) {
+                contentLength -= readSize;
+            }
+            
+            // 每1000ms打印一次进度
+            unsigned long currentTime = millis();
+            if (currentTime - lastProgressTime >= 1000) {
+                printf("下载进度: %.1f%% (%u 字节已写入)\n", getProgress(), writtenSize);
+                lastProgressTime = currentTime;
+            }
+        }
+        vTaskDelay(pdMS_TO_TICKS(1)); // 避免watchdog触发
+    }
+    
+    httpClient.end();
+    
+    // 结束OTA升级
+    if (!Update.end(true)) {
+        String error = "OTA结束失败: ";
+        error += Update.errorString();
+        updateStatus(OTAStatus::FAILED, error);
+        return false;
+    }
+    
+    updateStatus(OTAStatus::SUCCESS, "");
+    printf("服务器OTA升级成功完成！\n");
+    printf("最终进度: %.1f%% (%u/%u 字节)\n", getProgress(), writtenSize, totalSize);
+    
+    return true;
+}
+
+bool OTAManager::parseServerResponse(const String& response, String& firmwareUrl) {
+    // 解析服务器响应，提取固件下载URL
+    DynamicJsonDocument doc(1024);
+    
+    if (deserializeJson(doc, response)) {
+        printf("解析服务器响应失败\n");
+        return false;
+    }
+    
+    if (doc.containsKey("firmware_url")) {
+        firmwareUrl = doc["firmware_url"].as<String>();
+        return true;
+    }
+    
+    return false;
+}
+
+bool OTAManager::validateFirmware(const String& firmwareData) {
+    // 这里可以添加固件验证逻辑，比如检查固件头部、校验和等
+    // 简单起见，这里只检查数据是否非空
+    return firmwareData.length() > 0;
+}
+
 void OTAManager::rebootTask(void* parameter) {
     vTaskDelay(pdMS_TO_TICKS(3000));
     printf("正在重启设备...\n");
     ESP.restart();
+}
+
+void OTAManager::serverOTATask(void* parameter) {
+    ServerOTAParams* params = (ServerOTAParams*)parameter;
+    OTAManager* manager = params->manager;
+    
+    printf("服务器OTA任务开始...\n");
+    
+    // 构建固件下载URL
+    String downloadUrl = params->serverUrl;
+    if (!downloadUrl.endsWith("/")) {
+        downloadUrl += "/";
+    }
+    
+    if (params->firmwareFile.length() > 0) {
+        downloadUrl += params->firmwareFile;
+    } else {
+        downloadUrl += "firmware.bin";  // 默认固件文件名
+    }
+    
+    printf("固件下载URL: %s\n", downloadUrl.c_str());
+    
+    // 执行下载和升级
+    if (manager->downloadAndWriteFirmware(downloadUrl)) {
+        printf("服务器OTA升级成功！\n");
+    } else {
+        printf("服务器OTA升级失败！\n");
+    }
+    
+    // 清理参数
+    delete params;
+    
+    // 删除任务
+    vTaskDelete(nullptr);
 } 

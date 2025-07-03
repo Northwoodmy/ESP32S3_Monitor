@@ -130,10 +130,10 @@ uint8_t getTouch(uint16_t *x, uint16_t *y)
   uint8_t result = 0;
 
   // === 1. 读取触摸点数量 ===
-  esp_err_t ret = I2CBus_WriteRead(I2C_ADDR_FT3168, (uint8_t[]){0x02}, 1, &data, 1, 100);
+  esp_err_t ret = I2CBus_WriteRead(I2C_ADDR_FT3168, (uint8_t[]){0x02}, 1, &data, 1, 1000);
   if (ret == ESP_OK && data > 0) {  // 如果有触摸点
     // === 2. 读取第一个触摸点的坐标数据 ===
-    ret = I2CBus_WriteRead(I2C_ADDR_FT3168, (uint8_t[]){0x03}, 1, buf, 4, 100);
+    ret = I2CBus_WriteRead(I2C_ADDR_FT3168, (uint8_t[]){0x03}, 1, buf, 4, 1000);
     if (ret == ESP_OK) {
       // === 3. 解析坐标数据 ===
       // Y坐标 = (buf[0]低4位 << 8) | buf[1]

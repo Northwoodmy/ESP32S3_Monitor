@@ -1,0 +1,30 @@
+{
+  "version": "v5.5.0",
+  "description": "ESP32S3 Monitor 最新版本",
+  "release_date": "2024-12-19",
+  "size": 1048576,
+  "sizeFormatted": "1.0 MB",
+  "changelog": [
+    "新增服务器OTA升级功能",
+    "优化WiFi连接稳定性",
+    "改进Web界面用户体验",
+    "修复已知问题"
+  ],
+  "requirements": {
+    "minimum_version": "v5.0.0",
+    "chip_model": "ESP32-S3",
+    "flash_size": "4MB"
+  },
+  "download_info": {
+    "filename": "firmware.bin",
+    "url": "/firmware.bin",
+    "checksum": "sha256:abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+  },
+  "compatibility": {
+    "hardware_version": "v2.0",
+    "bootloader_version": "v4.4"
+  },
+  "release_notes": "此版本新增了从服务器自动升级功能，提升了系统稳定性。建议所有用户升级到此版本。",
+  "status": "stable",
+  "build_date": "2024-12-19T10:30:00Z"
+} 

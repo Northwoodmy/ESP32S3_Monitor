@@ -83,6 +83,12 @@ private:
     void handleOTAStatus();
     void handleOTAReboot();
     
+    // 服务器OTA升级相关API
+    void handleServerOTAStart();
+    void handleServerOTAStatus();
+    void handleServerFirmwareList();
+    void handleServerFirmwareVersion();
+    
     // 文件管理相关API
     void handleFileManager();
     void handleFileList();
