@@ -45,7 +45,13 @@ enum ConfigOperation {
     CONFIG_OP_HAS_BRIGHTNESS,
     CONFIG_OP_SAVE_TIME_CONFIG,
     CONFIG_OP_LOAD_TIME_CONFIG,
-    CONFIG_OP_RESET_ALL
+    CONFIG_OP_RESET_ALL,
+    CONFIG_OP_PUT_STRING,
+    CONFIG_OP_GET_STRING,
+    CONFIG_OP_PUT_BOOL,
+    CONFIG_OP_GET_BOOL,
+    CONFIG_OP_PUT_INT,
+    CONFIG_OP_GET_INT
 };
 
 // 配置请求消息结构体
@@ -123,6 +129,29 @@ struct TimeConfigData {
         : primaryServer(primary), secondaryServer(secondary), timezone(tz), syncInterval(interval) {}
 };
 
+// 通用配置请求数据结构
+struct GenericConfigData {
+    String key;
+    String stringValue;
+    bool boolValue;
+    int intValue;
+    String defaultStringValue;
+    bool defaultBoolValue;
+    int defaultIntValue;
+    
+    GenericConfigData() : key(""), stringValue(""), boolValue(false), intValue(0), 
+                         defaultStringValue(""), defaultBoolValue(false), defaultIntValue(0) {}
+    GenericConfigData(const String& k, const String& v, const String& def = "") 
+        : key(k), stringValue(v), boolValue(false), intValue(0), 
+          defaultStringValue(def), defaultBoolValue(false), defaultIntValue(0) {}
+    GenericConfigData(const String& k, bool v, bool def = false) 
+        : key(k), stringValue(""), boolValue(v), intValue(0), 
+          defaultStringValue(""), defaultBoolValue(def), defaultIntValue(0) {}
+    GenericConfigData(const String& k, int v, int def = 0) 
+        : key(k), stringValue(""), boolValue(false), intValue(v), 
+          defaultStringValue(""), defaultBoolValue(false), defaultIntValue(def) {}
+};
+
 class ConfigStorage {
 public:
     ConfigStorage();
@@ -167,6 +196,14 @@ public:
     
     // 异步配置重置操作接口
     bool resetAllConfigAsync(uint32_t timeoutMs = 5000);
+    
+    // 异步通用配置操作接口
+    bool putStringAsync(const String& key, const String& value, uint32_t timeoutMs = 5000);
+    String getStringAsync(const String& key, const String& defaultValue = "", uint32_t timeoutMs = 5000);
+    bool putBoolAsync(const String& key, bool value, uint32_t timeoutMs = 5000);
+    bool getBoolAsync(const String& key, bool defaultValue = false, uint32_t timeoutMs = 5000);
+    bool putIntAsync(const String& key, int value, uint32_t timeoutMs = 5000);
+    int getIntAsync(const String& key, int defaultValue = 0, uint32_t timeoutMs = 5000);
     
     // 静态任务函数
     static void configTaskFunction(void* parameter);
@@ -248,6 +285,14 @@ private:
                        String& timezone, int& syncInterval);
     
     bool resetAllConfig();
+    
+    // 内部通用配置方法
+    bool putString(const String& key, const String& value);
+    String getString(const String& key, const String& defaultValue = "");
+    bool putBool(const String& key, bool value);
+    bool getBool(const String& key, bool defaultValue = false);
+    bool putInt(const String& key, int value);
+    int getInt(const String& key, int defaultValue = 0);
     
     // 内部辅助方法
     String getWiFiSSIDKey(int index);

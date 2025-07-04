@@ -318,6 +318,60 @@ void ConfigStorage::processConfigRequest(ConfigRequest* request) {
             break;
         }
         
+        case CONFIG_OP_PUT_STRING: {
+            GenericConfigData* data = static_cast<GenericConfigData*>(request->data);
+            if (data != nullptr) {
+                request->success = putString(data->key, data->stringValue);
+            }
+            break;
+        }
+        
+        case CONFIG_OP_GET_STRING: {
+            GenericConfigData* data = static_cast<GenericConfigData*>(request->data);
+            GenericConfigData* result = static_cast<GenericConfigData*>(request->result);
+            if (data != nullptr && result != nullptr) {
+                result->stringValue = getString(data->key, data->defaultStringValue);
+                request->success = true;
+            }
+            break;
+        }
+        
+        case CONFIG_OP_PUT_BOOL: {
+            GenericConfigData* data = static_cast<GenericConfigData*>(request->data);
+            if (data != nullptr) {
+                request->success = putBool(data->key, data->boolValue);
+            }
+            break;
+        }
+        
+        case CONFIG_OP_GET_BOOL: {
+            GenericConfigData* data = static_cast<GenericConfigData*>(request->data);
+            GenericConfigData* result = static_cast<GenericConfigData*>(request->result);
+            if (data != nullptr && result != nullptr) {
+                result->boolValue = getBool(data->key, data->defaultBoolValue);
+                request->success = true;
+            }
+            break;
+        }
+        
+        case CONFIG_OP_PUT_INT: {
+            GenericConfigData* data = static_cast<GenericConfigData*>(request->data);
+            if (data != nullptr) {
+                request->success = putInt(data->key, data->intValue);
+            }
+            break;
+        }
+        
+        case CONFIG_OP_GET_INT: {
+            GenericConfigData* data = static_cast<GenericConfigData*>(request->data);
+            GenericConfigData* result = static_cast<GenericConfigData*>(request->result);
+            if (data != nullptr && result != nullptr) {
+                result->intValue = getInt(data->key, data->defaultIntValue);
+                request->success = true;
+            }
+            break;
+        }
+        
         default:
             printf("❌ [ConfigStorage] 未知的配置操作类型: %d\n", request->operation);
             break;
@@ -585,6 +639,83 @@ bool ConfigStorage::resetAllConfigAsync(uint32_t timeoutMs) {
     request.operation = CONFIG_OP_RESET_ALL;
     
     return sendRequestAndWait(&request, timeoutMs);
+}
+
+// 异步通用配置操作接口实现
+
+bool ConfigStorage::putStringAsync(const String& key, const String& value, uint32_t timeoutMs) {
+    GenericConfigData data;
+    data.key = key;
+    data.stringValue = value;
+    ConfigRequest request;
+    request.operation = CONFIG_OP_PUT_STRING;
+    request.data = &data;
+    
+    return sendRequestAndWait(&request, timeoutMs);
+}
+
+String ConfigStorage::getStringAsync(const String& key, const String& defaultValue, uint32_t timeoutMs) {
+    GenericConfigData data;
+    data.key = key;
+    data.defaultStringValue = defaultValue;
+    GenericConfigData result;
+    ConfigRequest request;
+    request.operation = CONFIG_OP_GET_STRING;
+    request.data = &data;
+    request.result = &result;
+    
+    bool success = sendRequestAndWait(&request, timeoutMs);
+    return success ? result.stringValue : defaultValue;
+}
+
+bool ConfigStorage::putBoolAsync(const String& key, bool value, uint32_t timeoutMs) {
+    GenericConfigData data;
+    data.key = key;
+    data.boolValue = value;
+    ConfigRequest request;
+    request.operation = CONFIG_OP_PUT_BOOL;
+    request.data = &data;
+    
+    return sendRequestAndWait(&request, timeoutMs);
+}
+
+bool ConfigStorage::getBoolAsync(const String& key, bool defaultValue, uint32_t timeoutMs) {
+    GenericConfigData data;
+    data.key = key;
+    data.defaultBoolValue = defaultValue;
+    GenericConfigData result;
+    ConfigRequest request;
+    request.operation = CONFIG_OP_GET_BOOL;
+    request.data = &data;
+    request.result = &result;
+    
+    bool success = sendRequestAndWait(&request, timeoutMs);
+    return success ? result.boolValue : defaultValue;
+}
+
+bool ConfigStorage::putIntAsync(const String& key, int value, uint32_t timeoutMs) {
+    GenericConfigData data;
+    data.key = key;
+    data.intValue = value;
+    ConfigRequest request;
+    request.operation = CONFIG_OP_PUT_INT;
+    request.data = &data;
+    
+    return sendRequestAndWait(&request, timeoutMs);
+}
+
+int ConfigStorage::getIntAsync(const String& key, int defaultValue, uint32_t timeoutMs) {
+    GenericConfigData data;
+    data.key = key;
+    data.defaultIntValue = defaultValue;
+    GenericConfigData result;
+    ConfigRequest request;
+    request.operation = CONFIG_OP_GET_INT;
+    request.data = &data;
+    request.result = &result;
+    
+    bool success = sendRequestAndWait(&request, timeoutMs);
+    return success ? result.intValue : defaultValue;
 }
 
 
@@ -1225,4 +1356,48 @@ bool ConfigStorage::loadTimeConfig(String& primaryServer, String& secondaryServe
     printf("  同步间隔: %d分钟\n", syncInterval);
     
     return true;
+}
+
+// 内部通用配置方法实现
+
+bool ConfigStorage::putString(const String& key, const String& value) {
+    preferences.begin(SYSTEM_NAMESPACE, false);
+    bool success = preferences.putString(key.c_str(), value) > 0;
+    preferences.end();
+    return success;
+}
+
+String ConfigStorage::getString(const String& key, const String& defaultValue) {
+    preferences.begin(SYSTEM_NAMESPACE, true);
+    String value = preferences.getString(key.c_str(), defaultValue);
+    preferences.end();
+    return value;
+}
+
+bool ConfigStorage::putBool(const String& key, bool value) {
+    preferences.begin(SYSTEM_NAMESPACE, false);
+    bool success = preferences.putBool(key.c_str(), value);
+    preferences.end();
+    return success;
+}
+
+bool ConfigStorage::getBool(const String& key, bool defaultValue) {
+    preferences.begin(SYSTEM_NAMESPACE, true);
+    bool value = preferences.getBool(key.c_str(), defaultValue);
+    preferences.end();
+    return value;
+}
+
+bool ConfigStorage::putInt(const String& key, int value) {
+    preferences.begin(SYSTEM_NAMESPACE, false);
+    bool success = preferences.putInt(key.c_str(), value) > 0;
+    preferences.end();
+    return success;
+}
+
+int ConfigStorage::getInt(const String& key, int defaultValue) {
+    preferences.begin(SYSTEM_NAMESPACE, true);
+    int value = preferences.getInt(key.c_str(), defaultValue);
+    preferences.end();
+    return value;
 }

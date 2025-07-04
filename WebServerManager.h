@@ -18,6 +18,7 @@
 // 前向声明
 class PSRAMManager;
 class DisplayManager;
+class WeatherManager;
 
 class WebServerManager {
 public:
@@ -32,6 +33,9 @@ public:
     
     // 设置显示管理器
     void setDisplayManager(DisplayManager* displayManager);
+    
+    // 设置天气管理器
+    void setWeatherManager(WeatherManager* weatherManager);
     
     // 启动服务器
     void start();
@@ -50,6 +54,7 @@ private:
     FileManager* fileManager;
     PSRAMManager* m_psramManager;
     DisplayManager* m_displayManager;
+    WeatherManager* m_weatherManager;
     TaskHandle_t serverTaskHandle;
     bool isRunning;
     
@@ -112,6 +117,17 @@ private:
     void handleSetTimeConfig();
     void handleSyncTime();
     
+    // 天气设置相关API
+    void handleWeatherSettings();
+    void handleGetWeatherConfig();
+    void handleSetWeatherApiKey();
+    void handleSetWeatherCity();
+    void handleSetWeatherUpdateConfig();
+    void handleGetCurrentWeather();
+    void handleGetWeatherStats();
+    void handleTestWeatherApi();
+    void handleUpdateWeatherNow();
+    
     // 获取主页HTML
     String getIndexHTML();
     
@@ -123,6 +139,9 @@ private:
     
     // 获取系统设置页面HTML
     String getSystemSettingsHTML();
+    
+    // 获取天气设置页面HTML
+    String getWeatherSettingsHTML();
     
     // 获取CSS样式
     String getCSS();
@@ -136,8 +155,14 @@ private:
     // 获取系统设置JavaScript代码
     String getSystemSettingsJavaScript();
     
+    // 获取天气设置JavaScript代码
+    String getWeatherSettingsJavaScript();
+    
     // 获取系统设置CSS样式
     String getSystemSettingsCSS();
+    
+    // 获取天气设置CSS样式
+    String getWeatherSettingsCSS();
     
     // 获取OTA页面CSS样式
     String getOTAPageCSS();

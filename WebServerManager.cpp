@@ -6,6 +6,7 @@
 #include "WebServerManager.h"
 #include "PSRAMManager.h"
 #include "DisplayManager.h"
+#include "WeatherManager.h"
 #include "Arduino.h"
 
 WebServerManager::WebServerManager(WiFiManager* wifiMgr, ConfigStorage* configStore, OTAManager* otaMgr, FileManager* fileMgr) :
@@ -16,6 +17,7 @@ WebServerManager::WebServerManager(WiFiManager* wifiMgr, ConfigStorage* configSt
     fileManager(fileMgr),
     m_psramManager(nullptr),
     m_displayManager(nullptr),
+    m_weatherManager(nullptr),
     serverTaskHandle(nullptr),
     isRunning(false) {
     server = new WebServer(80);
@@ -93,6 +95,17 @@ void WebServerManager::init() {
     server->on("/api/time/config", HTTP_POST, [this]() { handleSetTimeConfig(); });
     server->on("/api/time/sync", HTTP_POST, [this]() { handleSyncTime(); });
     
+    // 天气设置路由
+    server->on("/weather-settings", [this]() { handleWeatherSettings(); });
+    server->on("/api/weather/config", HTTP_GET, [this]() { handleGetWeatherConfig(); });
+    server->on("/api/weather/api-key", HTTP_POST, [this]() { handleSetWeatherApiKey(); });
+    server->on("/api/weather/city", HTTP_POST, [this]() { handleSetWeatherCity(); });
+    server->on("/api/weather/update-config", HTTP_POST, [this]() { handleSetWeatherUpdateConfig(); });
+    server->on("/api/weather/current", HTTP_GET, [this]() { handleGetCurrentWeather(); });
+    server->on("/api/weather/stats", HTTP_GET, [this]() { handleGetWeatherStats(); });
+    server->on("/api/weather/test", HTTP_POST, [this]() { handleTestWeatherApi(); });
+    server->on("/api/weather/update", HTTP_POST, [this]() { handleUpdateWeatherNow(); });
+    
     server->onNotFound([this]() { handleNotFound(); });
     
     printf("Web服务器路由配置完成\n");
@@ -104,6 +117,10 @@ void WebServerManager::setPSRAMManager(PSRAMManager* psramManager) {
 
 void WebServerManager::setDisplayManager(DisplayManager* displayManager) {
     m_displayManager = displayManager;
+}
+
+void WebServerManager::setWeatherManager(WeatherManager* weatherManager) {
+    m_weatherManager = weatherManager;
 }
 
 void WebServerManager::start() {
@@ -217,7 +234,7 @@ void WebServerManager::handleSystemInfo() {
     
     DynamicJsonDocument doc(1024);
     doc["device"] = "ESP32S3 Monitor";
-            doc["version"] = "v5.3.0";
+            doc["version"] = "v5.6.3";
     doc["chipModel"] = ESP.getChipModel();
     doc["chipRevision"] = ESP.getChipRevision();
     doc["cpuFreq"] = ESP.getCpuFreqMHz();
@@ -927,11 +944,241 @@ void WebServerManager::handleFileSystemFormatStatus() {
         doc["success"] = fileManager->getFormatResult();
     }
     
+        String response;
+    serializeJson(doc, response);
+    server->send(200, "application/json", response);
+}
+
+// 天气设置相关API实现
+void WebServerManager::handleWeatherSettings() {
+    printf("处理天气设置页面请求\n");
+    server->send(200, "text/html", getWeatherSettingsHTML());
+}
+
+void WebServerManager::handleGetWeatherConfig() {
+    printf("处理获取天气配置请求\n");
+    
+    DynamicJsonDocument doc(512);
+    
+    if (m_weatherManager) {
+        WeatherConfig config = m_weatherManager->getConfig();
+        doc["success"] = true;
+        doc["config"]["apiKey"] = config.apiKey;
+        doc["config"]["cityCode"] = config.cityCode;
+        doc["config"]["cityName"] = config.cityName;
+        doc["config"]["autoUpdate"] = config.autoUpdate;
+        doc["config"]["updateInterval"] = config.updateInterval;
+        doc["config"]["enableForecast"] = config.enableForecast;
+        doc["message"] = "天气配置获取成功";
+    } else {
+        doc["success"] = false;
+        doc["message"] = "天气管理器未初始化";
+    }
+    
     String response;
     serializeJson(doc, response);
     server->send(200, "application/json", response);
 }
 
+void WebServerManager::handleSetWeatherApiKey() {
+    printf("处理设置天气API密钥请求\n");
+    
+    DynamicJsonDocument doc(256);
+    
+    if (!server->hasArg("apiKey")) {
+        doc["success"] = false;
+        doc["message"] = "缺少API密钥参数";
+    } else if (!m_weatherManager) {
+        doc["success"] = false;
+        doc["message"] = "天气管理器未初始化";
+    } else {
+        String apiKey = server->arg("apiKey");
+        bool success = m_weatherManager->setApiKey(apiKey);
+        doc["success"] = success;
+        doc["message"] = success ? "API密钥设置成功" : "API密钥设置失败";
+    }
+    
+    String response;
+    serializeJson(doc, response);
+    server->send(200, "application/json", response);
+}
+
+void WebServerManager::handleSetWeatherCity() {
+    printf("处理设置城市请求\n");
+    
+    DynamicJsonDocument doc(256);
+    
+    if (!m_weatherManager) {
+        doc["success"] = false;
+        doc["message"] = "天气管理器未初始化";
+    } else {
+        bool hasCity = false;
+        WeatherConfig config = m_weatherManager->getConfig();
+        
+        if (server->hasArg("cityName")) {
+            config.cityName = server->arg("cityName");
+            hasCity = true;
+        }
+        
+        if (server->hasArg("cityCode")) {
+            config.cityCode = server->arg("cityCode");
+            hasCity = true;
+        }
+        
+        if (!hasCity) {
+            doc["success"] = false;
+            doc["message"] = "缺少城市参数";
+        } else {
+            bool success = m_weatherManager->setConfig(config);
+            doc["success"] = success;
+            doc["message"] = success ? "城市设置成功" : "城市设置失败";
+        }
+    }
+    
+    String response;
+    serializeJson(doc, response);
+    server->send(200, "application/json", response);
+}
+
+void WebServerManager::handleSetWeatherUpdateConfig() {
+    printf("处理设置天气更新配置请求\n");
+    
+    DynamicJsonDocument doc(256);
+    
+    if (!m_weatherManager) {
+        doc["success"] = false;
+        doc["message"] = "天气管理器未初始化";
+    } else {
+        WeatherConfig config = m_weatherManager->getConfig();
+        
+        if (server->hasArg("autoUpdate")) {
+            config.autoUpdate = server->arg("autoUpdate") == "true";
+        }
+        
+        if (server->hasArg("updateInterval")) {
+            int interval = server->arg("updateInterval").toInt();
+            if (interval >= 5 && interval <= 1440) {
+                config.updateInterval = interval;
+            }
+        }
+        
+        if (server->hasArg("enableForecast")) {
+            config.enableForecast = server->arg("enableForecast") == "true";
+        }
+        
+        bool success = m_weatherManager->setConfig(config);
+        doc["success"] = success;
+        doc["message"] = success ? "更新配置设置成功" : "更新配置设置失败";
+    }
+    
+    String response;
+    serializeJson(doc, response);
+    server->send(200, "application/json", response);
+}
+
+void WebServerManager::handleGetCurrentWeather() {
+    printf("处理获取当前天气请求\n");
+    
+    DynamicJsonDocument doc(1024);
+    
+    if (!m_weatherManager) {
+        doc["success"] = false;
+        doc["message"] = "天气管理器未初始化";
+    } else {
+        WeatherData weather = m_weatherManager->getCurrentWeather();
+        doc["success"] = true;
+        doc["weather"]["isValid"] = weather.isValid;
+        
+        if (weather.isValid) {
+            doc["weather"]["city"] = weather.city;
+            doc["weather"]["adcode"] = weather.adcode;
+            doc["weather"]["weather"] = weather.weather;
+            doc["weather"]["temperature"] = weather.temperature;
+            doc["weather"]["humidity"] = weather.humidity;
+            doc["weather"]["winddirection"] = weather.winddirection;
+            doc["weather"]["windpower"] = weather.windpower;
+            doc["weather"]["reporttime"] = weather.reporttime;
+        }
+        
+        doc["message"] = weather.isValid ? "天气数据获取成功" : "暂无有效天气数据";
+    }
+    
+    String response;
+    serializeJson(doc, response);
+    server->send(200, "application/json", response);
+}
+
+void WebServerManager::handleGetWeatherStats() {
+    printf("处理获取天气统计请求\n");
+    
+    DynamicJsonDocument doc(512);
+    
+    if (!m_weatherManager) {
+        doc["success"] = false;
+        doc["message"] = "天气管理器未初始化";
+    } else {
+        WeatherStatistics stats = m_weatherManager->getStatistics();
+        doc["success"] = true;
+        doc["stats"]["totalRequests"] = stats.totalRequests;
+        doc["stats"]["successRequests"] = stats.successRequests;
+        doc["stats"]["failedRequests"] = stats.failedRequests;
+        doc["stats"]["lastUpdateTime"] = stats.lastUpdateTime;
+        doc["stats"]["nextUpdateTime"] = stats.nextUpdateTime;
+        doc["message"] = "统计信息获取成功";
+    }
+    
+    String response;
+    serializeJson(doc, response);
+    server->send(200, "application/json", response);
+}
+
+void WebServerManager::handleTestWeatherApi() {
+    printf("处理测试天气API请求\n");
+    
+    DynamicJsonDocument doc(256);
+    
+    if (!m_weatherManager) {
+        doc["success"] = false;
+        doc["message"] = "天气管理器未初始化";
+    } else {
+        bool success = m_weatherManager->updateWeatherData();
+        doc["success"] = success;
+        doc["message"] = success ? "天气API测试成功" : "天气API测试失败";
+        
+        if (success) {
+            doc["state"] = m_weatherManager->getStateString();
+        }
+    }
+    
+    String response;
+    serializeJson(doc, response);
+    server->send(200, "application/json", response);
+}
+
+void WebServerManager::handleUpdateWeatherNow() {
+    printf("处理立即更新天气请求\n");
+    
+    DynamicJsonDocument doc(256);
+    
+    if (!m_weatherManager) {
+        doc["success"] = false;
+        doc["message"] = "天气管理器未初始化";
+    } else {
+        bool success = m_weatherManager->updateWeatherData();
+        doc["success"] = success;
+        doc["message"] = success ? "天气数据更新成功" : "天气数据更新失败";
+        
+        if (success) {
+            doc["state"] = m_weatherManager->getStateString();
+            doc["lastUpdate"] = m_weatherManager->getLastUpdateTime();
+        }
+    }
+    
+    String response;
+    serializeJson(doc, response);
+    server->send(200, "application/json", response);
+}
+ 
 String WebServerManager::getFileManagerHTML() {
     String html = "";
     html += "<!DOCTYPE html>";

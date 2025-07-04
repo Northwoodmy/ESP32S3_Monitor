@@ -479,7 +479,7 @@ void DisplayManager::createHomePage() {
     
            // 版本信息
   lv_obj_t* version_label = lv_label_create(m_pages[PAGE_HOME]);
-  lv_label_set_text(version_label, "版本: v5.3.0");
+      lv_label_set_text(version_label, "版本: v5.6.3");
   lv_obj_set_style_text_color(version_label, lv_color_hex(0x757575), 0);
   lv_obj_align(version_label, LV_ALIGN_BOTTOM_MID, 0, -20);
 }

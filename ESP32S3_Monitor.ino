@@ -1,6 +1,6 @@
 /*
  * ESP32S3监控项目 - WiFi配置管理器
- * 版本: v5.4.0
+ * 版本: v5.6.0
  * 作者: ESP32S3_Monitor
  * 日期: 2024
  * 
@@ -19,6 +19,8 @@
  * - AudioManager音频播放管理
  * - PCM音频文件循环播放功能
  * - I2S音频接口和ES8311编解码器集成
+ * - WeatherManager天气管理系统
+ * - 高德天气API集成和数据解析
  */
 
 #include <WiFi.h>
@@ -42,6 +44,7 @@
 #include "TimeManager.h"
 #include "I2CBusManager.h"
 #include "AudioManager.h"
+#include "WeatherManager.h"
 
 // 外部变量声明
 extern LVGLDriver* lvglDriver;
@@ -60,13 +63,14 @@ DisplayManager displayManager;
 PSRAMManager psramManager;
 TimeManager timeManager;
 AudioManager audioManager;
+WeatherManager weatherManager;
 
 // 传感器数据已集成到LVGL驱动中，无需独立任务
 
 void setup() {
   
   printf("=== ESP32S3 WiFi配置管理器启动 ===\n");
-  printf("版本: v5.4.0\n");
+  printf("版本: v5.6.1\n");
   printf("编译时间: %s %s\n", __DATE__, __TIME__);
   
   // 初始化PSRAM管理器（优先初始化）
@@ -155,9 +159,9 @@ void setup() {
       if (audioManager.setAudioFormat(16000, 1, 16)) {
         printf("✅ 音频格式设置成功: 16000Hz, 单声道, 16位\n");
         
-        // 开始播放转换后的PCM文件，使用间隔循环模式（每2秒播放一次）
-        if (audioManager.playPCMFile("/c3.pcm", AUDIO_MODE_INTERVAL_LOOP)) {
-          printf("🎵 开始循环播放音频文件: /c3.pcm (每2秒一次)\n");
+        // 开始播放转换后的PCM文件，使用单次播放模式（播放一次后停止）
+        if (audioManager.playPCMFile("/c3.pcm", AUDIO_MODE_ONCE)) {
+          printf("🎵 开始播放音频文件: /c3.pcm (单次播放)\n");
           printf("🎧 音频应该清晰无杂音，3.09秒时长\n");
           printf("💡 请确保SPIFFS中已上传 c3_new.pcm 文件\n");
         } else {
@@ -181,6 +185,7 @@ void setup() {
   // 初始化并启动Web服务器
   webServerManager->setPSRAMManager(&psramManager);
   webServerManager->setDisplayManager(&displayManager);
+  webServerManager->setWeatherManager(&weatherManager);
   webServerManager->init();
   webServerManager->start();
   
@@ -199,6 +204,35 @@ void setup() {
   timeManager.setDebugMode(true);
   
   printf("时间管理器初始化完成\n");
+  
+  // 初始化天气管理器
+  printf("开始初始化天气管理器...\n");
+  if (weatherManager.init(&psramManager, &wifiManager, &configStorage)) {
+    printf("✅ 天气管理器初始化成功\n");
+    
+    // 启动天气管理器
+    if (weatherManager.start()) {
+      printf("✅ 天气管理器启动成功\n");
+      
+      // 启用调试模式查看详细信息
+      weatherManager.setDebugMode(true);
+      
+      // 设置默认城市为北京，用户可通过Web界面修改
+      weatherManager.setCityCode("110000");
+      
+      printf("🌤️ 天气管理器配置完成\n");
+      printf("💡 请在Web界面设置高德天气API密钥以启用天气功能\n");
+      printf("🔗 高德开发者平台: https://console.amap.com/\n");
+      
+      // 打印天气配置信息
+      weatherManager.printConfig();
+    } else {
+      printf("❌ 天气管理器启动失败\n");
+    }
+  } else {
+    printf("❌ 天气管理器初始化失败\n");
+  }
+  printf("天气管理器初始化完成\n");
   
   // 显示当前状态
   vTaskDelay(pdMS_TO_TICKS(2000));
@@ -315,6 +349,32 @@ void displaySystemStatus() {
       case AUDIO_STATE_ERROR: printf("错误\n"); break;
       default: printf("未知状态\n"); break;
     }
+  }
+  
+  // 天气系统信息
+  printf("天气状态: %s\n", weatherManager.getStateString().c_str());
+  if (weatherManager.isWeatherDataValid()) {
+    WeatherData weather = weatherManager.getCurrentWeather();
+    printf("当前天气: %s\n", weather.city.c_str());
+    printf("天气现象: %s\n", weather.weather.c_str());
+    printf("温度: %s°C\n", weather.temperature.c_str());
+    printf("湿度: %s%%\n", weather.humidity.c_str());
+    printf("风向风力: %s %s级\n", weather.winddirection.c_str(), weather.windpower.c_str());
+    printf("发布时间: %s\n", weather.reporttime.c_str());
+  } else {
+    printf("天气数据: 未获取\n");
+    WeatherConfig config = weatherManager.getConfig();
+    if (config.apiKey.isEmpty()) {
+      printf("提示: 请设置高德API密钥\n");
+    } else {
+      printf("城市: %s (%s)\n", config.cityName.c_str(), config.cityCode.c_str());
+    }
+  }
+  
+  WeatherStatistics weatherStats = weatherManager.getStatistics();
+  if (weatherStats.totalRequests > 0) {
+    printf("天气统计: 总计%lu次, 成功%lu次, 失败%lu次\n", 
+           weatherStats.totalRequests, weatherStats.successRequests, weatherStats.failedRequests);
   }
   
   printf("==================\n");

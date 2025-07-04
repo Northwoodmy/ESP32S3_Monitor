@@ -1,30 +1,80 @@
 {
-  "version": "v5.5.0",
-  "description": "ESP32S3 Monitor 最新版本",
-  "release_date": "2024-12-19",
-  "size": 1048576,
-  "sizeFormatted": "1.0 MB",
-  "changelog": [
-    "新增服务器OTA升级功能",
-    "优化WiFi连接稳定性",
-    "改进Web界面用户体验",
-    "修复已知问题"
-  ],
-  "requirements": {
-    "minimum_version": "v5.0.0",
-    "chip_model": "ESP32-S3",
-    "flash_size": "4MB"
-  },
-  "download_info": {
-    "filename": "firmware.bin",
-    "url": "/firmware.bin",
-    "checksum": "sha256:abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
-  },
-  "compatibility": {
-    "hardware_version": "v2.0",
-    "bootloader_version": "v4.4"
-  },
-  "release_notes": "此版本新增了从服务器自动升级功能，提升了系统稳定性。建议所有用户升级到此版本。",
-  "status": "stable",
-  "build_date": "2024-12-19T10:30:00Z"
+    "version": "v5.6.6",
+    "build_date": "2024-12-19",
+    "description": "ESP32S3 Monitor Project - 省市区级联选择器版本",
+    "changes": [
+        "省市区级联选择器完全替代手动输入",
+        "全国主要省市区数据覆盖",
+        "现代化界面设计和用户体验",
+        "智能配置管理和反向查找",
+        "JavaScript级联选择器核心逻辑实现"
+    ],
+    "release_date": "2024-12-19",
+    "size": 1048576,
+    "download_url": "http://egota.yingdl.com/firmware/esp32s3_monitor_v5.6.6.bin",
+    "checksum": "sha256:abcd1234567890abcdef1234567890abcdef1234567890abcdef1234567890ab",
+    "changelog": {
+        "added": [
+            "省市区三级级联选择器",
+            "全国主要省市区城市编码数据",
+            "城市编码反向查找功能",
+            "实时地址显示和编码生成",
+            "现代化下拉选择器样式"
+        ],
+        "improved": [
+            "城市配置用户体验大幅提升",
+            "消除手动输入城市编码的错误风险",
+            "配置界面视觉效果和交互性",
+            "省市区数据的组织和查找效率"
+        ],
+        "fixed": [
+            "城市名称和编码不匹配的问题",
+            "用户输入城市编码错误的风险",
+            "配置界面不够直观的问题"
+        ],
+        "removed": [
+            "手动输入城市名称的文本框",
+            "手动输入城市编码的文本框"
+        ]
+    },
+    "technical_details": {
+        "ui_changes": [
+            "重构城市配置HTML结构",
+            "新增级联选择器CSS样式",
+            "实现JavaScript级联选择逻辑"
+        ],
+        "data_structure": [
+            "省市区数据结构设计",
+            "城市编码映射关系",
+            "高效查找算法实现"
+        ],
+        "user_experience": [
+            "三级联动选择流程",
+            "实时反馈和状态管理",
+            "响应式设计适配"
+        ]
+    },
+    "compatibility": {
+        "api_changes": false,
+        "config_format": "兼容现有配置格式",
+        "backward_compatible": true
+    },
+    "requirements": {
+        "esp32_version": ">=2.0.0",
+        "arduino_ide": ">=1.8.19",
+        "flash_size": "16MB",
+        "psram": "8MB"
+    },
+    "features": [
+        "WiFi配置管理",
+        "LCD显示系统",
+        "PSRAM内存管理",
+        "天气数据获取",
+        "音频播放功能",
+        "OTA固件升级",
+        "美化天气界面",
+        "动画视觉效果"
+    ],
+    "release_notes": "此版本大幅美化了天气界面显示效果，采用全新蓝色渐变主题，温度显示更加醒目，添加了丰富的动画效果，提升了整体视觉体验。建议所有用户升级到此版本。",
+    "status": "stable"
 } 
