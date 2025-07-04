@@ -125,7 +125,7 @@ String WebServerManager::getIndexHTML() {
     html += "            </div>\n";
     html += "            \n";
     html += "            <div class=\"card\">\n";
-    html += "                <h2>屏幕设置</h2>\n";
+    html += "                <h2>屏幕信息</h2>\n";
     html += "                <div class=\"screen-settings\">\n";
     html += "                    <div class=\"setting-item\">\n";
     html += "                        <label class=\"setting-label\">当前亮度:</label>\n";
@@ -138,6 +138,18 @@ String WebServerManager::getIndexHTML() {
     html += "                    <div class=\"setting-item\">\n";
     html += "                        <label class=\"setting-label\">背光控制:</label>\n";
     html += "                        <span class=\"value\" id=\"backlightStatus\">加载中...</span>\n";
+    html += "                    </div>\n";
+    html += "                    <div class=\"setting-item\">\n";
+    html += "                        <label class=\"setting-label\">屏幕分辨率:</label>\n";
+    html += "                        <span class=\"value\" id=\"screenResolution\">加载中...</span>\n";
+    html += "                    </div>\n";
+    html += "                    <div class=\"setting-item\">\n";
+    html += "                        <label class=\"setting-label\">色彩支持:</label>\n";
+    html += "                        <span class=\"value\" id=\"colorSupport\">加载中...</span>\n";
+    html += "                    </div>\n";
+    html += "                    <div class=\"setting-item\">\n";
+    html += "                        <label class=\"setting-label\">屏幕材质:</label>\n";
+    html += "                        <span class=\"value\" id=\"screenMaterial\">加载中...</span>\n";
     html += "                    </div>\n";
     html += "                </div>\n";
     html += "                <div class=\"action-buttons\">\n";
@@ -2023,6 +2035,10 @@ String WebServerManager::getJavaScript() {
     js += "            document.getElementById('currentBrightness').textContent = Math.round((data.brightness / 255) * 100) + '%';\n";
     js += "            document.getElementById('screenStatus').textContent = data.screenOn ? '开启' : '关闭';\n";
     js += "            document.getElementById('backlightStatus').textContent = data.backlightOn ? '开启' : '关闭';\n";
+    js += "            // 新增屏幕信息显示\n";
+    js += "            document.getElementById('screenResolution').textContent = data.resolution || '240×240';\n";
+    js += "            document.getElementById('colorSupport').textContent = data.colorSupport || '16位色彩 (RGB565)';\n";
+    js += "            document.getElementById('screenMaterial').textContent = data.material || 'IPS LCD';\n";
     js += "        }\n";
     js += "    } catch (error) {\n";
     js += "        console.error('加载屏幕配置失败:', error);\n";
