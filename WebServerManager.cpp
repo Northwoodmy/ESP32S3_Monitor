@@ -8,6 +8,8 @@
 #include "DisplayManager.h"
 #include "WeatherManager.h"
 #include "Arduino.h"
+#include <HTTPClient.h>
+#include <WiFiClient.h>
 
 WebServerManager::WebServerManager(WiFiManager* wifiMgr, ConfigStorage* configStore, OTAManager* otaMgr, FileManager* fileMgr) :
     server(nullptr),
@@ -110,6 +112,13 @@ void WebServerManager::init() {
     server->on("/screen-settings", [this]() { handleScreenSettings(); });
     server->on("/api/screen/settings", HTTP_GET, [this]() { handleGetScreenSettings(); });
     server->on("/api/screen/settings", HTTP_POST, [this]() { handleSetScreenSettings(); });
+    
+    // 服务器设置路由
+    server->on("/server-settings", [this]() { handleServerSettingsPage(); });
+    server->on("/api/server/config", HTTP_GET, [this]() { handleGetServerConfig(); });
+    server->on("/api/server/config", HTTP_POST, [this]() { handleSetServerConfig(); });
+    server->on("/api/server/test", HTTP_POST, [this]() { handleTestServerConnection(); });
+    server->on("/api/server/data", HTTP_GET, [this]() { handleGetServerData(); });
     
     server->onNotFound([this]() { handleNotFound(); });
     
@@ -2451,6 +2460,323 @@ void WebServerManager::handleServerFirmwareVersion() {
         
         printf("无法连接到服务器或服务器响应为空\n");
     }
+    
+    String response;
+    serializeJson(doc, response);
+    server->send(200, "application/json", response);
+}
+
+// 服务器设置相关API处理函数
+void WebServerManager::handleServerSettingsPage() {
+    printf("处理服务器设置页面请求\n");
+    server->send(200, "text/html", getServerSettingsHTML());
+}
+
+void WebServerManager::handleGetServerConfig() {
+    printf("处理获取服务器配置请求\n");
+    
+    DynamicJsonDocument doc(512);
+    
+    if (configStorage) {
+        bool hasConfig = configStorage->hasServerConfigAsync(3000);
+        
+        if (hasConfig) {
+            String serverUrl;
+            int requestInterval;
+            bool enabled;
+            int connectionTimeout;
+            
+            bool success = configStorage->loadServerConfigAsync(serverUrl, requestInterval, enabled, connectionTimeout, 3000);
+            if (success) {
+                doc["success"] = true;
+                doc["config"]["serverUrl"] = serverUrl;
+                doc["config"]["requestInterval"] = requestInterval;
+                doc["config"]["enabled"] = enabled;
+                doc["config"]["connectionTimeout"] = connectionTimeout;
+                doc["message"] = "服务器配置获取成功";
+                
+                printf("服务器配置获取成功：URL=%s, 间隔=%d分钟, 启用=%s, 超时=%d秒\n",
+                       serverUrl.c_str(), requestInterval,
+                       enabled ? "是" : "否", connectionTimeout);
+            } else {
+                doc["success"] = false;
+                doc["message"] = "服务器配置加载失败";
+                printf("服务器配置加载失败\n");
+            }
+        } else {
+            // 返回默认配置
+            doc["success"] = true;
+            doc["config"]["serverUrl"] = "http://10.10.168.168/metrics.json";
+            doc["config"]["requestInterval"] = 250;
+            doc["config"]["enabled"] = true;
+            doc["config"]["connectionTimeout"] = 1000;
+            doc["message"] = "返回默认服务器配置";
+            
+            printf("返回默认服务器配置\n");
+        }
+    } else {
+        doc["success"] = false;
+        doc["message"] = "配置存储未初始化";
+        printf("配置存储未初始化\n");
+    }
+    
+    String response;
+    serializeJson(doc, response);
+    server->send(200, "application/json", response);
+}
+
+void WebServerManager::handleSetServerConfig() {
+    printf("处理设置服务器配置请求\n");
+    
+    DynamicJsonDocument doc(256);
+    
+    if (!configStorage) {
+        doc["success"] = false;
+        doc["message"] = "配置存储未初始化";
+        printf("配置存储未初始化\n");
+        String response;
+        serializeJson(doc, response);
+        server->send(400, "application/json", response);
+        return;
+    }
+    
+    // 检查必要参数
+    if (!server->hasArg("serverUrl")) {
+        doc["success"] = false;
+        doc["message"] = "缺少serverUrl参数";
+        printf("缺少serverUrl参数\n");
+        String response;
+        serializeJson(doc, response);
+        server->send(400, "application/json", response);
+        return;
+    }
+    
+    String serverUrl = server->arg("serverUrl");
+    int requestInterval = server->hasArg("requestInterval") ? server->arg("requestInterval").toInt() : 250;
+    bool enabled = server->hasArg("enabled") ? (server->arg("enabled") == "true") : true;
+    int connectionTimeout = server->hasArg("connectionTimeout") ? server->arg("connectionTimeout").toInt() : 1000;
+    
+    printf("接收到服务器配置：URL=%s, 间隔=%d毫秒, 启用=%s, 超时=%d毫秒\n",
+           serverUrl.c_str(), requestInterval,
+           enabled ? "是" : "否", connectionTimeout);
+    
+    // 参数验证
+    if (serverUrl.length() < 10 || 
+        (!serverUrl.startsWith("http://") && !serverUrl.startsWith("https://"))) {
+        doc["success"] = false;
+        doc["message"] = "无效的服务器URL";
+        printf("无效的服务器URL: %s\n", serverUrl.c_str());
+        String response;
+        serializeJson(doc, response);
+        server->send(400, "application/json", response);
+        return;
+    }
+    
+    if (requestInterval < 100 || requestInterval > 1000) {
+        doc["success"] = false;
+        doc["message"] = "请求间隔必须在100-1000毫秒之间";
+        printf("无效的请求间隔: %d\n", requestInterval);
+        String response;
+        serializeJson(doc, response);
+        server->send(400, "application/json", response);
+        return;
+    }
+    
+    if (connectionTimeout < 1000 || connectionTimeout > 60000) {
+        doc["success"] = false;
+        doc["message"] = "连接超时时间必须在1000-60000毫秒之间";
+        printf("无效的连接超时时间: %d\n", connectionTimeout);
+        String response;
+        serializeJson(doc, response);
+        server->send(400, "application/json", response);
+        return;
+    }
+    
+    // 保存配置
+    bool success = configStorage->saveServerConfigAsync(serverUrl, requestInterval, enabled, connectionTimeout, 3000);
+    
+    doc["success"] = success;
+    if (success) {
+        doc["message"] = "服务器配置保存成功";
+        printf("服务器配置保存成功\n");
+    } else {
+        doc["message"] = "服务器配置保存失败";
+        printf("服务器配置保存失败\n");
+    }
+    
+    String response;
+    serializeJson(doc, response);
+    server->send(200, "application/json", response);
+}
+
+void WebServerManager::handleTestServerConnection() {
+    printf("处理测试服务器连接请求\n");
+    
+    DynamicJsonDocument doc(512);
+    
+    if (!wifiManager->isConnected()) {
+        doc["success"] = false;
+        doc["message"] = "设备未连接WiFi，无法测试服务器连接";
+        printf("设备未连接WiFi，无法测试服务器连接\n");
+        String response;
+        serializeJson(doc, response);
+        server->send(400, "application/json", response);
+        return;
+    }
+    
+    String serverUrl = "";
+    if (server->hasArg("serverUrl")) {
+        serverUrl = server->arg("serverUrl");
+    } else {
+        // 从配置中获取服务器URL
+        if (configStorage) {
+            bool hasConfig = configStorage->hasServerConfigAsync(3000);
+            if (hasConfig) {
+                String configServerUrl;
+                int requestInterval;
+                bool enabled;
+                int connectionTimeout;
+                bool success = configStorage->loadServerConfigAsync(configServerUrl, requestInterval, enabled, connectionTimeout, 3000);
+                if (success) {
+                    serverUrl = configServerUrl;
+                }
+            }
+        }
+        
+        if (serverUrl.isEmpty()) {
+            serverUrl = "http://10.10.168.168/metrics.json";
+        }
+    }
+    
+    printf("测试服务器连接: %s\n", serverUrl.c_str());
+    
+    // 使用WiFiClient测试连接
+    WiFiClient client;
+    HTTPClient http;
+    
+    http.begin(client, serverUrl);
+    http.setTimeout(10000);  // 10秒超时
+    
+    int httpCode = http.GET();
+    
+    if (httpCode > 0) {
+        String payload = http.getString();
+        
+        doc["success"] = true;
+        doc["message"] = "服务器连接测试成功";
+        doc["serverUrl"] = serverUrl;
+        doc["httpCode"] = httpCode;
+        doc["responseSize"] = payload.length();
+        
+        // 尝试解析JSON响应
+        DynamicJsonDocument responseDoc(1024);
+        if (deserializeJson(responseDoc, payload) == DeserializationError::Ok) {
+            doc["responseValid"] = true;
+            doc["responseData"] = responseDoc;
+        } else {
+            doc["responseValid"] = false;
+            doc["responsePreview"] = payload.substring(0, 200);
+        }
+        
+        printf("服务器连接测试成功，HTTP状态码: %d, 响应大小: %d字节\n", httpCode, payload.length());
+    } else {
+        doc["success"] = false;
+        doc["message"] = "服务器连接测试失败";
+        doc["serverUrl"] = serverUrl;
+        doc["error"] = http.errorToString(httpCode);
+        
+        printf("服务器连接测试失败，错误: %s\n", http.errorToString(httpCode).c_str());
+    }
+    
+    http.end();
+    
+    String response;
+    serializeJson(doc, response);
+    server->send(200, "application/json", response);
+}
+
+void WebServerManager::handleGetServerData() {
+    printf("处理获取服务器数据请求\n");
+    
+    DynamicJsonDocument doc(1024);
+    
+    if (!wifiManager->isConnected()) {
+        doc["success"] = false;
+        doc["message"] = "设备未连接WiFi，无法获取服务器数据";
+        printf("设备未连接WiFi，无法获取服务器数据\n");
+        String response;
+        serializeJson(doc, response);
+        server->send(400, "application/json", response);
+        return;
+    }
+    
+    String serverUrl = "";
+    if (server->hasArg("serverUrl")) {
+        serverUrl = server->arg("serverUrl");
+    } else {
+        // 从配置中获取服务器URL
+        if (configStorage) {
+            bool hasConfig = configStorage->hasServerConfigAsync(3000);
+            if (hasConfig) {
+                String configServerUrl;
+                int requestInterval;
+                bool enabled;
+                int connectionTimeout;
+                bool success = configStorage->loadServerConfigAsync(configServerUrl, requestInterval, enabled, connectionTimeout, 3000);
+                if (success && enabled) {
+                    serverUrl = configServerUrl;
+                }
+            }
+        }
+        
+        if (serverUrl.isEmpty()) {
+            serverUrl = "http://10.10.168.168/metrics.json";
+        }
+    }
+    
+    printf("获取服务器数据: %s\n", serverUrl.c_str());
+    
+    // 使用WiFiClient获取数据
+    WiFiClient client;
+    HTTPClient http;
+    
+    http.begin(client, serverUrl);
+    http.setTimeout(10000);  // 10秒超时
+    
+    int httpCode = http.GET();
+    
+    if (httpCode == HTTP_CODE_OK) {
+        String payload = http.getString();
+        
+        // 尝试解析JSON响应
+        DynamicJsonDocument responseDoc(1024);
+        if (deserializeJson(responseDoc, payload) == DeserializationError::Ok) {
+            doc["success"] = true;
+            doc["message"] = "服务器数据获取成功";
+            doc["serverUrl"] = serverUrl;
+            doc["timestamp"] = millis();
+            doc["data"] = responseDoc;
+            
+            printf("服务器数据获取成功，数据大小: %d字节\n", payload.length());
+        } else {
+            doc["success"] = false;
+            doc["message"] = "服务器响应不是有效的JSON格式";
+            doc["serverUrl"] = serverUrl;
+            doc["responsePreview"] = payload.substring(0, 200);
+            
+            printf("服务器响应不是有效的JSON格式\n");
+        }
+    } else {
+        doc["success"] = false;
+        doc["message"] = "服务器数据获取失败";
+        doc["serverUrl"] = serverUrl;
+        doc["httpCode"] = httpCode;
+        doc["error"] = http.errorToString(httpCode);
+        
+        printf("服务器数据获取失败，HTTP状态码: %d, 错误: %s\n", httpCode, http.errorToString(httpCode).c_str());
+    }
+    
+    http.end();
     
     String response;
     serializeJson(doc, response);

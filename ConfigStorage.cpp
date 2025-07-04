@@ -37,6 +37,11 @@ const char* ConfigStorage::SCREEN_END_HOUR_KEY = "scr_end_h";
 const char* ConfigStorage::SCREEN_END_MINUTE_KEY = "scr_end_m";
 const char* ConfigStorage::SCREEN_TIMEOUT_MINUTES_KEY = "scr_timeout";
 
+const char* ConfigStorage::SERVER_URL_KEY = "srv_url";
+const char* ConfigStorage::REQUEST_INTERVAL_KEY = "srv_interval";
+const char* ConfigStorage::ENABLED_KEY = "srv_enabled";
+const char* ConfigStorage::CONNECTION_TIMEOUT_KEY = "srv_timeout";
+
 ConfigStorage::ConfigStorage() : configTaskHandle(nullptr), configQueue(nullptr), taskRunning(false) {
 }
 
@@ -342,6 +347,33 @@ void ConfigStorage::processConfigRequest(ConfigRequest* request) {
             bool* result = static_cast<bool*>(request->result);
             if (result != nullptr) {
                 *result = hasScreenConfig();
+                request->success = true;
+            }
+            break;
+        }
+        
+        case CONFIG_OP_SAVE_SERVER_CONFIG: {
+            ServerConfigData* data = static_cast<ServerConfigData*>(request->data);
+            if (data != nullptr) {
+                request->success = saveServerConfig(data->serverUrl, data->requestInterval, 
+                                                   data->enabled, data->connectionTimeout);
+            }
+            break;
+        }
+        
+        case CONFIG_OP_LOAD_SERVER_CONFIG: {
+            ServerConfigData* result = static_cast<ServerConfigData*>(request->result);
+            if (result != nullptr) {
+                request->success = loadServerConfig(result->serverUrl, result->requestInterval, 
+                                                   result->enabled, result->connectionTimeout);
+            }
+            break;
+        }
+        
+        case CONFIG_OP_HAS_SERVER_CONFIG: {
+            bool* result = static_cast<bool*>(request->result);
+            if (result != nullptr) {
+                *result = hasServerConfig();
                 request->success = true;
             }
             break;
@@ -710,6 +742,46 @@ bool ConfigStorage::hasScreenConfigAsync(uint32_t timeoutMs) {
     return success && result;
 }
 
+// 异步服务器配置操作接口实现
+
+bool ConfigStorage::saveServerConfigAsync(const String& serverUrl, int requestInterval, 
+                                         bool enabled, int connectionTimeout, uint32_t timeoutMs) {
+    ServerConfigData data(serverUrl, requestInterval, enabled, connectionTimeout);
+    ConfigRequest request;
+    request.operation = CONFIG_OP_SAVE_SERVER_CONFIG;
+    request.data = &data;
+    
+    return sendRequestAndWait(&request, timeoutMs);
+}
+
+bool ConfigStorage::loadServerConfigAsync(String& serverUrl, int& requestInterval, 
+                                         bool& enabled, int& connectionTimeout, uint32_t timeoutMs) {
+    ServerConfigData result;
+    ConfigRequest request;
+    request.operation = CONFIG_OP_LOAD_SERVER_CONFIG;
+    request.result = &result;
+    
+    bool success = sendRequestAndWait(&request, timeoutMs);
+    if (success) {
+        serverUrl = result.serverUrl;
+        requestInterval = result.requestInterval;
+        enabled = result.enabled;
+        connectionTimeout = result.connectionTimeout;
+    }
+    
+    return success;
+}
+
+bool ConfigStorage::hasServerConfigAsync(uint32_t timeoutMs) {
+    bool result = false;
+    ConfigRequest request;
+    request.operation = CONFIG_OP_HAS_SERVER_CONFIG;
+    request.result = &result;
+    
+    bool success = sendRequestAndWait(&request, timeoutMs);
+    return success && result;
+}
+
 bool ConfigStorage::resetAllConfigAsync(uint32_t timeoutMs) {
     ConfigRequest request;
     request.operation = CONFIG_OP_RESET_ALL;
@@ -793,8 +865,6 @@ int ConfigStorage::getIntAsync(const String& key, int defaultValue, uint32_t tim
     bool success = sendRequestAndWait(&request, timeoutMs);
     return success ? result.intValue : defaultValue;
 }
-
-
 
 // 内部NVS操作方法实现 (原有方法改为private)
 
@@ -1589,6 +1659,92 @@ bool ConfigStorage::hasScreenConfig() {
     preferences.end();
     
     printf("🔍 [ConfigStorage] 检查屏幕设置配置存在性: 键='%s', %s\n", SCREEN_MODE_KEY, exists ? "存在" : "不存在");
+    return exists;
+}
+
+// 服务器配置方法实现
+
+bool ConfigStorage::saveServerConfig(const String& serverUrl, int requestInterval, 
+                                     bool enabled, int connectionTimeout) {
+    printf("💾 [ConfigStorage] 保存服务器配置\n");
+    printf("  服务器地址: %s\n", serverUrl.c_str());
+    printf("  请求间隔: %d毫秒\n", requestInterval);
+    printf("  启用状态: %s\n", enabled ? "启用" : "禁用");
+    printf("  连接超时: %d毫秒\n", connectionTimeout);
+    
+    if (!preferences.begin(SYSTEM_NAMESPACE, false)) {
+        printf("❌ [ConfigStorage] 打开系统配置命名空间失败\n");
+        return false;
+    }
+    
+    // 保存服务器配置
+    bool success = true;
+    success &= (preferences.putString(SERVER_URL_KEY, serverUrl) > 0);
+    success &= (preferences.putInt(REQUEST_INTERVAL_KEY, requestInterval) > 0);
+    success &= preferences.putBool(ENABLED_KEY, enabled);
+    success &= (preferences.putInt(CONNECTION_TIMEOUT_KEY, connectionTimeout) > 0);
+    
+    preferences.end();
+    
+    if (success) {
+        printf("✅ [ConfigStorage] 服务器配置保存成功\n");
+    } else {
+        printf("❌ [ConfigStorage] 服务器配置保存失败\n");
+    }
+    
+    return success;
+}
+
+bool ConfigStorage::loadServerConfig(String& serverUrl, int& requestInterval, 
+                                     bool& enabled, int& connectionTimeout) {
+    printf("📖 [ConfigStorage] 加载服务器配置\n");
+    
+    if (!preferences.begin(SYSTEM_NAMESPACE, true)) {
+        printf("⚠️ [ConfigStorage] 打开系统配置命名空间失败，使用默认服务器配置\n");
+        serverUrl = "http://10.10.168.168/metrics.json";
+        requestInterval = 250;
+        enabled = true;
+        connectionTimeout = 1000;
+        return false;
+    }
+    
+    // 加载服务器配置
+    serverUrl = preferences.getString(SERVER_URL_KEY, "http://10.10.168.168/metrics.json");
+    requestInterval = preferences.getInt(REQUEST_INTERVAL_KEY, 250);
+    enabled = preferences.getBool(ENABLED_KEY, true);
+    connectionTimeout = preferences.getInt(CONNECTION_TIMEOUT_KEY, 1000);
+    
+    preferences.end();
+    
+    // 验证配置参数范围
+    if (requestInterval < 100 || requestInterval > 1000) { // 100毫秒到1秒
+        printf("⚠️ [ConfigStorage] 加载的请求间隔超出范围(%d毫秒)，使用默认值250毫秒\n", requestInterval);
+        requestInterval = 250;
+    }
+    
+    if (connectionTimeout < 1000 || connectionTimeout > 60000) { // 1秒到60秒
+        printf("⚠️ [ConfigStorage] 加载的连接超时超出范围(%d毫秒)，使用默认值1000毫秒\n", connectionTimeout);
+        connectionTimeout = 1000;
+    }
+    
+    printf("📖 [ConfigStorage] 服务器配置加载完成\n");
+    printf("  服务器地址: %s\n", serverUrl.c_str());
+    printf("  请求间隔: %d毫秒\n", requestInterval);
+    printf("  启用状态: %s\n", enabled ? "启用" : "禁用");
+    printf("  连接超时: %d毫秒\n", connectionTimeout);
+    
+    return true;
+}
+
+bool ConfigStorage::hasServerConfig() {
+    if (!preferences.begin(SYSTEM_NAMESPACE, true)) {
+        return false;
+    }
+    
+    bool exists = preferences.isKey(SERVER_URL_KEY);
+    preferences.end();
+    
+    printf("🔍 [ConfigStorage] 检查服务器配置存在性: 键='%s', %s\n", SERVER_URL_KEY, exists ? "存在" : "不存在");
     return exists;
 }
 

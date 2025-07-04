@@ -216,6 +216,9 @@ String WebServerManager::getIndexHTML() {
     html += "                    <button onclick=\"window.location.href='/weather-settings'\" class=\"weather-btn\">\n";
     html += "                        天气设置\n";
     html += "                    </button>\n";
+    html += "                    <button onclick=\"window.location.href='/server-settings'\" class=\"settings-btn\">\n";
+    html += "                        服务器设置\n";
+    html += "                    </button>\n";
     html += "                    <button onclick=\"window.location.href='/screen-settings'\" class=\"settings-btn\">\n";
     html += "                        屏幕设置\n";
     html += "                    </button>\n";

@@ -14,6 +14,7 @@
 
 // 前向声明
 class PSRAMManager;
+class ConfigStorage;
 
 class Monitor {
 public:
@@ -23,6 +24,7 @@ public:
     // 初始化监控器
     void init();
     void init(PSRAMManager* psramManager);
+    void init(PSRAMManager* psramManager, ConfigStorage* configStorage);
     
     // 停止监控器
     void stop();
@@ -33,6 +35,9 @@ private:
     
     // PSRAM管理器指针
     PSRAMManager* m_psramManager;
+    
+    // 配置存储管理器指针
+    ConfigStorage* m_configStorage;
     
     // 静态任务函数
     static void monitoringTask(void* parameter);
@@ -46,6 +51,8 @@ private:
     // 监控配置
     String metricsUrl;
     uint32_t requestInterval;  // 请求间隔(ms)
+    uint32_t connectionTimeout;  // 连接超时(ms)
+    bool serverEnabled;  // 服务器监控是否启用
     
     // 私有方法
     bool fetchMetricsData();
@@ -54,6 +61,8 @@ private:
     void displaySystemInfo(JsonObject system);
     void displayWiFiInfo(JsonObject wifi);
     bool isWiFiConnected();
+    void loadServerConfig();  // 加载服务器配置
+    void setDefaultConfig();  // 设置默认配置
 };
 
 #endif // MONITOR_H 

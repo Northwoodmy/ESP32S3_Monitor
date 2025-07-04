@@ -128,6 +128,13 @@ private:
     void handleTestWeatherApi();
     void handleUpdateWeatherNow();
     
+    // 服务器设置相关API
+    void handleServerSettingsPage();
+    void handleGetServerConfig();
+    void handleSetServerConfig();
+    void handleTestServerConnection();
+    void handleGetServerData();
+    
     // 屏幕设置相关API
     void handleScreenSettings();
     void handleGetScreenSettings();
@@ -147,6 +154,9 @@ private:
     
     // 获取天气设置页面HTML
     String getWeatherSettingsHTML();
+    
+    // 获取服务器设置页面HTML
+    String getServerSettingsHTML();
     
     // 获取CSS样式
     String getCSS();
@@ -168,6 +178,12 @@ private:
     
     // 获取天气设置CSS样式
     String getWeatherSettingsCSS();
+    
+    // 获取服务器设置CSS样式
+    String getServerSettingsCSS();
+    
+    // 获取服务器设置JavaScript代码
+    String getServerSettingsJavaScript();
     
     // 获取OTA页面CSS样式
     String getOTAPageCSS();

@@ -56,6 +56,9 @@ enum ConfigOperation {
     CONFIG_OP_SAVE_SCREEN_CONFIG,
     CONFIG_OP_LOAD_SCREEN_CONFIG,
     CONFIG_OP_HAS_SCREEN_CONFIG,
+    CONFIG_OP_SAVE_SERVER_CONFIG,
+    CONFIG_OP_LOAD_SERVER_CONFIG,
+    CONFIG_OP_HAS_SERVER_CONFIG,
     CONFIG_OP_RESET_ALL,
     CONFIG_OP_PUT_STRING,
     CONFIG_OP_GET_STRING,
@@ -156,6 +159,19 @@ struct ScreenConfigData {
           timeoutMinutes(timeout) {}
 };
 
+// 服务器配置请求数据结构
+struct ServerConfigData {
+    String serverUrl;               // 监控服务器地址
+    int requestInterval;            // 请求间隔（毫秒）
+    bool enabled;                   // 是否启用监控
+    int connectionTimeout;          // 连接超时时间（毫秒）
+    
+        ServerConfigData() : serverUrl("http://10.10.168.168/metrics.json"), requestInterval(250),
+                         enabled(true), connectionTimeout(1000) {}
+    ServerConfigData(const String& url, int interval, bool en, int timeout) 
+        : serverUrl(url), requestInterval(interval), enabled(en), connectionTimeout(timeout) {}
+};
+
 // 通用配置请求数据结构
 struct GenericConfigData {
     String key;
@@ -228,6 +244,13 @@ public:
                               int& endHour, int& endMinute, int& timeoutMinutes, uint32_t timeoutMs = 5000);
     bool hasScreenConfigAsync(uint32_t timeoutMs = 5000);
     
+    // 异步服务器配置操作接口
+    bool saveServerConfigAsync(const String& serverUrl, int requestInterval, 
+                              bool enabled, int connectionTimeout, uint32_t timeoutMs = 5000);
+    bool loadServerConfigAsync(String& serverUrl, int& requestInterval, 
+                              bool& enabled, int& connectionTimeout, uint32_t timeoutMs = 5000);
+    bool hasServerConfigAsync(uint32_t timeoutMs = 5000);
+    
     // 异步配置重置操作接口
     bool resetAllConfigAsync(uint32_t timeoutMs = 5000);
     
@@ -294,6 +317,12 @@ private:
     static const char* SCREEN_END_MINUTE_KEY;
     static const char* SCREEN_TIMEOUT_MINUTES_KEY;
     
+    // 服务器配置键名
+    static const char* SERVER_URL_KEY;
+    static const char* REQUEST_INTERVAL_KEY;
+    static const char* ENABLED_KEY;
+    static const char* CONNECTION_TIMEOUT_KEY;
+    
     // 内部任务处理方法
     void processConfigRequest(ConfigRequest* request);
     
@@ -331,6 +360,12 @@ private:
     bool loadScreenConfig(ScreenMode& mode, int& startHour, int& startMinute, 
                          int& endHour, int& endMinute, int& timeoutMinutes);
     bool hasScreenConfig();
+    
+    bool saveServerConfig(const String& serverUrl, int requestInterval, 
+                         bool enabled, int connectionTimeout);
+    bool loadServerConfig(String& serverUrl, int& requestInterval, 
+                         bool& enabled, int& connectionTimeout);
+    bool hasServerConfig();
     
     bool resetAllConfig();
     

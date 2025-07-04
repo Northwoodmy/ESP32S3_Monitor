@@ -5,12 +5,12 @@
 
 #include "Monitor.h"
 #include "PSRAMManager.h"
+#include "ConfigStorage.h"
 #include "Arduino.h"
 
-Monitor::Monitor() : monitorTaskHandle(nullptr), m_psramManager(nullptr), isRunning(false) {
+Monitor::Monitor() : monitorTaskHandle(nullptr), m_psramManager(nullptr), m_configStorage(nullptr), isRunning(false) {
     // 设置默认配置
-    metricsUrl = "http://10.10.168.168/metrics.json";
-    requestInterval = 5000;  // 5秒请求一次
+    setDefaultConfig();
 }
 
 Monitor::~Monitor() {
@@ -22,16 +22,33 @@ void Monitor::init() {
 }
 
 void Monitor::init(PSRAMManager* psramManager) {
+    init(psramManager, nullptr);
+}
+
+void Monitor::init(PSRAMManager* psramManager, ConfigStorage* configStorage) {
     if (isRunning) {
         printf("监控器已经在运行中\n");
         return;
     }
     
     m_psramManager = psramManager;
+    m_configStorage = configStorage;
+    
+    // 如果提供了配置存储，加载服务器配置
+    if (m_configStorage) {
+        loadServerConfig();
+    }
+    
+    // 如果服务器监控未启用，不启动监控任务
+    if (!serverEnabled) {
+        printf("服务器监控已禁用，不启动监控任务\n");
+        return;
+    }
     
     printf("正在启动系统监控任务...\n");
     printf("目标URL: %s\n", metricsUrl.c_str());
     printf("请求间隔: %d ms\n", requestInterval);
+    printf("连接超时: %d ms\n", connectionTimeout);
     
     // 先设置运行标志，避免竞态条件
     isRunning = true;
@@ -71,6 +88,59 @@ void Monitor::stop() {
     
     isRunning = false;
     printf("监控任务已停止\n");
+}
+
+void Monitor::setDefaultConfig() {
+    metricsUrl = "http://10.10.168.168/metrics.json";
+    requestInterval = 250;  // 250毫秒请求一次
+    connectionTimeout = 1000;  // 1秒连接超时
+    serverEnabled = true;  // 默认启用服务器监控
+}
+
+void Monitor::loadServerConfig() {
+    if (!m_configStorage) {
+        printf("ConfigStorage未初始化，使用默认配置\n");
+        return;
+    }
+    
+    printf("正在加载服务器配置...\n");
+    
+    // 检查是否有服务器配置
+    if (!m_configStorage->hasServerConfigAsync()) {
+        printf("未找到服务器配置，使用默认配置\n");
+        return;
+    }
+    
+    // 加载服务器配置
+    String serverUrl;
+    int requestIntervalConfig;
+    bool enabled;
+    int connectionTimeoutConfig;
+    
+    if (m_configStorage->loadServerConfigAsync(serverUrl, requestIntervalConfig, enabled, connectionTimeoutConfig)) {
+        printf("服务器配置加载成功\n");
+        
+        // 应用配置
+        if (serverUrl.length() > 0) {
+            metricsUrl = serverUrl;
+            printf("服务器URL: %s\n", metricsUrl.c_str());
+        }
+        
+        if (requestIntervalConfig > 0) {
+            requestInterval = requestIntervalConfig;
+            printf("请求间隔: %d ms\n", requestInterval);
+        }
+        
+        if (connectionTimeoutConfig > 0) {
+            connectionTimeout = connectionTimeoutConfig;
+            printf("连接超时: %d ms\n", connectionTimeout);
+        }
+        
+        serverEnabled = enabled;
+        printf("服务器监控: %s\n", serverEnabled ? "启用" : "禁用");
+    } else {
+        printf("服务器配置加载失败，使用默认配置\n");
+    }
 }
 
 void Monitor::monitoringTask(void* parameter) {
@@ -115,7 +185,7 @@ bool Monitor::fetchMetricsData() {
     
     // 配置HTTP客户端，优化内存使用
     httpClient.begin(metricsUrl);
-    httpClient.setTimeout(10000);  // 10秒超时
+    httpClient.setTimeout(connectionTimeout);  // 使用配置的连接超时
     httpClient.setConnectTimeout(5000);  // 5秒连接超时
     
     // 设置HTTP请求头，减少不必要的数据传输

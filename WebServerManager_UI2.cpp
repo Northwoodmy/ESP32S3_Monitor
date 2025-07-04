@@ -3119,3 +3119,1039 @@ String WebServerManager::getScreenSettingsJavaScript() {
     
     return js;
 }
+
+String WebServerManager::getServerSettingsHTML() {
+    String html = "<!DOCTYPE html>\n";
+    html += "<html lang=\"zh-CN\">\n";
+    html += "<head>\n";
+    html += "    <meta charset=\"UTF-8\">\n";
+    html += "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n";
+    html += "    <title>服务器设置 - ESP32S3 Monitor</title>\n";
+    html += "    <style>\n";
+    html += getCSS();
+    html += getServerSettingsCSS();
+    html += "    </style>\n";
+    html += "</head>\n";
+    html += "<body>\n";
+    html += "    <div class=\"container\">\n";
+    html += "        <header class=\"header\">\n";
+    html += "            <h1>小屏幕配置</h1>\n";
+    html += "            <div class=\"subtitle\">服务器设置</div>\n";
+    html += "        </header>\n";
+    html += "        \n";
+    html += "        <div class=\"card\">\n";
+    html += "            <button onclick=\"window.location.href='/'\" class=\"back-home-btn\">\n";
+    html += "                返回首页\n";
+    html += "            </button>\n";
+    html += "            \n";
+    html += "            <!-- 服务器状态显示 -->\n";
+    html += "            <div class=\"settings-section\">\n";
+    html += "                <h2>服务器状态</h2>\n";
+    html += "                <div class=\"server-status\">\n";
+    html += "                    <div class=\"status-card\">\n";
+    html += "                        <div class=\"server-info\" id=\"serverStatusInfo\">\n";
+    html += "                            <div class=\"status-loading\">\n";
+    html += "                                <div class=\"spinner\"></div>\n";
+    html += "                                <span>检查服务器状态中...</span>\n";
+    html += "                            </div>\n";
+    html += "                        </div>\n";
+    html += "                    </div>\n";
+    html += "                </div>\n";
+    html += "            </div>\n";
+    html += "            \n";
+    html += "            <!-- 服务器配置 -->\n";
+    html += "            <div class=\"settings-section\">\n";
+    html += "                <h2>服务器配置</h2>\n";
+    html += "                <div class=\"server-config\">\n";
+    html += "                    <div class=\"setting-group\">\n";
+    html += "                        <h3>基础配置</h3>\n";
+    html += "                        <div class=\"server-basic-config\">\n";
+    html += "                            <p class=\"setting-description\">\n";
+    html += "                                配置监控服务器地址，用于获取实时数据和指标信息。\n";
+    html += "                            </p>\n";
+    html += "                            <div class=\"form-group\">\n";
+    html += "                                <label for=\"serverUrl\">服务器IP地址:</label>\n";
+    html += "                                <input type=\"text\" id=\"serverUrl\" class=\"setting-input\" placeholder=\"10.10.168.168\">\n";
+    html += "                                <div class=\"url-help\">\n";
+    html += "                                    <small>请输入服务器IP地址</small>\n";
+    html += "                                </div>\n";
+    html += "                            </div>\n";
+    html += "                        </div>\n";
+    html += "                    </div>\n";
+    html += "                    \n";
+    html += "                    <div class=\"setting-group\">\n";
+    html += "                        <h3>请求设置</h3>\n";
+    html += "                        <div class=\"request-config\">\n";
+    html += "                            <p class=\"setting-description\">\n";
+    html += "                                配置数据请求的相关参数，包括请求间隔和超时设置。\n";
+    html += "                            </p>\n";
+    html += "                            <div class=\"form-row\">\n";
+    html += "                                <div class=\"form-group\">\n";
+    html += "                                    <label for=\"requestInterval\">请求间隔 (毫秒):</label>\n";
+    html += "                                    <input type=\"number\" id=\"requestInterval\" class=\"setting-input\" min=\"100\" max=\"1000\" value=\"250\">\n";
+    html += "                                    <small>建议设置为100-1000毫秒</small>\n";
+    html += "                                </div>\n";
+    html += "                                <div class=\"form-group\">\n";
+    html += "                                    <label for=\"connectionTimeout\">连接超时 (毫秒):</label>\n";
+    html += "                                    <input type=\"number\" id=\"connectionTimeout\" class=\"setting-input\" min=\"1000\" max=\"60000\" value=\"1000\">\n";
+    html += "                                    <small>默认1000毫秒，不建议修改</small>\n";
+    html += "                                </div>\n";
+    html += "                            </div>\n";
+    html += "                            <div class=\"form-group\">\n";
+    html += "                                <label class=\"switch-label\">\n";
+    html += "                                    <input type=\"checkbox\" id=\"enableServer\" class=\"switch-input\" checked>\n";
+    html += "                                    <span class=\"switch-slider\"></span>\n";
+    html += "                                    启用服务器数据获取\n";
+    html += "                                </label>\n";
+    html += "                            </div>\n";
+    html += "                        </div>\n";
+    html += "                    </div>\n";
+    html += "                    \n";
+    html += "                    <div class=\"setting-group\">\n";
+    html += "                        <h3>操作功能</h3>\n";
+    html += "                        <div class=\"server-actions\">\n";
+    html += "                            <button onclick=\"testServerConnection()\" class=\"setting-btn primary-btn\">\n";
+    html += "                                <span class=\"btn-text\">测试连接</span>\n";
+    html += "                                <div class=\"btn-loading hidden\">\n";
+    html += "                                    <div class=\"spinner-sm\"></div>\n";
+    html += "                                    <span>测试中...</span>\n";
+    html += "                                </div>\n";
+    html += "                            </button>\n";
+    html += "                            <button onclick=\"getServerData()\" class=\"setting-btn info-btn\">\n";
+    html += "                                <span class=\"btn-text\">获取数据</span>\n";
+    html += "                                <div class=\"btn-loading hidden\">\n";
+    html += "                                    <div class=\"spinner-sm\"></div>\n";
+    html += "                                    <span>获取中...</span>\n";
+    html += "                                </div>\n";
+    html += "                            </button>\n";
+    html += "                            <button onclick=\"saveServerConfig()\" class=\"setting-btn success-btn\">\n";
+    html += "                                <span class=\"btn-text\">保存配置</span>\n";
+    html += "                                <div class=\"btn-loading hidden\">\n";
+    html += "                                    <div class=\"spinner-sm\"></div>\n";
+    html += "                                    <span>保存中...</span>\n";
+    html += "                                </div>\n";
+    html += "                            </button>\n";
+    html += "                        </div>\n";
+    html += "                    </div>\n";
+    html += "                </div>\n";
+    html += "            </div>\n";
+    html += "            \n";
+    html += "            <!-- 服务器数据显示 -->\n";
+    html += "            <div class=\"settings-section\">\n";
+    html += "                <h2>服务器数据</h2>\n";
+    html += "                <div class=\"server-data\">\n";
+    html += "                    <div class=\"data-display\" id=\"serverDataDisplay\">\n";
+    html += "                        <div class=\"data-placeholder\">\n";
+    html += "                            <p>暂无数据，请点击\"获取数据\"按钮</p>\n";
+    html += "                        </div>\n";
+    html += "                    </div>\n";
+    html += "                </div>\n";
+    html += "            </div>\n";
+    html += "        </div>\n";
+    html += "    </div>\n";
+    html += "    \n";
+    html += "    <div id=\"toast\" class=\"toast hidden\">\n";
+    html += "        <div class=\"toast-content\">\n";
+    html += "            <span id=\"toastMessage\"></span>\n";
+    html += "        </div>\n";
+    html += "    </div>\n";
+    html += "    \n";
+    html += "    <script>\n";
+    html += getServerSettingsJavaScript();
+    html += "    </script>\n";
+    html += "</body>\n";
+    html += "</html>\n";
+    
+    return html;
+}
+
+String WebServerManager::getServerSettingsCSS() {
+    return R"(
+        /* 服务器设置页面样式 - 与时间设置页面保持一致 */
+        .settings-section {
+            margin-bottom: 32px;
+            position: relative;
+            animation: slideIn 0.6s ease-out;
+        }
+        
+        .settings-section h2 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        /* 服务器状态显示区域 */
+        .server-status {
+            margin-bottom: 24px;
+        }
+        
+        .status-card {
+            background: linear-gradient(135deg, #10b981 0%, #059669 50%, #047857 100%);
+            border-radius: 24px;
+            padding: 32px;
+            color: white;
+            text-align: center;
+            box-shadow: 
+                0 20px 60px rgba(16, 185, 129, 0.4),
+                0 8px 20px rgba(16, 185, 129, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .status-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(45deg, rgba(255,255,255,0.15), transparent);
+            animation: shine 4s infinite;
+            opacity: 0.8;
+        }
+        
+        .server-info {
+            font-size: 1.3rem;
+            font-weight: 600;
+            position: relative;
+            z-index: 2;
+            text-align: center;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .status-loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            padding: 40px 20px;
+            font-size: 1.1rem;
+            font-weight: 500;
+            text-align: center;
+            width: 100%;
+        }
+        
+        .status-loading .spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #ffffff;
+            animation: statusSpin 1.2s ease-in-out infinite;
+        }
+        
+        @keyframes statusSpin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .status-success {
+            padding: 32px 20px;
+            text-align: center;
+            font-size: 1.1rem;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            gap: 12px;
+        }
+        
+        .status-error {
+            padding: 32px 20px;
+            text-align: center;
+            font-size: 1.1rem;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.9);
+            background: rgba(239, 68, 68, 0.2);
+            border-radius: 12px;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+        }
+        
+        /* 服务器配置区域 */
+        .server-config {
+            display: grid;
+            gap: 20px;
+        }
+        
+        .setting-group {
+            background: linear-gradient(145deg, #ffffff, #f8fafc);
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+            position: relative;
+            animation: fadeInUp 0.6s ease-out forwards;
+            opacity: 0;
+        }
+        
+        .setting-group:nth-child(1) {
+            animation-delay: 0.1s;
+        }
+        
+        .setting-group:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+        
+        .setting-group:nth-child(3) {
+            animation-delay: 0.3s;
+        }
+        
+        .setting-group:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+        }
+        
+        .setting-group h3 {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .setting-description {
+            color: #6b7280;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            margin-bottom: 16px;
+            padding: 12px;
+            background: #f1f5f9;
+            border-radius: 8px;
+            border-left: 4px solid #3b82f6;
+        }
+        
+        /* 表单样式 */
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .setting-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            font-size: 1rem;
+            background: white;
+            transition: all 0.3s ease;
+            margin-bottom: 8px;
+        }
+        
+        .setting-input:focus {
+            outline: none;
+            border-color: #14b8a6;
+            box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.1);
+            background-color: #fefefe;
+        }
+        
+        .url-help small {
+            color: #6b7280;
+            font-size: 0.85rem;
+            line-height: 1.4;
+        }
+        
+        /* 开关样式 */
+        .switch-label {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 16px;
+        }
+        
+        .switch-input {
+            display: none;
+        }
+        
+        .switch-slider {
+            position: relative;
+            width: 50px;
+            height: 24px;
+            background: #e5e7eb;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+        }
+        
+        .switch-slider::before {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .switch-input:checked + .switch-slider {
+            background: #14b8a6;
+        }
+        
+        .switch-input:checked + .switch-slider::before {
+            transform: translateX(26px);
+        }
+        
+        /* 按钮样式 */
+        .server-actions {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        
+        .server-actions .setting-btn {
+            flex: 1;
+            min-width: 140px;
+        }
+        
+        .setting-btn {
+            padding: 14px 24px;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            position: relative;
+            overflow: hidden;
+            text-decoration: none;
+        }
+        
+        .setting-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+        
+        .setting-btn:hover::before {
+            left: 100%;
+        }
+        
+        .primary-btn {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+        }
+        
+        .primary-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+        }
+        
+        .success-btn {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+        }
+        
+        .success-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
+        }
+        
+        .info-btn {
+            background: linear-gradient(135deg, #0891b2, #0e7490);
+            color: white;
+            box-shadow: 0 4px 15px rgba(8, 145, 178, 0.3);
+        }
+        
+        .info-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(8, 145, 178, 0.4);
+        }
+        
+        .setting-btn:disabled {
+            background: linear-gradient(135deg, #9ca3af, #6b7280);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        /* 服务器数据显示区域 */
+        .server-data {
+            background: linear-gradient(145deg, #ffffff, #f8fafc);
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            animation: fadeInUp 0.6s ease-out forwards;
+            opacity: 0;
+            animation-delay: 0.4s;
+        }
+        
+        .data-display {
+            min-height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .data-placeholder {
+            text-align: center;
+            color: #6b7280;
+            font-size: 1.1rem;
+        }
+        
+        .data-content {
+            width: 100%;
+        }
+        
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        
+        .data-table th,
+        .data-table td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .data-table th {
+            background: #f8fafc;
+            font-weight: 600;
+            color: #374151;
+        }
+        
+        .data-table td {
+            color: #4b5563;
+        }
+        
+        .data-table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .data-table tr:hover {
+            background: #f9fafb;
+        }
+        
+        /* JSON数据显示 */
+        .json-display {
+            background: #1f2937;
+            border-radius: 12px;
+            padding: 20px;
+            overflow-x: auto;
+            font-family: 'Courier New', Monaco, monospace;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            color: #e5e7eb;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .json-display pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        /* 加载和错误状态 */
+        .spinner-sm {
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .btn-loading {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        /* 动画效果 */
+        @keyframes shine {
+            0% { 
+                transform: translateX(-100%) translateY(-100%) rotate(45deg);
+                opacity: 0;
+            }
+            50% {
+                opacity: 1;
+            }
+            100% { 
+                transform: translateX(100%) translateY(100%) rotate(45deg);
+                opacity: 0;
+            }
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .container {
+                padding: 16px;
+            }
+            
+            .card {
+                padding: 20px;
+                padding-top: 60px;
+            }
+            
+            .settings-section h2 {
+                font-size: 1.5rem;
+            }
+            
+            .setting-group {
+                padding: 20px;
+            }
+            
+            .server-actions {
+                flex-direction: column;
+            }
+            
+            .server-actions .setting-btn {
+                min-width: auto;
+            }
+            
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .status-card {
+                padding: 24px 20px;
+                border-radius: 20px;
+            }
+            
+            .setting-group {
+                padding: 16px;
+            }
+            
+            .server-data {
+                padding: 16px;
+            }
+        }
+    )";
+}
+
+String WebServerManager::getServerSettingsJavaScript() {
+    String js = "";
+    
+    // 基础工具函数
+    js += "function showToast(message, type) {\n";
+    js += "    const toast = document.getElementById('toast');\n";
+    js += "    const toastMessage = document.getElementById('toastMessage');\n";
+    js += "    toastMessage.textContent = message;\n";
+    js += "    toast.className = 'toast show ' + (type || 'info');\n";
+    js += "    setTimeout(() => { toast.className = 'toast hidden'; }, 3000);\n";
+    js += "}\n\n";
+    
+    // 页面初始化
+    js += "document.addEventListener('DOMContentLoaded', function() {\n";
+    js += "    initServerSettings();\n";
+    js += "    loadServerConfig();\n";
+    js += "    checkServerStatus();\n";
+    js += "});\n\n";
+    
+    js += "function initServerSettings() {\n";
+    js += "    console.log('初始化服务器设置页面');\n";
+    js += "}\n\n";
+    
+    js += "function loadServerConfig() {\n";
+    js += "    fetch('/api/server/config')\n";
+    js += "        .then(response => response.json())\n";
+    js += "        .then(data => {\n";
+    js += "            if (data.success && data.config) {\n";
+    js += "                const serverUrl = document.getElementById('serverUrl');\n";
+    js += "                const requestInterval = document.getElementById('requestInterval');\n";
+    js += "                const connectionTimeout = document.getElementById('connectionTimeout');\n";
+    js += "                const enableServer = document.getElementById('enableServer');\n";
+    js += "                \n";
+    js += "                // 从完整URL中提取IP地址\n";
+    js += "                if (serverUrl) {\n";
+    js += "                    const fullUrl = data.config.serverUrl || '';\n";
+    js += "                    if (fullUrl.includes('://')) {\n";
+    js += "                        const urlParts = fullUrl.split('://');\n";
+    js += "                        if (urlParts.length > 1) {\n";
+    js += "                            const hostPart = urlParts[1].split('/')[0];\n";
+    js += "                            serverUrl.value = hostPart;\n";
+    js += "                        } else {\n";
+    js += "                            serverUrl.value = fullUrl;\n";
+    js += "                        }\n";
+    js += "                    } else {\n";
+    js += "                        serverUrl.value = fullUrl;\n";
+    js += "                    }\n";
+    js += "                }\n";
+    js += "                if (requestInterval) requestInterval.value = data.config.requestInterval || 250;\n";
+    js += "                if (connectionTimeout) connectionTimeout.value = data.config.connectionTimeout || 1000;\n";
+    js += "                if (enableServer) enableServer.checked = data.config.enabled !== false;\n";
+    js += "                \n";
+    js += "                console.log('服务器配置加载成功:', data.config);\n";
+    js += "            } else {\n";
+    js += "                console.log('使用默认配置:', data.message);\n";
+    js += "            }\n";
+    js += "        })\n";
+    js += "        .catch(error => {\n";
+    js += "            console.error('加载配置失败:', error);\n";
+    js += "            showToast('加载配置失败', 'error');\n";
+    js += "        });\n";
+    js += "}\n\n";
+    
+    js += "function checkServerStatus() {\n";
+    js += "    const statusInfo = document.getElementById('serverStatusInfo');\n";
+    js += "    if (!statusInfo) return;\n";
+    js += "    \n";
+    js += "    // 显示加载状态\n";
+    js += "    statusInfo.innerHTML = `\n";
+    js += "        <div class=\"status-loading\">\n";
+    js += "            <div class=\"spinner\"></div>\n";
+    js += "            <span>检查服务器状态中...</span>\n";
+    js += "        </div>\n";
+    js += "    `;\n";
+    js += "    \n";
+    js += "    // 延时1秒后执行状态检查，给页面一个加载的视觉效果\n";
+    js += "    setTimeout(() => {\n";
+    js += "        statusInfo.innerHTML = `\n";
+    js += "            <div class=\"status-success\">\n";
+    js += "                <h3>服务器设置已就绪</h3>\n";
+    js += "                <p>可以配置和测试服务器连接</p>\n";
+    js += "            </div>\n";
+    js += "        `;\n";
+    js += "    }, 1000);\n";
+    js += "}\n\n";
+    
+    js += "function saveServerConfig() {\n";
+    js += "    const saveBtn = document.querySelector('.success-btn');\n";
+    js += "    const btnText = saveBtn.querySelector('.btn-text');\n";
+    js += "    const btnLoading = saveBtn.querySelector('.btn-loading');\n";
+    js += "    \n";
+    js += "    // 显示加载状态\n";
+    js += "    btnText.style.display = 'none';\n";
+    js += "    btnLoading.classList.remove('hidden');\n";
+    js += "    \n";
+    js += "    const serverIp = document.getElementById('serverUrl').value.trim();\n";
+    js += "    const requestInterval = parseInt(document.getElementById('requestInterval').value) || 250;\n";
+    js += "    const connectionTimeout = parseInt(document.getElementById('connectionTimeout').value) || 1000;\n";
+    js += "    const enabled = document.getElementById('enableServer').checked;\n";
+    js += "    \n";
+    js += "    // 基本验证\n";
+    js += "    if (!serverIp) {\n";
+    js += "        showToast('请输入服务器IP地址', 'warning');\n";
+    js += "        resetSaveButton();\n";
+    js += "        return;\n";
+    js += "    }\n";
+    js += "    \n";
+    js += "    // 简单IP地址格式验证\n";
+    js += "    const ipPattern = /^(\\d{1,3}\\.){3}\\d{1,3}$/;\n";
+    js += "    if (!ipPattern.test(serverIp)) {\n";
+    js += "        showToast('请输入有效的IP地址格式', 'warning');\n";
+    js += "        resetSaveButton();\n";
+    js += "        return;\n";
+    js += "    }\n";
+    js += "    \n";
+    js += "    // 自动拼接完整URL\n";
+    js += "    const serverUrl = 'http://' + serverIp + '/metrics.json';\n";
+    js += "    \n";
+    js += "    const formData = new FormData();\n";
+    js += "    formData.append('serverUrl', serverUrl);\n";
+    js += "    formData.append('requestInterval', requestInterval.toString());\n";
+    js += "    formData.append('connectionTimeout', connectionTimeout.toString());\n";
+    js += "    formData.append('enabled', enabled.toString());\n";
+    js += "    \n";
+    js += "    fetch('/api/server/config', {\n";
+    js += "        method: 'POST',\n";
+    js += "        body: formData\n";
+    js += "    })\n";
+    js += "    .then(response => response.json())\n";
+    js += "    .then(data => {\n";
+    js += "        if (data.success) {\n";
+    js += "            showToast('服务器配置保存成功', 'success');\n";
+    js += "        } else {\n";
+    js += "            showToast('保存失败: ' + data.message, 'error');\n";
+    js += "        }\n";
+    js += "    })\n";
+    js += "    .catch(error => {\n";
+    js += "        console.error('保存配置失败:', error);\n";
+    js += "        showToast('保存配置失败', 'error');\n";
+    js += "    })\n";
+    js += "    .finally(() => {\n";
+    js += "        resetSaveButton();\n";
+    js += "    });\n";
+    js += "}\n\n";
+    
+    js += "function testServerConnection() {\n";
+    js += "    const testBtn = document.querySelector('.primary-btn');\n";
+    js += "    const btnText = testBtn.querySelector('.btn-text');\n";
+    js += "    const btnLoading = testBtn.querySelector('.btn-loading');\n";
+    js += "    const statusInfo = document.getElementById('serverStatusInfo');\n";
+    js += "    \n";
+    js += "    // 显示加载状态\n";
+    js += "    btnText.style.display = 'none';\n";
+    js += "    btnLoading.classList.remove('hidden');\n";
+    js += "    \n";
+    js += "    // 更新状态显示\n";
+    js += "    if (statusInfo) {\n";
+    js += "        statusInfo.innerHTML = `\n";
+    js += "            <div class=\"status-loading\">\n";
+    js += "                <div class=\"spinner\"></div>\n";
+    js += "                <span>正在测试服务器连接...</span>\n";
+    js += "            </div>\n";
+    js += "        `;\n";
+    js += "    }\n";
+    js += "    \n";
+    js += "    const serverIp = document.getElementById('serverUrl').value.trim();\n";
+    js += "    \n";
+    js += "    const formData = new FormData();\n";
+    js += "    if (serverIp) {\n";
+    js += "        // 自动拼接完整URL\n";
+    js += "        const serverUrl = 'http://' + serverIp + '/metrics.json';\n";
+    js += "        formData.append('serverUrl', serverUrl);\n";
+    js += "    }\n";
+    js += "    \n";
+    js += "    fetch('/api/server/test', {\n";
+    js += "        method: 'POST',\n";
+    js += "        body: formData\n";
+    js += "    })\n";
+    js += "    .then(response => response.json())\n";
+    js += "    .then(data => {\n";
+    js += "        if (data.success) {\n";
+    js += "            showToast('服务器连接测试成功', 'success');\n";
+    js += "            \n";
+    js += "            // 更新状态显示为成功\n";
+    js += "            if (statusInfo) {\n";
+    js += "                statusInfo.innerHTML = `\n";
+    js += "                    <div class=\"status-success\">\n";
+    js += "                        <h3>连接成功</h3>\n";
+    js += "                        <p>服务器地址: ${data.serverUrl}</p>\n";
+    js += "                        <p>HTTP状态码: ${data.httpCode}</p>\n";
+    js += "                        <p>响应大小: ${data.responseSize} 字节</p>\n";
+    js += "                        ${data.responseValid ? '<p style=\"color: #10b981;\">✓ JSON格式有效</p>' : '<p style=\"color: #f59e0b;\">⚠ 响应非JSON格式</p>'}\n";
+    js += "                    </div>\n";
+    js += "                `;\n";
+    js += "            }\n";
+    js += "        } else {\n";
+    js += "            showToast('连接测试失败: ' + data.message, 'error');\n";
+    js += "            \n";
+    js += "            // 更新状态显示为失败\n";
+    js += "            if (statusInfo) {\n";
+    js += "                statusInfo.innerHTML = `\n";
+    js += "                    <div class=\"status-error\">\n";
+    js += "                        <h3>连接失败</h3>\n";
+    js += "                        <p>错误: ${data.message}</p>\n";
+    js += "                        ${data.serverUrl ? '<p>服务器: ' + data.serverUrl + '</p>' : ''}\n";
+    js += "                    </div>\n";
+    js += "                `;\n";
+    js += "            }\n";
+    js += "        }\n";
+    js += "    })\n";
+    js += "    .catch(error => {\n";
+    js += "        console.error('测试连接失败:', error);\n";
+    js += "        showToast('测试连接失败', 'error');\n";
+    js += "        \n";
+    js += "        // 更新状态显示为错误\n";
+    js += "        if (statusInfo) {\n";
+    js += "            statusInfo.innerHTML = `\n";
+    js += "                <div class=\"status-error\">\n";
+    js += "                    <h3>连接错误</h3>\n";
+    js += "                    <p>网络或服务器错误</p>\n";
+    js += "                </div>\n";
+    js += "            `;\n";
+    js += "        }\n";
+    js += "    })\n";
+    js += "    .finally(() => {\n";
+    js += "        resetTestButton();\n";
+    js += "    });\n";
+    js += "}\n\n";
+    
+    js += "function getServerData() {\n";
+    js += "    const dataBtn = document.querySelector('.info-btn');\n";
+    js += "    const btnText = dataBtn.querySelector('.btn-text');\n";
+    js += "    const btnLoading = dataBtn.querySelector('.btn-loading');\n";
+    js += "    const dataDisplay = document.getElementById('serverDataDisplay');\n";
+    js += "    \n";
+    js += "    // 显示加载状态\n";
+    js += "    btnText.style.display = 'none';\n";
+    js += "    btnLoading.classList.remove('hidden');\n";
+    js += "    \n";
+    js += "    // 更新数据显示区域\n";
+    js += "    if (dataDisplay) {\n";
+    js += "        dataDisplay.innerHTML = `\n";
+    js += "            <div class=\"status-loading\">\n";
+    js += "                <div class=\"spinner\"></div>\n";
+    js += "                <span>正在获取服务器数据...</span>\n";
+    js += "            </div>\n";
+    js += "        `;\n";
+    js += "    }\n";
+    js += "    \n";
+    js += "    const serverIp = document.getElementById('serverUrl').value.trim();\n";
+    js += "    \n";
+    js += "    const params = new URLSearchParams();\n";
+    js += "    if (serverIp) {\n";
+    js += "        // 自动拼接完整URL\n";
+    js += "        const serverUrl = 'http://' + serverIp + '/metrics.json';\n";
+    js += "        params.append('serverUrl', serverUrl);\n";
+    js += "    }\n";
+    js += "    \n";
+    js += "    fetch('/api/server/data?' + params.toString())\n";
+    js += "    .then(response => response.json())\n";
+    js += "    .then(data => {\n";
+    js += "        if (data.success && data.data) {\n";
+    js += "            showToast('服务器数据获取成功', 'success');\n";
+    js += "            displayServerData(data.data, data.timestamp);\n";
+    js += "        } else {\n";
+    js += "            showToast('获取数据失败: ' + data.message, 'error');\n";
+    js += "            displayError(data.message, data.serverUrl);\n";
+    js += "        }\n";
+    js += "    })\n";
+    js += "    .catch(error => {\n";
+    js += "        console.error('获取数据失败:', error);\n";
+    js += "        showToast('获取数据失败', 'error');\n";
+    js += "        displayError('网络或服务器错误');\n";
+    js += "    })\n";
+    js += "    .finally(() => {\n";
+    js += "        resetDataButton();\n";
+    js += "    });\n";
+    js += "}\n\n";
+    
+    js += "function displayServerData(data, timestamp) {\n";
+    js += "    const dataDisplay = document.getElementById('serverDataDisplay');\n";
+    js += "    if (!dataDisplay) return;\n";
+    js += "    \n";
+    js += "    const timeStr = timestamp ? new Date(timestamp).toLocaleString() : new Date().toLocaleString();\n";
+    js += "    \n";
+    js += "    dataDisplay.innerHTML = `\n";
+    js += "        <div class=\"data-content\">\n";
+    js += "            <div style=\"display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;\">\n";
+    js += "                <h3 style=\"margin: 0; color: #374151; font-size: 1.2rem;\">服务器数据</h3>\n";
+    js += "                <small style=\"color: #6b7280;\">获取时间: ${timeStr}</small>\n";
+    js += "            </div>\n";
+    js += "            <div class=\"json-display\">\n";
+    js += "                <pre>${JSON.stringify(data, null, 2)}</pre>\n";
+    js += "            </div>\n";
+    js += "        </div>\n";
+    js += "    `;\n";
+    js += "}\n\n";
+    
+    js += "function displayError(message, serverUrl) {\n";
+    js += "    const dataDisplay = document.getElementById('serverDataDisplay');\n";
+    js += "    if (!dataDisplay) return;\n";
+    js += "    \n";
+    js += "    dataDisplay.innerHTML = `\n";
+    js += "        <div class=\"data-placeholder\">\n";
+    js += "            <p style=\"color: #ef4444; font-weight: 500;\">获取数据失败</p>\n";
+    js += "            <p style=\"color: #6b7280;\">${message}</p>\n";
+    js += "            ${serverUrl ? '<p style=\"color: #6b7280; font-size: 0.9rem;\">服务器: ' + serverUrl + '</p>' : ''}\n";
+    js += "        </div>\n";
+    js += "    `;\n";
+    js += "}\n\n";
+    
+    js += "function resetSaveButton() {\n";
+    js += "    const saveBtn = document.querySelector('.success-btn');\n";
+    js += "    const btnText = saveBtn.querySelector('.btn-text');\n";
+    js += "    const btnLoading = saveBtn.querySelector('.btn-loading');\n";
+    js += "    \n";
+    js += "    // 恢复按钮状态\n";
+    js += "    btnText.style.display = '';\n";
+    js += "    btnLoading.classList.add('hidden');\n";
+    js += "}\n\n";
+    
+    js += "function resetTestButton() {\n";
+    js += "    const testBtn = document.querySelector('.primary-btn');\n";
+    js += "    const btnText = testBtn.querySelector('.btn-text');\n";
+    js += "    const btnLoading = testBtn.querySelector('.btn-loading');\n";
+    js += "    \n";
+    js += "    // 恢复按钮状态\n";
+    js += "    btnText.style.display = '';\n";
+    js += "    btnLoading.classList.add('hidden');\n";
+    js += "}\n\n";
+    
+    js += "function resetDataButton() {\n";
+    js += "    const dataBtn = document.querySelector('.info-btn');\n";
+    js += "    const btnText = dataBtn.querySelector('.btn-text');\n";
+    js += "    const btnLoading = dataBtn.querySelector('.btn-loading');\n";
+    js += "    \n";
+    js += "    // 恢复按钮状态\n";
+    js += "    btnText.style.display = '';\n";
+    js += "    btnLoading.classList.add('hidden');\n";
+    js += "}\n";
+    
+    return js;
+}
