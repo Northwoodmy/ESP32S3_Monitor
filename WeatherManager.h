@@ -190,6 +190,9 @@ private:
     // 互斥锁操作
     bool lockWeatherData(unsigned long timeout = 1000);
     void unlockWeatherData();
+    
+    // 配置验证
+    bool validateConfig(const WeatherConfig& config);
 };
 
 #endif // WEATHER_MANAGER_H 

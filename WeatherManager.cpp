@@ -18,8 +18,8 @@
 // 默认配置
 static const WeatherConfig DEFAULT_CONFIG = {
     .apiKey = "",                               // 需要用户配置高德API密钥
-    .cityCode = "110000",                       // 默认北京
-    .cityName = "北京",
+    .cityCode = "",                             // 空值，需要用户配置
+    .cityName = "",                             // 空值，需要用户配置
     .autoUpdate = true,
     .updateInterval = 30,                       // 30分钟
     .enableForecast = true
@@ -165,6 +165,13 @@ bool WeatherManager::setConfig(const WeatherConfig& config) {
         return false;
     }
     
+    // 验证配置的有效性
+    if (!validateConfig(config)) {
+        printf("❌ 天气配置验证失败\n");
+        unlockWeatherData();
+        return false;
+    }
+    
     _config = config;
     bool success = saveConfig();
     
@@ -172,6 +179,7 @@ bool WeatherManager::setConfig(const WeatherConfig& config) {
     
     if (success) {
         printf("✅ 天气配置更新成功\n");
+        printf("   城市: %s (%s)\n", _config.cityName.c_str(), _config.cityCode.c_str());
     } else {
         printf("❌ 天气配置保存失败\n");
     }
@@ -805,22 +813,70 @@ bool WeatherManager::parseForecastResponse(const String& response) {
 // 加载配置
 bool WeatherManager::loadConfig() {
     if (!_configStorage) {
+        printf("[WeatherManager] 配置存储未初始化\n");
         return false;
     }
     
+    printf("[WeatherManager] 开始加载天气配置...\n");
+    
     WeatherConfig config;
     
+    // 加载API密钥
     config.apiKey = _configStorage->getStringAsync(getConfigKey("apiKey"), "");
-    config.cityCode = _configStorage->getStringAsync(getConfigKey("cityCode"), "110000");
-    config.cityName = _configStorage->getStringAsync(getConfigKey("cityName"), "北京");
+    printf("[WeatherManager] 加载API密钥: %s\n", config.apiKey.isEmpty() ? "未设置" : "已设置");
+    
+    // 加载城市代码 - 重要：使用空字符串作为默认值来检测是否真的有保存的配置
+    String savedCityCode = _configStorage->getStringAsync(getConfigKey("cityCode"), "");
+    if (savedCityCode.isEmpty()) {
+        printf("[WeatherManager] 未找到保存的城市代码，需要用户配置\n");
+        config.cityCode = "";
+    } else {
+        config.cityCode = savedCityCode;
+        printf("[WeatherManager] 加载城市代码: %s\n", config.cityCode.c_str());
+    }
+    
+    // 加载城市名称
+    String savedCityName = _configStorage->getStringAsync(getConfigKey("cityName"), "");
+    if (savedCityName.isEmpty()) {
+        printf("[WeatherManager] 未找到保存的城市名称，需要用户配置\n");
+        config.cityName = "";
+    } else {
+        config.cityName = savedCityName;
+        printf("[WeatherManager] 加载城市名称: %s\n", config.cityName.c_str());
+    }
+    
+    // 加载其他配置
     config.autoUpdate = _configStorage->getBoolAsync(getConfigKey("autoUpdate"), true);
     config.updateInterval = _configStorage->getIntAsync(getConfigKey("updateInterval"), 30);
     config.enableForecast = _configStorage->getBoolAsync(getConfigKey("enableForecast"), true);
     
+    printf("[WeatherManager] 加载自动更新: %s\n", config.autoUpdate ? "启用" : "禁用");
+    printf("[WeatherManager] 加载更新间隔: %d分钟\n", config.updateInterval);
+    printf("[WeatherManager] 加载预报功能: %s\n", config.enableForecast ? "启用" : "禁用");
+    
     _config = config;
     
-    printDebugInfo("配置加载成功");
-    return true;
+    // 检查是否有有效的配置，通过检查关键配置是否为空来判断
+    bool hasValidConfig = !config.apiKey.isEmpty() || !savedCityCode.isEmpty() || !savedCityName.isEmpty();
+    
+    // 额外验证：检查是否真的有保存的配置文件
+    if (hasValidConfig) {
+        printf("[WeatherManager] 配置加载成功\n");
+        printf("[WeatherManager] 检测到有效配置:\n");
+        printf("  - API密钥: %s\n", config.apiKey.isEmpty() ? "未设置" : "已设置");
+        printf("  - 城市代码: %s\n", config.cityCode.c_str());
+        printf("  - 城市名称: %s\n", config.cityName.c_str());
+        printDebugInfo("配置加载成功");
+        return true;
+    } else {
+        printf("[WeatherManager] 未找到有效的配置，需要用户配置\n");
+        printf("[WeatherManager] 当前配置状态:\n");
+        printf("  - API密钥: 空\n");
+        printf("  - 城市代码: 空（需要用户配置）\n");
+        printf("  - 城市名称: 空（需要用户配置）\n");
+        printDebugInfo("未找到有效配置");
+        return false;
+    }
 }
 
 // 保存配置
@@ -878,9 +934,23 @@ bool WeatherManager::saveConfig() {
     
     if (success) {
         printf("[WeatherManager] 配置保存成功\n");
+        printf("[WeatherManager] 保存的配置内容:\n");
+        printf("  - API密钥: %s\n", _config.apiKey.isEmpty() ? "未设置" : "已设置");
+        printf("  - 城市代码: %s\n", _config.cityCode.c_str());
+        printf("  - 城市名称: %s\n", _config.cityName.c_str());
+        printf("  - 自动更新: %s\n", _config.autoUpdate ? "启用" : "禁用");
+        printf("  - 更新间隔: %d分钟\n", _config.updateInterval);
+        printf("  - 预报功能: %s\n", _config.enableForecast ? "启用" : "禁用");
         printDebugInfo("配置保存成功");
     } else {
         printf("[WeatherManager] 配置保存失败\n");
+        printf("[WeatherManager] 保存失败详情:\n");
+        printf("  - API密钥保存: %s\n", result1 ? "成功" : "失败");
+        printf("  - 城市代码保存: %s\n", result2 ? "成功" : "失败");
+        printf("  - 城市名称保存: %s\n", result3 ? "成功" : "失败");
+        printf("  - 自动更新保存: %s\n", result4 ? "成功" : "失败");
+        printf("  - 更新间隔保存: %s\n", result5 ? "成功" : "失败");
+        printf("  - 预报功能保存: %s\n", result6 ? "成功" : "失败");
         printDebugInfo("配置保存失败");
     }
     
@@ -1068,4 +1138,48 @@ void WeatherManager::unlockWeatherData() {
     if (_weatherMutex) {
         xSemaphoreGive(_weatherMutex);
     }
+}
+
+// 验证配置有效性
+bool WeatherManager::validateConfig(const WeatherConfig& config) {
+    // 检查城市代码和城市名称是否都提供
+    if (config.cityCode.isEmpty() && config.cityName.isEmpty()) {
+        printf("[WeatherManager] 城市代码和城市名称都为空，跳过验证\n");
+        return true;  // 允许空配置，用户可以后续设置
+    }
+    
+    // 如果只有一个为空，则需要验证
+    if (config.cityCode.isEmpty() && !config.cityName.isEmpty()) {
+        printf("[WeatherManager] 警告：城市名称已设置但城市代码为空\n");
+        return false;
+    }
+    
+    if (!config.cityCode.isEmpty() && config.cityName.isEmpty()) {
+        printf("[WeatherManager] 警告：城市代码已设置但城市名称为空\n");
+        return false;
+    }
+    
+    // 检查城市代码格式（应该是6位数字）
+    if (!config.cityCode.isEmpty()) {
+        if (config.cityCode.length() != 6) {
+            printf("[WeatherManager] 错误：城市代码长度应为6位，当前为%d位\n", config.cityCode.length());
+            return false;
+        }
+        
+        for (int i = 0; i < config.cityCode.length(); i++) {
+            if (!isdigit(config.cityCode[i])) {
+                printf("[WeatherManager] 错误：城市代码应为数字，发现非数字字符\n");
+                return false;
+            }
+        }
+    }
+    
+    // 检查更新间隔
+    if (config.updateInterval < 5 || config.updateInterval > 1440) {
+        printf("[WeatherManager] 错误：更新间隔应在5-1440分钟之间\n");
+        return false;
+    }
+    
+    printf("[WeatherManager] 配置验证通过\n");
+    return true;
 } 

@@ -766,8 +766,8 @@ void LVGLDriver::processScreenRotation() {
     // 打印调试数据
     static int debug_counter = 0;
     if (++debug_counter % 10 == 0) {  // 每10次打印一次，避免刷屏
-        printf("[LVGLDriver] 加速度计数据: X=%.3f, Y=%.3f, Z=%.3f (m/s²)\n", 
-               accel.x, accel.y, accel.z);
+        //printf("[LVGLDriver] 加速度计数据: X=%.3f, Y=%.3f, Z=%.3f (m/s²)\n", 
+        //       accel.x, accel.y, accel.z);
     }
     
     // 根据加速度计数据判断设备方向
