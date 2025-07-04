@@ -5320,23 +5320,24 @@ String WebServerManager::getScreenSettingsHTML() {
     html += "                    <!-- 定时模式设置 -->\n";
     html += "                    <div class=\"mode-settings\" id=\"scheduledSettings\" style=\"display: none;\">\n";
     html += "                        <h3>定时模式设置</h3>\n";
+    html += "                        <div class=\"setting-description\">\n";
+    html += "                            在指定时间段内保持屏幕点亮，其他时间自动关闭屏幕。\n";
+    html += "                        </div>\n";
     html += "                        <div class=\"time-range-config\">\n";
     html += "                            <div class=\"time-input-group\">\n";
-    html += "                                <label>开始时间:</label>\n";
-    html += "                                <div class=\"time-inputs\">\n";
-    html += "                                    <input type=\"number\" id=\"startHour\" min=\"0\" max=\"23\" value=\"8\" class=\"time-input\">\n";
-    html += "                                    <span class=\"time-separator\">:</span>\n";
-    html += "                                    <input type=\"number\" id=\"startMinute\" min=\"0\" max=\"59\" value=\"0\" class=\"time-input\">\n";
-    html += "                                </div>\n";
+    html += "                                <label for=\"startTime\">开始时间:</label>\n";
+    html += "                                <input type=\"time\" id=\"startTime\" value=\"08:00\" class=\"time-picker\">\n";
+    html += "                                <!-- 隐藏的数字输入框保持兼容性 -->\n";
+    html += "                                <input type=\"hidden\" id=\"startHour\" value=\"8\">\n";
+    html += "                                <input type=\"hidden\" id=\"startMinute\" value=\"0\">\n";
     html += "                            </div>\n";
     html += "                            \n";
     html += "                            <div class=\"time-input-group\">\n";
-    html += "                                <label>结束时间:</label>\n";
-    html += "                                <div class=\"time-inputs\">\n";
-    html += "                                    <input type=\"number\" id=\"endHour\" min=\"0\" max=\"23\" value=\"22\" class=\"time-input\">\n";
-    html += "                                    <span class=\"time-separator\">:</span>\n";
-    html += "                                    <input type=\"number\" id=\"endMinute\" min=\"0\" max=\"59\" value=\"0\" class=\"time-input\">\n";
-    html += "                                </div>\n";
+    html += "                                <label for=\"endTime\">结束时间:</label>\n";
+    html += "                                <input type=\"time\" id=\"endTime\" value=\"22:00\" class=\"time-picker\">\n";
+    html += "                                <!-- 隐藏的数字输入框保持兼容性 -->\n";
+    html += "                                <input type=\"hidden\" id=\"endHour\" value=\"22\">\n";
+    html += "                                <input type=\"hidden\" id=\"endMinute\" value=\"0\">\n";
     html += "                            </div>\n";
     html += "                        </div>\n";
     html += "                    </div>\n";
@@ -5622,6 +5623,45 @@ String WebServerManager::getScreenSettingsCSS() {
             font-size: 1.2rem;
             font-weight: 600;
             color: #4a5568;
+        }
+        
+        /* 时间选择器样式 */
+        .time-picker {
+            padding: 12px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 500;
+            background: white;
+            transition: all 0.3s ease;
+            min-width: 140px;
+            cursor: pointer;
+            color: #374151;
+        }
+        
+        .time-picker:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            background-color: #fefefe;
+        }
+        
+        .time-picker:hover {
+            border-color: #cbd5e1;
+            background-color: #f8fafc;
+        }
+        
+        /* 自定义时间选择器的样式 */
+        .time-picker::-webkit-calendar-picker-indicator {
+            cursor: pointer;
+            border-radius: 4px;
+            margin-left: 8px;
+            opacity: 0.7;
+            transition: opacity 0.3s ease;
+        }
+        
+        .time-picker::-webkit-calendar-picker-indicator:hover {
+            opacity: 1;
         }
         
         /* 延时设置样式 */
@@ -5954,265 +5994,216 @@ String WebServerManager::getScreenSettingsCSS() {
 }
 
 String WebServerManager::getScreenSettingsJavaScript() {
-    return R"(
-        // 基础工具函数
-        function showToast(message, type) {
-            const toast = document.getElementById('toast');
-            const toastMessage = document.getElementById('toastMessage');
-            toastMessage.textContent = message;
-            toast.className = 'toast show ' + (type || 'info');
-            setTimeout(() => { toast.className = 'toast hidden'; }, 3000);
-        }
-        
-        // 页面初始化
-        document.addEventListener('DOMContentLoaded', function() {
-            initScreenSettings();
-            loadScreenSettings();
-            setupEventListeners();
-        });
-        
-        function initScreenSettings() {
-            console.log('初始化屏幕设置页面');
-            // 初始化默认选择第一个模式（亮屏）
-            selectMode(0);
-        }
-        
-        function setupEventListeners() {
-            // 监听四段式滑块选择
-            const sliderOptions = document.querySelectorAll('.slider-option');
-            sliderOptions.forEach(option => {
-                option.addEventListener('click', function() {
-                    const mode = parseInt(this.getAttribute('data-mode'));
-                    selectMode(mode);
-                });
-            });
-            
-            // 监听延时滑块
-            const timeoutSlider = document.getElementById('timeoutSlider');
-            const timeoutInput = document.getElementById('timeoutMinutes');
-            const timeoutValue = document.getElementById('timeoutValue');
-            
-            if (timeoutSlider && timeoutInput && timeoutValue) {
-                timeoutSlider.addEventListener('input', function() {
-                    const value = this.value;
-                    timeoutValue.textContent = value;
-                    timeoutInput.value = value;
-                });
+    String js = "";
+    
+    // 基础工具函数
+    js += "function showToast(message, type) {\n";
+    js += "    const toast = document.getElementById('toast');\n";
+    js += "    const toastMessage = document.getElementById('toastMessage');\n";
+    js += "    toastMessage.textContent = message;\n";
+    js += "    toast.className = 'toast show ' + (type || 'info');\n";
+    js += "    setTimeout(() => { toast.className = 'toast hidden'; }, 3000);\n";
+    js += "}\n\n";
+    // 页面初始化
+    js += "document.addEventListener('DOMContentLoaded', function() {\n";
+    js += "    initScreenSettings();\n";
+    js += "    loadScreenSettings();\n";
+    js += "    setupEventListeners();\n";
+    js += "});\n\n";
+    
+    js += "function initScreenSettings() {\n";
+    js += "    console.log('初始化屏幕设置页面');\n";
+    js += "    selectMode(0);\n";
+    js += "}\n\n";
+    js += "function setupEventListeners() {\n";
+    js += "    const sliderOptions = document.querySelectorAll('.slider-option');\n";
+    js += "    sliderOptions.forEach(option => {\n";
+    js += "        option.addEventListener('click', function() {\n";
+    js += "            const mode = parseInt(this.getAttribute('data-mode'));\n";
+    js += "            selectMode(mode);\n";
+    js += "        });\n";
+    js += "    });\n\n";
+    
+    js += "    const timeoutSlider = document.getElementById('timeoutSlider');\n";
+    js += "    const timeoutInput = document.getElementById('timeoutMinutes');\n";
+    js += "    const timeoutValue = document.getElementById('timeoutValue');\n";
+    js += "    if (timeoutSlider && timeoutInput && timeoutValue) {\n";
+    js += "        timeoutSlider.addEventListener('input', function() {\n";
+    js += "            timeoutValue.textContent = this.value;\n";
+    js += "            timeoutInput.value = this.value;\n";
+    js += "        });\n";
+    js += "        timeoutInput.addEventListener('input', function() {\n";
+    js += "            const value = Math.max(1, Math.min(1440, parseInt(this.value) || 1));\n";
+    js += "            this.value = value;\n";
+    js += "            timeoutSlider.value = Math.min(60, value);\n";
+    js += "            timeoutValue.textContent = Math.min(60, value);\n";
+    js += "        });\n";
+    js += "    }\n\n";
+    
+    js += "    const startTimePicker = document.getElementById('startTime');\n";
+    js += "    const endTimePicker = document.getElementById('endTime');\n";
+    js += "    if (startTimePicker) {\n";
+    js += "        startTimePicker.addEventListener('change', function() {\n";
+    js += "            updateTimeFromPicker('start', this.value);\n";
+    js += "        });\n";
+    js += "    }\n";
+    js += "    if (endTimePicker) {\n";
+    js += "        endTimePicker.addEventListener('change', function() {\n";
+    js += "            updateTimeFromPicker('end', this.value);\n";
+    js += "        });\n";
+    js += "    }\n";
+    js += "}\n\n";
+    // Raw string literal代码已转换为字符串拼接格式，删除重复部分
                 
-                timeoutInput.addEventListener('input', function() {
-                    const value = Math.max(1, Math.min(1440, parseInt(this.value) || 1));
-                    this.value = value;
-                    timeoutSlider.value = Math.min(60, value);
-                    timeoutValue.textContent = Math.min(60, value);
-                });
-            }
-        }
-        
-        function selectMode(mode) {
-            // 更新隐藏输入框的值
-            const selectedModeInput = document.getElementById('selectedMode');
-            if (selectedModeInput) {
-                selectedModeInput.value = mode;
-            }
-            
-            // 更新滑块指示器位置
-            const sliderIndicator = document.getElementById('sliderIndicator');
-            if (sliderIndicator) {
-                const leftPosition = (mode * 25) + '%';
-                sliderIndicator.style.left = leftPosition;
-            }
-            
-            // 更新选项状态
-            const allOptions = document.querySelectorAll('.slider-option');
-            allOptions.forEach((option, index) => {
-                if (index === mode) {
-                    option.classList.add('active');
-                } else {
-                    option.classList.remove('active');
-                }
-            });
-            
-            // 更新描述文本
-            const descriptions = [
-                '始终保持屏幕点亮',
-                '指定时间段内点亮屏幕',
-                '无操作后延时熄灭屏幕',
-                '始终关闭屏幕'
-            ];
-            const descriptionElement = document.querySelector('.description-text');
-            if (descriptionElement && descriptions[mode]) {
-                descriptionElement.textContent = descriptions[mode];
-            }
-            
-            // 触发模式变更
-            handleModeChange(mode.toString());
-        }
-        
-        function handleModeChange(mode) {
-            // 隐藏所有设置面板
-            const scheduledSettings = document.getElementById('scheduledSettings');
-            const timeoutSettings = document.getElementById('timeoutSettings');
-            
-            if (scheduledSettings) scheduledSettings.style.display = 'none';
-            if (timeoutSettings) timeoutSettings.style.display = 'none';
-            
-            // 显示对应的设置面板
-            if (mode === '1' && scheduledSettings) {
-                scheduledSettings.style.display = 'block';
-            } else if (mode === '2' && timeoutSettings) {
-                timeoutSettings.style.display = 'block';
-            }
-        }
-        
-        function loadScreenSettings() {
-            console.log('加载屏幕设置配置');
-            
-            fetch('/api/screen/settings')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        // 设置模式
-                        const mode = data.mode || 0;
-                        selectMode(mode);
-                        
-                        // 设置定时模式参数
-                        const startHour = document.getElementById('startHour');
-                        const startMinute = document.getElementById('startMinute');
-                        const endHour = document.getElementById('endHour');
-                        const endMinute = document.getElementById('endMinute');
-                        
-                        if (startHour) startHour.value = data.startHour || 8;
-                        if (startMinute) startMinute.value = data.startMinute || 0;
-                        if (endHour) endHour.value = data.endHour || 22;
-                        if (endMinute) endMinute.value = data.endMinute || 0;
-                        
-                        // 设置延时模式参数
-                        const timeoutMinutes = data.timeoutMinutes || 10;
-                        const timeoutInput = document.getElementById('timeoutMinutes');
-                        const timeoutSlider = document.getElementById('timeoutSlider');
-                        const timeoutValue = document.getElementById('timeoutValue');
-                        
-                        if (timeoutInput) timeoutInput.value = timeoutMinutes;
-                        if (timeoutSlider) timeoutSlider.value = Math.min(60, timeoutMinutes);
-                        if (timeoutValue) timeoutValue.textContent = Math.min(60, timeoutMinutes);
-                        
-                        console.log('屏幕设置配置加载成功');
-                    } else {
-                        console.error('加载屏幕设置配置失败:', data.message);
-                        showToast('加载配置失败: ' + data.message, 'error');
-                    }
-                })
-                .catch(error => {
-                    console.error('加载屏幕设置配置出错:', error);
-                    showToast('加载配置出错', 'error');
-                });
-        }
-        
-        function saveScreenSettings() {
-            console.log('保存屏幕设置配置');
-            
-            const saveBtn = document.querySelector('.save-btn');
-            const btnText = saveBtn.querySelector('.btn-text');
-            const btnLoading = saveBtn.querySelector('.btn-loading');
-            
-            // 显示加载状态
-            if (btnText && btnLoading) {
-                btnText.style.display = 'none';
-                btnLoading.style.display = 'flex';
-                saveBtn.disabled = true;
-            }
-            
-            // 获取当前设置
-            const selectedModeInput = document.getElementById('selectedMode');
-            if (!selectedModeInput) {
-                showToast('请选择屏幕模式', 'error');
-                resetSaveButton();
-                return;
-            }
-            
-            const mode = parseInt(selectedModeInput.value);
-            
-            // 获取时间设置
-            const startHour = parseInt(document.getElementById('startHour')?.value) || 8;
-            const startMinute = parseInt(document.getElementById('startMinute')?.value) || 0;
-            const endHour = parseInt(document.getElementById('endHour')?.value) || 22;
-            const endMinute = parseInt(document.getElementById('endMinute')?.value) || 0;
-            const timeoutMinutes = parseInt(document.getElementById('timeoutMinutes')?.value) || 10;
-            
-            // 构建请求数据
-            const formData = new FormData();
-            formData.append('mode', mode.toString());
-            formData.append('startHour', startHour.toString());
-            formData.append('startMinute', startMinute.toString());
-            formData.append('endHour', endHour.toString());
-            formData.append('endMinute', endMinute.toString());
-            formData.append('timeoutMinutes', timeoutMinutes.toString());
-            
-            fetch('/api/screen/settings', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    showToast('屏幕设置保存成功', 'success');
-                    console.log('屏幕设置保存成功');
-                } else {
-                    showToast('保存失败: ' + data.message, 'error');
-                    console.error('屏幕设置保存失败:', data.message);
-                }
-            })
-            .catch(error => {
-                console.error('保存屏幕设置出错:', error);
-                showToast('保存出错', 'error');
-            })
-            .finally(() => {
-                resetSaveButton();
-            });
-        }
-        
-        function resetSaveButton() {
-            const saveBtn = document.querySelector('.save-btn');
-            const btnText = saveBtn.querySelector('.btn-text');
-            const btnLoading = saveBtn.querySelector('.btn-loading');
-            
-            if (btnText && btnLoading) {
-                btnText.style.display = 'inline';
-                btnLoading.style.display = 'none';
-                saveBtn.disabled = false;
-            }
-        }
-        
-        function resetSettings() {
-            if (confirm('确定要重置为默认设置吗？')) {
-                // 重置为默认值（亮屏模式）
-                selectMode(0);
-                
-                // 设置默认时间
-                const startHour = document.getElementById('startHour');
-                const startMinute = document.getElementById('startMinute');
-                const endHour = document.getElementById('endHour');
-                const endMinute = document.getElementById('endMinute');
-                const timeoutMinutes = document.getElementById('timeoutMinutes');
-                const timeoutSlider = document.getElementById('timeoutSlider');
-                const timeoutValue = document.getElementById('timeoutValue');
-                
-                if (startHour) startHour.value = 8;
-                if (startMinute) startMinute.value = 0;
-                if (endHour) endHour.value = 22;
-                if (endMinute) endMinute.value = 0;
-                if (timeoutMinutes) timeoutMinutes.value = 10;
-                if (timeoutSlider) timeoutSlider.value = 10;
-                if (timeoutValue) timeoutValue.textContent = 10;
-                
-                // 隐藏所有设置面板
-                const scheduledSettings = document.getElementById('scheduledSettings');
-                const timeoutSettings = document.getElementById('timeoutSettings');
-                if (scheduledSettings) scheduledSettings.style.display = 'none';
-                if (timeoutSettings) timeoutSettings.style.display = 'none';
-                
-                showToast('已重置为默认设置', 'info');
-            }
-        }
-    )";
+    // 添加关键的JavaScript函数
+    js += "function updateTimeFromPicker(type, timeValue) {\n";
+    js += "    const [hours, minutes] = timeValue.split(':').map(num => parseInt(num));\n";
+    js += "    const hourElement = document.getElementById(type + 'Hour');\n";
+    js += "    const minuteElement = document.getElementById(type + 'Minute');\n";
+    js += "    if (hourElement) hourElement.value = hours;\n";
+    js += "    if (minuteElement) minuteElement.value = minutes;\n";
+    js += "}\n\n";
+    
+    js += "function updatePickerFromTime(type, hours, minutes) {\n";
+    js += "    const timeValue = String(hours).padStart(2, '0') + ':' + String(minutes).padStart(2, '0');\n";
+    js += "    const pickerElement = document.getElementById(type + 'Time');\n";
+    js += "    if (pickerElement) pickerElement.value = timeValue;\n";
+    js += "}\n\n";
+    
+    js += "function selectMode(mode) {\n";
+    js += "    const selectedModeInput = document.getElementById('selectedMode');\n";
+    js += "    if (selectedModeInput) selectedModeInput.value = mode;\n";
+    js += "    const sliderIndicator = document.getElementById('sliderIndicator');\n";
+    js += "    if (sliderIndicator) sliderIndicator.style.left = (mode * 25) + '%';\n";
+    js += "    const allOptions = document.querySelectorAll('.slider-option');\n";
+    js += "    allOptions.forEach((option, index) => {\n";
+    js += "        if (index === mode) option.classList.add('active');\n";
+    js += "        else option.classList.remove('active');\n";
+    js += "    });\n";
+    js += "    const descriptions = ['始终保持屏幕点亮', '指定时间段内点亮屏幕', '无操作后延时熄灭屏幕', '始终关闭屏幕'];\n";
+    js += "    const descriptionElement = document.querySelector('.description-text');\n";
+    js += "    if (descriptionElement && descriptions[mode]) descriptionElement.textContent = descriptions[mode];\n";
+    js += "    handleModeChange(mode.toString());\n";
+    js += "}\n\n";
+    
+    js += "function handleModeChange(mode) {\n";
+    js += "    const scheduledSettings = document.getElementById('scheduledSettings');\n";
+    js += "    const timeoutSettings = document.getElementById('timeoutSettings');\n";
+    js += "    if (scheduledSettings) scheduledSettings.style.display = 'none';\n";
+    js += "    if (timeoutSettings) timeoutSettings.style.display = 'none';\n";
+    js += "    if (mode === '1' && scheduledSettings) scheduledSettings.style.display = 'block';\n";
+    js += "    else if (mode === '2' && timeoutSettings) timeoutSettings.style.display = 'block';\n";
+    js += "}\n\n";
+    
+    js += "function loadScreenSettings() {\n";
+    js += "    fetch('/api/screen/settings')\n";
+    js += "        .then(response => response.json())\n";
+    js += "        .then(data => {\n";
+    js += "            if (data.success) {\n";
+    js += "                selectMode(data.mode || 0);\n";
+    js += "                const startHour = document.getElementById('startHour');\n";
+    js += "                const startMinute = document.getElementById('startMinute');\n";
+    js += "                const endHour = document.getElementById('endHour');\n";
+    js += "                const endMinute = document.getElementById('endMinute');\n";
+    js += "                const startHourVal = data.startHour || 8;\n";
+    js += "                const startMinuteVal = data.startMinute || 0;\n";
+    js += "                const endHourVal = data.endHour || 22;\n";
+    js += "                const endMinuteVal = data.endMinute || 0;\n";
+    js += "                if (startHour) startHour.value = startHourVal;\n";
+    js += "                if (startMinute) startMinute.value = startMinuteVal;\n";
+    js += "                if (endHour) endHour.value = endHourVal;\n";
+    js += "                if (endMinute) endMinute.value = endMinuteVal;\n";
+    js += "                updatePickerFromTime('start', startHourVal, startMinuteVal);\n";
+    js += "                updatePickerFromTime('end', endHourVal, endMinuteVal);\n";
+    js += "                const timeoutMinutes = data.timeoutMinutes || 10;\n";
+    js += "                const timeoutInput = document.getElementById('timeoutMinutes');\n";
+    js += "                const timeoutSlider = document.getElementById('timeoutSlider');\n";
+    js += "                const timeoutValue = document.getElementById('timeoutValue');\n";
+    js += "                if (timeoutInput) timeoutInput.value = timeoutMinutes;\n";
+    js += "                if (timeoutSlider) timeoutSlider.value = Math.min(60, timeoutMinutes);\n";
+    js += "                if (timeoutValue) timeoutValue.textContent = Math.min(60, timeoutMinutes);\n";
+    js += "            } else {\n";
+    js += "                showToast('加载配置失败: ' + data.message, 'error');\n";
+    js += "            }\n";
+    js += "        })\n";
+    js += "        .catch(error => showToast('加载配置出错', 'error'));\n";
+    js += "}\n\n";
+    
+    js += "function saveScreenSettings() {\n";
+    js += "    const saveBtn = document.querySelector('.save-btn');\n";
+    js += "    const btnText = saveBtn.querySelector('.btn-text');\n";
+    js += "    const btnLoading = saveBtn.querySelector('.btn-loading');\n";
+    js += "    if (btnText && btnLoading) {\n";
+    js += "        btnText.style.display = 'none';\n";
+    js += "        btnLoading.style.display = 'flex';\n";
+    js += "        saveBtn.disabled = true;\n";
+    js += "    }\n";
+    js += "    const selectedModeInput = document.getElementById('selectedMode');\n";
+    js += "    if (!selectedModeInput) {\n";
+    js += "        showToast('请选择屏幕模式', 'error');\n";
+    js += "        resetSaveButton();\n";
+    js += "        return;\n";
+    js += "    }\n";
+    js += "    const mode = parseInt(selectedModeInput.value);\n";
+    js += "    const startHour = parseInt(document.getElementById('startHour')?.value) || 8;\n";
+    js += "    const startMinute = parseInt(document.getElementById('startMinute')?.value) || 0;\n";
+    js += "    const endHour = parseInt(document.getElementById('endHour')?.value) || 22;\n";
+    js += "    const endMinute = parseInt(document.getElementById('endMinute')?.value) || 0;\n";
+    js += "    const timeoutMinutes = parseInt(document.getElementById('timeoutMinutes')?.value) || 10;\n";
+    js += "    const formData = new FormData();\n";
+    js += "    formData.append('mode', mode.toString());\n";
+    js += "    formData.append('startHour', startHour.toString());\n";
+    js += "    formData.append('startMinute', startMinute.toString());\n";
+    js += "    formData.append('endHour', endHour.toString());\n";
+    js += "    formData.append('endMinute', endMinute.toString());\n";
+    js += "    formData.append('timeoutMinutes', timeoutMinutes.toString());\n";
+    js += "    fetch('/api/screen/settings', { method: 'POST', body: formData })\n";
+    js += "        .then(response => response.json())\n";
+    js += "        .then(data => {\n";
+    js += "            if (data.success) showToast('屏幕设置保存成功', 'success');\n";
+    js += "            else showToast('保存失败: ' + data.message, 'error');\n";
+    js += "        })\n";
+    js += "        .catch(error => showToast('保存出错', 'error'))\n";
+    js += "        .finally(() => resetSaveButton());\n";
+    js += "}\n\n";
+    
+    js += "function resetSaveButton() {\n";
+    js += "    const saveBtn = document.querySelector('.save-btn');\n";
+    js += "    const btnText = saveBtn.querySelector('.btn-text');\n";
+    js += "    const btnLoading = saveBtn.querySelector('.btn-loading');\n";
+    js += "    if (btnText && btnLoading) {\n";
+    js += "        btnText.style.display = 'inline';\n";
+    js += "        btnLoading.style.display = 'none';\n";
+    js += "        saveBtn.disabled = false;\n";
+    js += "    }\n";
+    js += "}\n\n";
+    
+    js += "function resetSettings() {\n";
+    js += "    if (confirm('确定要重置为默认设置吗？')) {\n";
+    js += "        selectMode(0);\n";
+    js += "        const startHour = document.getElementById('startHour');\n";
+    js += "        const startMinute = document.getElementById('startMinute');\n";
+    js += "        const endHour = document.getElementById('endHour');\n";
+    js += "        const endMinute = document.getElementById('endMinute');\n";
+    js += "        const timeoutMinutes = document.getElementById('timeoutMinutes');\n";
+    js += "        const timeoutSlider = document.getElementById('timeoutSlider');\n";
+    js += "        const timeoutValue = document.getElementById('timeoutValue');\n";
+    js += "        if (startHour) startHour.value = 8;\n";
+    js += "        if (startMinute) startMinute.value = 0;\n";
+    js += "        if (endHour) endHour.value = 22;\n";
+    js += "        if (endMinute) endMinute.value = 0;\n";
+    js += "        if (timeoutMinutes) timeoutMinutes.value = 10;\n";
+    js += "        if (timeoutSlider) timeoutSlider.value = 10;\n";
+    js += "        if (timeoutValue) timeoutValue.textContent = 10;\n";
+    js += "        updatePickerFromTime('start', 8, 0);\n";
+    js += "        updatePickerFromTime('end', 22, 0);\n";
+    js += "        const scheduledSettings = document.getElementById('scheduledSettings');\n";
+    js += "        const timeoutSettings = document.getElementById('timeoutSettings');\n";
+    js += "        if (scheduledSettings) scheduledSettings.style.display = 'none';\n";
+    js += "        if (timeoutSettings) timeoutSettings.style.display = 'none';\n";
+    js += "        showToast('已重置为默认设置', 'info');\n";
+    js += "    }\n";
+    js += "}\n";
+    
+    return js;
 }
