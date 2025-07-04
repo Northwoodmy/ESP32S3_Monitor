@@ -30,12 +30,12 @@ const char* ConfigStorage::TIME_SECONDARY_SERVER_KEY = "time_secondary";
 const char* ConfigStorage::TIME_TIMEZONE_KEY = "time_timezone";
 const char* ConfigStorage::TIME_SYNC_INTERVAL_KEY = "time_interval";
 
-const char* ConfigStorage::SCREEN_MODE_KEY = "screen_mode";
-const char* ConfigStorage::SCREEN_START_HOUR_KEY = "screen_start_hour";
-const char* ConfigStorage::SCREEN_START_MINUTE_KEY = "screen_start_minute";
-const char* ConfigStorage::SCREEN_END_HOUR_KEY = "screen_end_hour";
-const char* ConfigStorage::SCREEN_END_MINUTE_KEY = "screen_end_minute";
-const char* ConfigStorage::SCREEN_TIMEOUT_MINUTES_KEY = "screen_timeout_minutes";
+const char* ConfigStorage::SCREEN_MODE_KEY = "scr_mode";
+const char* ConfigStorage::SCREEN_START_HOUR_KEY = "scr_start_h";
+const char* ConfigStorage::SCREEN_START_MINUTE_KEY = "scr_start_m";
+const char* ConfigStorage::SCREEN_END_HOUR_KEY = "scr_end_h";
+const char* ConfigStorage::SCREEN_END_MINUTE_KEY = "scr_end_m";
+const char* ConfigStorage::SCREEN_TIMEOUT_MINUTES_KEY = "scr_timeout";
 
 ConfigStorage::ConfigStorage() : configTaskHandle(nullptr), configQueue(nullptr), taskRunning(false) {
 }
@@ -1451,12 +1451,58 @@ bool ConfigStorage::saveScreenConfig(ScreenMode mode, int startHour, int startMi
     
     // 保存屏幕设置配置
     bool success = true;
-    success &= (preferences.putInt(SCREEN_MODE_KEY, (int)mode) > 0);
-    success &= (preferences.putInt(SCREEN_START_HOUR_KEY, startHour) > 0);
-    success &= (preferences.putInt(SCREEN_START_MINUTE_KEY, startMinute) > 0);
-    success &= (preferences.putInt(SCREEN_END_HOUR_KEY, endHour) > 0);
-    success &= (preferences.putInt(SCREEN_END_MINUTE_KEY, endMinute) > 0);
-    success &= (preferences.putInt(SCREEN_TIMEOUT_MINUTES_KEY, timeoutMinutes) > 0);
+    size_t result;
+    
+    // 获取可用空间
+    size_t freeEntries = preferences.freeEntries();
+    printf("  NVS可用条目数: %zu\n", freeEntries);
+    
+    result = preferences.putInt(SCREEN_MODE_KEY, (int)mode);
+    bool modeSuccess = (result == sizeof(int));
+    success &= modeSuccess;
+    printf("  模式保存: 键='%s', 值=%d, 结果=%zu字节, %s\n", SCREEN_MODE_KEY, (int)mode, result, modeSuccess ? "成功" : "失败");
+    
+    // 添加小延迟，让NVS处理
+    vTaskDelay(pdMS_TO_TICKS(10));
+    
+    result = preferences.putInt(SCREEN_START_HOUR_KEY, startHour);
+    bool startHourSuccess = (result == sizeof(int));
+    success &= startHourSuccess;
+    printf("  开始小时保存: 键='%s', 值=%d, 结果=%zu字节, %s\n", SCREEN_START_HOUR_KEY, startHour, result, startHourSuccess ? "成功" : "失败");
+    
+    vTaskDelay(pdMS_TO_TICKS(10));
+    
+    result = preferences.putInt(SCREEN_START_MINUTE_KEY, startMinute);
+    bool startMinuteSuccess = (result == sizeof(int));
+    success &= startMinuteSuccess;
+    printf("  开始分钟保存: 键='%s', 值=%d, 结果=%zu字节, %s\n", SCREEN_START_MINUTE_KEY, startMinute, result, startMinuteSuccess ? "成功" : "失败");
+    
+    vTaskDelay(pdMS_TO_TICKS(10));
+    
+    result = preferences.putInt(SCREEN_END_HOUR_KEY, endHour);
+    bool endHourSuccess = (result == sizeof(int));
+    success &= endHourSuccess;
+    printf("  结束小时保存: 键='%s', 值=%d, 结果=%zu字节, %s\n", SCREEN_END_HOUR_KEY, endHour, result, endHourSuccess ? "成功" : "失败");
+    
+    vTaskDelay(pdMS_TO_TICKS(10));
+    
+    result = preferences.putInt(SCREEN_END_MINUTE_KEY, endMinute);
+    bool endMinuteSuccess = (result == sizeof(int));
+    success &= endMinuteSuccess;
+    printf("  结束分钟保存: 键='%s', 值=%d, 结果=%zu字节, %s\n", SCREEN_END_MINUTE_KEY, endMinute, result, endMinuteSuccess ? "成功" : "失败");
+    
+    vTaskDelay(pdMS_TO_TICKS(10));
+    
+    result = preferences.putInt(SCREEN_TIMEOUT_MINUTES_KEY, timeoutMinutes);
+    bool timeoutSuccess = (result == sizeof(int));
+    success &= timeoutSuccess;
+    printf("  延时时间保存: 键='%s', 值=%d, 结果=%zu字节, %s\n", SCREEN_TIMEOUT_MINUTES_KEY, timeoutMinutes, result, timeoutSuccess ? "成功" : "失败");
+    
+    // 强制提交更改
+    if (success) {
+        printf("  强制提交NVS更改...\n");
+        vTaskDelay(pdMS_TO_TICKS(20));
+    }
     
     preferences.end();
     
@@ -1542,7 +1588,7 @@ bool ConfigStorage::hasScreenConfig() {
     bool exists = preferences.isKey(SCREEN_MODE_KEY);
     preferences.end();
     
-    printf("🔍 [ConfigStorage] 检查屏幕设置配置存在性: %s\n", exists ? "存在" : "不存在");
+    printf("🔍 [ConfigStorage] 检查屏幕设置配置存在性: 键='%s', %s\n", SCREEN_MODE_KEY, exists ? "存在" : "不存在");
     return exists;
 }
 
