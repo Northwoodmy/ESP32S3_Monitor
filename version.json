@@ -1,13 +1,15 @@
 {
-    "version": "v5.6.8",
+    "version": "v5.6.10",
     "build_date": "2024-12-19",
-    "description": "ESP32S3 Monitor Project - WiFi状态检查修复版本",
+    "description": "ESP32S3 Monitor Project - 屏幕设置界面优化版本",
     "changes": [
-        "修复时间设置页面WiFi状态检查功能",
-        "添加checkWiFiStatus()函数",
-        "恢复WiFi状态的正确显示",
-        "优化WiFi状态检查逻辑",
-        "增强NTP同步功能的可用性"
+        "新增屏幕设置功能模块",
+        "实现四段式屏幕模式切换（亮屏、定时、延时、熄屏）",
+        "添加定时模式时间段设置",
+        "添加延时模式延时时间设置",
+        "配置信息异步保存到NVS存储",
+        "完善Web界面屏幕设置页面",
+        "优化屏幕设置界面，移除图标显示"
     ],
     "release_date": "2024-12-19",
     "size": 1048576,
@@ -15,36 +17,40 @@
     "checksum": "sha256:abcd1234567890abcdef1234567890abcdef1234567890abcdef1234567890ab",
     "changelog": {
         "added": [
-            "新增checkWiFiStatus()函数获取WiFi状态",
-            "WiFi状态定期检查机制"
+            "新增屏幕设置功能模块",
+            "实现四段式屏幕模式：亮屏、定时、延时、熄屏",
+            "添加定时模式时间段配置功能",
+            "添加延时模式延时时间配置功能",
+            "屏幕设置Web界面页面",
+            "屏幕设置配置的异步NVS存储"
         ],
         "improved": [
-            "时间设置页面的WiFi状态显示准确性",
-            "NTP同步功能的可用性判断",
-            "WiFi连接状态的实时更新"
+            "ConfigStorage模块扩展屏幕设置配置支持",
+            "WebServerManager增强屏幕设置API",
+            "用户界面体验优化",
+            "配置存储的线程安全性"
         ],
-        "fixed": [
-            "时间设置页面WiFi状态一直显示'检查WiFi状态中...'的问题",
-            "NTP同步按钮无法正确启用/禁用的问题",
-            "WiFi状态检查功能失效的问题"
-        ],
+        "fixed": [],
         "removed": []
     },
     "technical_details": {
-        "bug_fixes": [
-            "修复删除loadSystemStatus()函数后WiFi状态检查失效的问题",
-            "添加专门的WiFi状态检查函数替代原有系统状态检查",
-            "恢复WiFi状态的定期更新机制"
+        "new_features": [
+            "ScreenMode枚举定义四种屏幕模式",
+            "ScreenConfigData结构体存储屏幕设置配置",
+            "handleScreenSettings()页面处理方法",
+            "handleGetScreenSettings()配置获取API",
+            "handleSetScreenSettings()配置保存API"
         ],
         "code_optimization": [
-            "新增checkWiFiStatus()异步函数",
-            "集成WiFi状态检查到定时更新中",
-            "优化错误处理机制"
+            "屏幕设置配置的异步存储操作",
+            "参数验证和错误处理机制",
+            "模块化设计和代码复用"
         ],
         "functionality": [
-            "通过/info接口获取WiFi状态",
-            "自动更新NTP同步按钮状态",
-            "实时显示WiFi连接信息"
+            "通过Web界面设置屏幕模式",
+            "定时模式支持时间段设置",
+            "延时模式支持延时时间设置",
+            "配置实时保存到NVS存储"
         ]
     },
     "compatibility": {
@@ -68,8 +74,9 @@
         "美化天气界面",
         "动画视觉效果",
         "省市区级联选择器",
-        "时间设置功能"
+        "时间设置功能",
+        "屏幕设置功能"
     ],
-    "release_notes": "此版本修复了时间设置页面WiFi状态检查功能，解决了WiFi状态一直显示'检查WiFi状态中...'的问题。现在WiFi状态能够正确显示，NTP同步功能的可用性判断也能正常工作。建议用户升级到此版本以获得更好的时间设置体验。",
+    "release_notes": "此版本新增了屏幕设置功能，支持四段式屏幕模式切换：亮屏（始终点亮）、定时（指定时间段点亮）、延时（无操作后延时熄屏）、熄屏（始终关闭）。用户可以通过Web界面方便地配置屏幕模式，定时模式支持设置开始和结束时间，延时模式支持设置延时时间。所有配置都会异步保存到NVS存储中，确保重启后配置不丢失。建议用户升级到此版本以获得更好的屏幕管理体验。",
     "status": "stable"
 } 

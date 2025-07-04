@@ -25,6 +25,14 @@ struct WiFiConfig {
     WiFiConfig(const String& s, const String& p, int prio = 99) : ssid(s), password(p), priority(prio), isValid(true) {}
 };
 
+// 屏幕模式枚举
+enum ScreenMode {
+    SCREEN_MODE_ALWAYS_ON,    // 亮屏：始终点亮
+    SCREEN_MODE_SCHEDULED,    // 定时：指定时间段点亮
+    SCREEN_MODE_TIMEOUT,      // 延时：无操作后延时熄屏
+    SCREEN_MODE_ALWAYS_OFF    // 熄屏：始终关闭
+};
+
 // 配置操作类型枚举
 enum ConfigOperation {
     CONFIG_OP_SAVE_WIFI,
@@ -45,6 +53,9 @@ enum ConfigOperation {
     CONFIG_OP_HAS_BRIGHTNESS,
     CONFIG_OP_SAVE_TIME_CONFIG,
     CONFIG_OP_LOAD_TIME_CONFIG,
+    CONFIG_OP_SAVE_SCREEN_CONFIG,
+    CONFIG_OP_LOAD_SCREEN_CONFIG,
+    CONFIG_OP_HAS_SCREEN_CONFIG,
     CONFIG_OP_RESET_ALL,
     CONFIG_OP_PUT_STRING,
     CONFIG_OP_GET_STRING,
@@ -129,6 +140,22 @@ struct TimeConfigData {
         : primaryServer(primary), secondaryServer(secondary), timezone(tz), syncInterval(interval) {}
 };
 
+// 屏幕设置配置请求数据结构
+struct ScreenConfigData {
+    ScreenMode mode;           // 屏幕模式
+    int startHour;            // 定时模式开始时间（小时）
+    int startMinute;          // 定时模式开始时间（分钟）
+    int endHour;              // 定时模式结束时间（小时）
+    int endMinute;            // 定时模式结束时间（分钟）
+    int timeoutMinutes;       // 延时模式延时时间（分钟）
+    
+    ScreenConfigData() : mode(SCREEN_MODE_ALWAYS_ON), startHour(8), startMinute(0), 
+                        endHour(22), endMinute(0), timeoutMinutes(10) {}
+    ScreenConfigData(ScreenMode m, int sh, int sm, int eh, int em, int timeout) 
+        : mode(m), startHour(sh), startMinute(sm), endHour(eh), endMinute(em), 
+          timeoutMinutes(timeout) {}
+};
+
 // 通用配置请求数据结构
 struct GenericConfigData {
     String key;
@@ -194,6 +221,13 @@ public:
     bool loadTimeConfigAsync(String& primaryServer, String& secondaryServer, 
                             String& timezone, int& syncInterval, uint32_t timeoutMs = 5000);
     
+    // 异步屏幕设置配置操作接口
+    bool saveScreenConfigAsync(ScreenMode mode, int startHour, int startMinute, 
+                              int endHour, int endMinute, int timeoutMinutes, uint32_t timeoutMs = 5000);
+    bool loadScreenConfigAsync(ScreenMode& mode, int& startHour, int& startMinute, 
+                              int& endHour, int& endMinute, int& timeoutMinutes, uint32_t timeoutMs = 5000);
+    bool hasScreenConfigAsync(uint32_t timeoutMs = 5000);
+    
     // 异步配置重置操作接口
     bool resetAllConfigAsync(uint32_t timeoutMs = 5000);
     
@@ -252,6 +286,14 @@ private:
     static const char* TIME_TIMEZONE_KEY;
     static const char* TIME_SYNC_INTERVAL_KEY;
     
+    // 屏幕设置配置键名
+    static const char* SCREEN_MODE_KEY;
+    static const char* SCREEN_START_HOUR_KEY;
+    static const char* SCREEN_START_MINUTE_KEY;
+    static const char* SCREEN_END_HOUR_KEY;
+    static const char* SCREEN_END_MINUTE_KEY;
+    static const char* SCREEN_TIMEOUT_MINUTES_KEY;
+    
     // 内部任务处理方法
     void processConfigRequest(ConfigRequest* request);
     
@@ -283,6 +325,12 @@ private:
                        const String& timezone, int syncInterval);
     bool loadTimeConfig(String& primaryServer, String& secondaryServer, 
                        String& timezone, int& syncInterval);
+    
+    bool saveScreenConfig(ScreenMode mode, int startHour, int startMinute, 
+                         int endHour, int endMinute, int timeoutMinutes);
+    bool loadScreenConfig(ScreenMode& mode, int& startHour, int& startMinute, 
+                         int& endHour, int& endMinute, int& timeoutMinutes);
+    bool hasScreenConfig();
     
     bool resetAllConfig();
     

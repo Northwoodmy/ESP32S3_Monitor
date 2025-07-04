@@ -128,6 +128,11 @@ private:
     void handleTestWeatherApi();
     void handleUpdateWeatherNow();
     
+    // 屏幕设置相关API
+    void handleScreenSettings();
+    void handleGetScreenSettings();
+    void handleSetScreenSettings();
+    
     // 获取主页HTML
     String getIndexHTML();
     
@@ -166,6 +171,15 @@ private:
     
     // 获取OTA页面CSS样式
     String getOTAPageCSS();
+    
+    // 获取屏幕设置页面HTML
+    String getScreenSettingsHTML();
+    
+    // 获取屏幕设置页面CSS样式
+    String getScreenSettingsCSS();
+    
+    // 获取屏幕设置页面JavaScript代码
+    String getScreenSettingsJavaScript();
 };
 
 #endif // WEBSERVERMANAGER_H 

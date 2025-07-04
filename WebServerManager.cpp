@@ -106,6 +106,11 @@ void WebServerManager::init() {
     server->on("/api/weather/test", HTTP_POST, [this]() { handleTestWeatherApi(); });
     server->on("/api/weather/update", HTTP_POST, [this]() { handleUpdateWeatherNow(); });
     
+    // 屏幕设置路由
+    server->on("/screen-settings", [this]() { handleScreenSettings(); });
+    server->on("/api/screen/settings", HTTP_GET, [this]() { handleGetScreenSettings(); });
+    server->on("/api/screen/settings", HTTP_POST, [this]() { handleSetScreenSettings(); });
+    
     server->onNotFound([this]() { handleNotFound(); });
     
     printf("Web服务器路由配置完成\n");
@@ -234,7 +239,7 @@ void WebServerManager::handleSystemInfo() {
     
     DynamicJsonDocument doc(1024);
     doc["device"] = "ESP32S3 Monitor";
-            doc["version"] = "v5.6.3";
+            doc["version"] = "v5.6.9";
     doc["chipModel"] = ESP.getChipModel();
     doc["chipRevision"] = ESP.getChipRevision();
     doc["cpuFreq"] = ESP.getCpuFreqMHz();
@@ -2009,6 +2014,151 @@ void WebServerManager::handleScreenTest() {
         doc["message"] = "显示管理器未初始化";
         
         printf("显示管理器未初始化，无法执行屏幕测试\n");
+    }
+    
+    String response;
+    serializeJson(doc, response);
+    server->send(200, "application/json", response);
+}
+
+void WebServerManager::handleScreenSettings() {
+    printf("处理屏幕设置页面请求\n");
+    server->send(200, "text/html", getScreenSettingsHTML());
+}
+
+void WebServerManager::handleGetScreenSettings() {
+    printf("处理获取屏幕设置配置请求\n");
+    
+    DynamicJsonDocument doc(512);
+    
+    if (configStorage) {
+        ScreenMode mode;
+        int startHour, startMinute, endHour, endMinute, timeoutMinutes;
+        
+        bool hasConfig = configStorage->hasScreenConfigAsync(3000);
+        if (hasConfig) {
+            bool success = configStorage->loadScreenConfigAsync(mode, startHour, startMinute, 
+                                                              endHour, endMinute, timeoutMinutes, 3000);
+            if (success) {
+                doc["success"] = true;
+                doc["mode"] = (int)mode;
+                doc["startHour"] = startHour;
+                doc["startMinute"] = startMinute;
+                doc["endHour"] = endHour;
+                doc["endMinute"] = endMinute;
+                doc["timeoutMinutes"] = timeoutMinutes;
+                doc["message"] = "屏幕设置配置获取成功";
+                
+                printf("屏幕设置配置获取成功：模式=%d, 开始时间=%02d:%02d, 结束时间=%02d:%02d, 延时=%d分钟\n",
+                       (int)mode, startHour, startMinute, endHour, endMinute, timeoutMinutes);
+            } else {
+                doc["success"] = false;
+                doc["message"] = "屏幕设置配置加载失败";
+                printf("屏幕设置配置加载失败\n");
+            }
+        } else {
+            // 返回默认配置
+            doc["success"] = true;
+            doc["mode"] = SCREEN_MODE_ALWAYS_ON;
+            doc["startHour"] = 8;
+            doc["startMinute"] = 0;
+            doc["endHour"] = 22;
+            doc["endMinute"] = 0;
+            doc["timeoutMinutes"] = 10;
+            doc["message"] = "返回默认屏幕设置配置";
+            
+            printf("返回默认屏幕设置配置\n");
+        }
+    } else {
+        doc["success"] = false;
+        doc["message"] = "配置存储未初始化";
+        printf("配置存储未初始化\n");
+    }
+    
+    String response;
+    serializeJson(doc, response);
+    server->send(200, "application/json", response);
+}
+
+void WebServerManager::handleSetScreenSettings() {
+    printf("处理设置屏幕设置配置请求\n");
+    
+    DynamicJsonDocument doc(256);
+    
+    if (!configStorage) {
+        doc["success"] = false;
+        doc["message"] = "配置存储未初始化";
+        printf("配置存储未初始化\n");
+        String response;
+        serializeJson(doc, response);
+        server->send(400, "application/json", response);
+        return;
+    }
+    
+    // 检查必要参数
+    if (!server->hasArg("mode")) {
+        doc["success"] = false;
+        doc["message"] = "缺少mode参数";
+        printf("缺少mode参数\n");
+        String response;
+        serializeJson(doc, response);
+        server->send(400, "application/json", response);
+        return;
+    }
+    
+    int mode = server->arg("mode").toInt();
+    int startHour = server->hasArg("startHour") ? server->arg("startHour").toInt() : 8;
+    int startMinute = server->hasArg("startMinute") ? server->arg("startMinute").toInt() : 0;
+    int endHour = server->hasArg("endHour") ? server->arg("endHour").toInt() : 22;
+    int endMinute = server->hasArg("endMinute") ? server->arg("endMinute").toInt() : 0;
+    int timeoutMinutes = server->hasArg("timeoutMinutes") ? server->arg("timeoutMinutes").toInt() : 10;
+    
+    printf("接收到屏幕设置配置：模式=%d, 开始时间=%02d:%02d, 结束时间=%02d:%02d, 延时=%d分钟\n",
+           mode, startHour, startMinute, endHour, endMinute, timeoutMinutes);
+    
+    // 参数验证
+    if (mode < 0 || mode > 3) {
+        doc["success"] = false;
+        doc["message"] = "无效的屏幕模式";
+        printf("无效的屏幕模式: %d\n", mode);
+        String response;
+        serializeJson(doc, response);
+        server->send(400, "application/json", response);
+        return;
+    }
+    
+    if (startHour < 0 || startHour > 23 || startMinute < 0 || startMinute > 59 ||
+        endHour < 0 || endHour > 23 || endMinute < 0 || endMinute > 59) {
+        doc["success"] = false;
+        doc["message"] = "无效的时间设置";
+        printf("无效的时间设置\n");
+        String response;
+        serializeJson(doc, response);
+        server->send(400, "application/json", response);
+        return;
+    }
+    
+    if (timeoutMinutes < 1 || timeoutMinutes > 1440) {
+        doc["success"] = false;
+        doc["message"] = "延时时间必须在1-1440分钟之间";
+        printf("无效的延时时间: %d\n", timeoutMinutes);
+        String response;
+        serializeJson(doc, response);
+        server->send(400, "application/json", response);
+        return;
+    }
+    
+    // 保存配置
+    bool success = configStorage->saveScreenConfigAsync((ScreenMode)mode, startHour, startMinute,
+                                                       endHour, endMinute, timeoutMinutes, 3000);
+    
+    doc["success"] = success;
+    if (success) {
+        doc["message"] = "屏幕设置配置保存成功";
+        printf("屏幕设置配置保存成功\n");
+    } else {
+        doc["message"] = "屏幕设置配置保存失败";
+        printf("屏幕设置配置保存失败\n");
     }
     
     String response;

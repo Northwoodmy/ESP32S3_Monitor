@@ -30,6 +30,13 @@ const char* ConfigStorage::TIME_SECONDARY_SERVER_KEY = "time_secondary";
 const char* ConfigStorage::TIME_TIMEZONE_KEY = "time_timezone";
 const char* ConfigStorage::TIME_SYNC_INTERVAL_KEY = "time_interval";
 
+const char* ConfigStorage::SCREEN_MODE_KEY = "screen_mode";
+const char* ConfigStorage::SCREEN_START_HOUR_KEY = "screen_start_hour";
+const char* ConfigStorage::SCREEN_START_MINUTE_KEY = "screen_start_minute";
+const char* ConfigStorage::SCREEN_END_HOUR_KEY = "screen_end_hour";
+const char* ConfigStorage::SCREEN_END_MINUTE_KEY = "screen_end_minute";
+const char* ConfigStorage::SCREEN_TIMEOUT_MINUTES_KEY = "screen_timeout_minutes";
+
 ConfigStorage::ConfigStorage() : configTaskHandle(nullptr), configQueue(nullptr), taskRunning(false) {
 }
 
@@ -309,6 +316,33 @@ void ConfigStorage::processConfigRequest(ConfigRequest* request) {
             if (result != nullptr) {
                 request->success = loadTimeConfig(result->primaryServer, result->secondaryServer, 
                                                  result->timezone, result->syncInterval);
+            }
+            break;
+        }
+        
+        case CONFIG_OP_SAVE_SCREEN_CONFIG: {
+            ScreenConfigData* data = static_cast<ScreenConfigData*>(request->data);
+            if (data != nullptr) {
+                request->success = saveScreenConfig(data->mode, data->startHour, data->startMinute, 
+                                                   data->endHour, data->endMinute, data->timeoutMinutes);
+            }
+            break;
+        }
+        
+        case CONFIG_OP_LOAD_SCREEN_CONFIG: {
+            ScreenConfigData* result = static_cast<ScreenConfigData*>(request->result);
+            if (result != nullptr) {
+                request->success = loadScreenConfig(result->mode, result->startHour, result->startMinute, 
+                                                   result->endHour, result->endMinute, result->timeoutMinutes);
+            }
+            break;
+        }
+        
+        case CONFIG_OP_HAS_SCREEN_CONFIG: {
+            bool* result = static_cast<bool*>(request->result);
+            if (result != nullptr) {
+                *result = hasScreenConfig();
+                request->success = true;
             }
             break;
         }
@@ -632,6 +666,48 @@ bool ConfigStorage::loadTimeConfigAsync(String& primaryServer, String& secondary
     }
     
     return success;
+}
+
+// 异步屏幕设置配置操作接口实现
+
+bool ConfigStorage::saveScreenConfigAsync(ScreenMode mode, int startHour, int startMinute, 
+                                         int endHour, int endMinute, int timeoutMinutes, uint32_t timeoutMs) {
+    ScreenConfigData data(mode, startHour, startMinute, endHour, endMinute, timeoutMinutes);
+    ConfigRequest request;
+    request.operation = CONFIG_OP_SAVE_SCREEN_CONFIG;
+    request.data = &data;
+    
+    return sendRequestAndWait(&request, timeoutMs);
+}
+
+bool ConfigStorage::loadScreenConfigAsync(ScreenMode& mode, int& startHour, int& startMinute, 
+                                         int& endHour, int& endMinute, int& timeoutMinutes, uint32_t timeoutMs) {
+    ScreenConfigData result;
+    ConfigRequest request;
+    request.operation = CONFIG_OP_LOAD_SCREEN_CONFIG;
+    request.result = &result;
+    
+    bool success = sendRequestAndWait(&request, timeoutMs);
+    if (success) {
+        mode = result.mode;
+        startHour = result.startHour;
+        startMinute = result.startMinute;
+        endHour = result.endHour;
+        endMinute = result.endMinute;
+        timeoutMinutes = result.timeoutMinutes;
+    }
+    
+    return success;
+}
+
+bool ConfigStorage::hasScreenConfigAsync(uint32_t timeoutMs) {
+    bool result = false;
+    ConfigRequest request;
+    request.operation = CONFIG_OP_HAS_SCREEN_CONFIG;
+    request.result = &result;
+    
+    bool success = sendRequestAndWait(&request, timeoutMs);
+    return success && result;
 }
 
 bool ConfigStorage::resetAllConfigAsync(uint32_t timeoutMs) {
@@ -1356,6 +1432,118 @@ bool ConfigStorage::loadTimeConfig(String& primaryServer, String& secondaryServe
     printf("  同步间隔: %d分钟\n", syncInterval);
     
     return true;
+}
+
+// 屏幕设置配置方法实现
+
+bool ConfigStorage::saveScreenConfig(ScreenMode mode, int startHour, int startMinute, 
+                                    int endHour, int endMinute, int timeoutMinutes) {
+    printf("💾 [ConfigStorage] 保存屏幕设置配置\n");
+    printf("  屏幕模式: %d\n", mode);
+    printf("  定时开始: %02d:%02d\n", startHour, startMinute);
+    printf("  定时结束: %02d:%02d\n", endHour, endMinute);
+    printf("  延时时间: %d分钟\n", timeoutMinutes);
+    
+    if (!preferences.begin(SYSTEM_NAMESPACE, false)) {
+        printf("❌ [ConfigStorage] 打开系统配置命名空间失败\n");
+        return false;
+    }
+    
+    // 保存屏幕设置配置
+    bool success = true;
+    success &= (preferences.putInt(SCREEN_MODE_KEY, (int)mode) > 0);
+    success &= (preferences.putInt(SCREEN_START_HOUR_KEY, startHour) > 0);
+    success &= (preferences.putInt(SCREEN_START_MINUTE_KEY, startMinute) > 0);
+    success &= (preferences.putInt(SCREEN_END_HOUR_KEY, endHour) > 0);
+    success &= (preferences.putInt(SCREEN_END_MINUTE_KEY, endMinute) > 0);
+    success &= (preferences.putInt(SCREEN_TIMEOUT_MINUTES_KEY, timeoutMinutes) > 0);
+    
+    preferences.end();
+    
+    if (success) {
+        printf("✅ [ConfigStorage] 屏幕设置配置保存成功\n");
+    } else {
+        printf("❌ [ConfigStorage] 屏幕设置配置保存失败\n");
+    }
+    
+    return success;
+}
+
+bool ConfigStorage::loadScreenConfig(ScreenMode& mode, int& startHour, int& startMinute, 
+                                    int& endHour, int& endMinute, int& timeoutMinutes) {
+    printf("📖 [ConfigStorage] 加载屏幕设置配置\n");
+    
+    if (!preferences.begin(SYSTEM_NAMESPACE, true)) {
+        printf("⚠️ [ConfigStorage] 打开系统配置命名空间失败，使用默认屏幕设置\n");
+        mode = SCREEN_MODE_ALWAYS_ON;
+        startHour = 8;
+        startMinute = 0;
+        endHour = 22;
+        endMinute = 0;
+        timeoutMinutes = 10;
+        return false;
+    }
+    
+    // 加载屏幕设置配置
+    mode = (ScreenMode)preferences.getInt(SCREEN_MODE_KEY, SCREEN_MODE_ALWAYS_ON);
+    startHour = preferences.getInt(SCREEN_START_HOUR_KEY, 8);
+    startMinute = preferences.getInt(SCREEN_START_MINUTE_KEY, 0);
+    endHour = preferences.getInt(SCREEN_END_HOUR_KEY, 22);
+    endMinute = preferences.getInt(SCREEN_END_MINUTE_KEY, 0);
+    timeoutMinutes = preferences.getInt(SCREEN_TIMEOUT_MINUTES_KEY, 10);
+    
+    preferences.end();
+    
+    // 验证配置值范围
+    if (mode < SCREEN_MODE_ALWAYS_ON || mode > SCREEN_MODE_ALWAYS_OFF) {
+        printf("⚠️ [ConfigStorage] 屏幕模式超出范围(%d)，使用默认值\n", mode);
+        mode = SCREEN_MODE_ALWAYS_ON;
+    }
+    
+    if (startHour < 0 || startHour > 23) {
+        printf("⚠️ [ConfigStorage] 开始小时超出范围(%d)，使用默认值8\n", startHour);
+        startHour = 8;
+    }
+    
+    if (startMinute < 0 || startMinute > 59) {
+        printf("⚠️ [ConfigStorage] 开始分钟超出范围(%d)，使用默认值0\n", startMinute);
+        startMinute = 0;
+    }
+    
+    if (endHour < 0 || endHour > 23) {
+        printf("⚠️ [ConfigStorage] 结束小时超出范围(%d)，使用默认值22\n", endHour);
+        endHour = 22;
+    }
+    
+    if (endMinute < 0 || endMinute > 59) {
+        printf("⚠️ [ConfigStorage] 结束分钟超出范围(%d)，使用默认值0\n", endMinute);
+        endMinute = 0;
+    }
+    
+    if (timeoutMinutes < 1 || timeoutMinutes > 1440) { // 1分钟到24小时
+        printf("⚠️ [ConfigStorage] 延时时间超出范围(%d分钟)，使用默认值10分钟\n", timeoutMinutes);
+        timeoutMinutes = 10;
+    }
+    
+    printf("📖 [ConfigStorage] 屏幕设置配置加载完成\n");
+    printf("  屏幕模式: %d\n", mode);
+    printf("  定时开始: %02d:%02d\n", startHour, startMinute);
+    printf("  定时结束: %02d:%02d\n", endHour, endMinute);
+    printf("  延时时间: %d分钟\n", timeoutMinutes);
+    
+    return true;
+}
+
+bool ConfigStorage::hasScreenConfig() {
+    if (!preferences.begin(SYSTEM_NAMESPACE, true)) {
+        return false;
+    }
+    
+    bool exists = preferences.isKey(SCREEN_MODE_KEY);
+    preferences.end();
+    
+    printf("🔍 [ConfigStorage] 检查屏幕设置配置存在性: %s\n", exists ? "存在" : "不存在");
+    return exists;
 }
 
 // 内部通用配置方法实现
