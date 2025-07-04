@@ -1,70 +1,96 @@
 {
-    "version": "v5.6.10",
+    "version": "v6.0.0",
     "build_date": "2024-12-19",
-    "description": "ESP32S3 Monitor Project - 屏幕设置界面优化版本",
+    "description": "ESP32S3 Monitor Project - HTTP监控功能重构版本",
     "changes": [
-        "新增屏幕设置功能模块",
-        "实现四段式屏幕模式切换（亮屏、定时、延时、熄屏）",
-        "添加定时模式时间段设置",
-        "添加延时模式延时时间设置",
-        "配置信息异步保存到NVS存储",
-        "完善Web界面屏幕设置页面",
-        "优化屏幕设置界面，移除图标显示"
+        "重构Monitor类，从Hello World任务改为HTTP监控任务",
+        "新增HTTP客户端功能，支持从指定URL获取监控数据",
+        "集成ArduinoJson库，支持JSON数据解析",
+        "新增端口状态监控，实时显示端口ID、状态、电流、电压等信息",
+        "新增系统信息监控，显示启动时间、重置原因、可用堆内存",
+        "新增任务性能监控，显示任务栈使用情况和CPU占用率",
+        "新增WiFi信息监控，显示SSID、信道、信号强度等",
+        "监控任务支持PSRAM栈，提升性能和稳定性",
+        "增加WiFi连接状态检测，确保监控数据获取可靠性",
+        "支持可配置的监控数据获取间隔"
     ],
     "release_date": "2024-12-19",
     "size": 1048576,
-    "download_url": "http://egota.yingdl.com/firmware/esp32s3_monitor_v5.6.8.bin",
+    "download_url": "http://egota.yingdl.com/firmware/esp32s3_monitor_v6.0.0.bin",
     "checksum": "sha256:abcd1234567890abcdef1234567890abcdef1234567890abcdef1234567890ab",
     "changelog": {
         "added": [
-            "新增屏幕设置功能模块",
-            "实现四段式屏幕模式：亮屏、定时、延时、熄屏",
-            "添加定时模式时间段配置功能",
-            "添加延时模式延时时间配置功能",
-            "屏幕设置Web界面页面",
-            "屏幕设置配置的异步NVS存储"
+            "HTTP客户端监控功能",
+            "JSON数据解析和显示",
+            "端口状态实时监控",
+            "系统信息监控面板",
+            "任务性能监控功能",
+            "WiFi连接状态监控",
+            "可配置监控数据获取间隔",
+            "监控任务PSRAM栈支持"
         ],
         "improved": [
-            "ConfigStorage模块扩展屏幕设置配置支持",
-            "WebServerManager增强屏幕设置API",
-            "用户界面体验优化",
-            "配置存储的线程安全性"
+            "Monitor类架构重构",
+            "任务优先级调整为3",
+            "栈大小增加至8192字节",
+            "错误处理机制完善",
+            "调试信息输出优化"
         ],
         "fixed": [],
-        "removed": []
+        "removed": [
+            "Hello World简单输出功能"
+        ]
     },
     "technical_details": {
         "new_features": [
-            "ScreenMode枚举定义四种屏幕模式",
-            "ScreenConfigData结构体存储屏幕设置配置",
-            "handleScreenSettings()页面处理方法",
-            "handleGetScreenSettings()配置获取API",
-            "handleSetScreenSettings()配置保存API"
+            "HTTPClient客户端集成",
+            "ArduinoJson库支持",
+            "monitoringTask()监控任务函数",
+            "fetchMetricsData()数据获取方法",
+            "parseAndDisplayMetrics()数据解析方法",
+            "displayPortInfo()端口信息显示",
+            "displaySystemInfo()系统信息显示",
+            "displayWiFiInfo()WiFi信息显示",
+            "isWiFiConnected()WiFi状态检测"
         ],
         "code_optimization": [
-            "屏幕设置配置的异步存储操作",
-            "参数验证和错误处理机制",
-            "模块化设计和代码复用"
+            "任务栈大小优化(8192字节)",
+            "PSRAM栈支持",
+            "HTTP请求超时控制",
+            "内存使用优化",
+            "任务循环结构改进"
         ],
         "functionality": [
-            "通过Web界面设置屏幕模式",
-            "定时模式支持时间段设置",
-            "延时模式支持延时时间设置",
-            "配置实时保存到NVS存储"
+            "定时获取http://10.10.168.168/metrics.json数据",
+            "解析端口电压电流信息",
+            "显示系统运行状态",
+            "监控任务性能指标",
+            "WiFi连接状态检测"
         ]
     },
     "compatibility": {
-        "api_changes": false,
+        "api_changes": true,
         "config_format": "兼容现有配置格式",
-        "backward_compatible": true
+        "backward_compatible": false
     },
     "requirements": {
         "esp32_version": ">=2.0.0",
         "arduino_ide": ">=1.8.19",
         "flash_size": "16MB",
-        "psram": "8MB"
+        "psram": "8MB",
+        "libraries": [
+            "ArduinoJson",
+            "HTTPClient",
+            "WiFi"
+        ]
     },
     "features": [
+        "HTTP监控数据获取",
+        "JSON数据解析",
+        "端口状态监控",
+        "系统信息监控",
+        "任务性能监控",
+        "WiFi状态监控",
         "WiFi配置管理",
         "LCD显示系统",
         "PSRAM内存管理",
@@ -77,6 +103,6 @@
         "时间设置功能",
         "屏幕设置功能"
     ],
-    "release_notes": "此版本新增了屏幕设置功能，支持四段式屏幕模式切换：亮屏（始终点亮）、定时（指定时间段点亮）、延时（无操作后延时熄屏）、熄屏（始终关闭）。用户可以通过Web界面方便地配置屏幕模式，定时模式支持设置开始和结束时间，延时模式支持设置延时时间。所有配置都会异步保存到NVS存储中，确保重启后配置不丢失。建议用户升级到此版本以获得更好的屏幕管理体验。",
+    "release_notes": "此版本对Monitor类进行了重大重构，从简单的Hello World任务升级为功能完整的HTTP监控系统。新系统支持通过HTTP请求获取metrics.json监控数据，并实时解析显示端口状态（电流、电压）、系统信息、任务性能和WiFi状态等关键信息。监控任务优先级设置为3，采用8192字节栈空间，支持PSRAM栈以提升性能。系统每5秒自动获取一次监控数据，确保信息的实时性。此版本为不兼容更新，建议用户完全重新部署。",
     "status": "stable"
 } 

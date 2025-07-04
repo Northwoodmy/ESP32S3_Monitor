@@ -1,0 +1,152 @@
+{
+  "ports": [
+    {
+      "id": 0,
+      "state": true,
+      "fc_protocol": 255,
+      "current": 0,
+      "voltage": 0
+    },
+    {
+      "id": 1,
+      "state": true,
+      "fc_protocol": 255,
+      "current": 0,
+      "voltage": 0
+    },
+    {
+      "id": 2,
+      "state": true,
+      "fc_protocol": 255,
+      "current": 0,
+      "voltage": 0
+    },
+    {
+      "id": 3,
+      "state": true,
+      "fc_protocol": 255,
+      "current": 0,
+      "voltage": 0
+    },
+    {
+      "id": 4,
+      "state": true,
+      "fc_protocol": 19,
+      "current": 12,
+      "voltage": 27848
+    }
+  ],
+  "system": {
+    "boot_time_seconds": 706245,
+    "reset_reason": 3,
+    "free_heap": 61692
+  },
+  "tasks": [
+    {
+      "name": "httpd",
+      "stack_watermark_bytes": 1628,
+      "cpu_percent": 0.180666951804183
+    },
+    {
+      "name": "display",
+      "stack_watermark_bytes": 884,
+      "cpu_percent": 0.042582660225269
+    },
+    {
+      "name": "IDLE",
+      "stack_watermark_bytes": 1236,
+      "cpu_percent": 96.7535981659198
+    },
+    {
+      "name": "wifi_task",
+      "stack_watermark_bytes": 1964,
+      "cpu_percent": 0.239472586948978
+    },
+    {
+      "name": "ble_adv",
+      "stack_watermark_bytes": 1676,
+      "cpu_percent": 0.0915356186451336
+    },
+    {
+      "name": "wdg",
+      "stack_watermark_bytes": 904,
+      "cpu_percent": 0.056497983806986
+    },
+    {
+      "name": "animation",
+      "stack_watermark_bytes": 1072,
+      "cpu_percent": 0.0243834783608669
+    },
+    {
+      "name": "port_mgr",
+      "stack_watermark_bytes": 1740,
+      "cpu_percent": 0.193103656980217
+    },
+    {
+      "name": "main",
+      "stack_watermark_bytes": 2108,
+      "cpu_percent": 0.00806054353578426
+    },
+    {
+      "name": "mqtt_task",
+      "stack_watermark_bytes": 4348,
+      "cpu_percent": 0.00343077378767327
+    },
+    {
+      "name": "tiT",
+      "stack_watermark_bytes": 1924,
+      "cpu_percent": 0.465381902425474
+    },
+    {
+      "name": "Tmr Svc",
+      "stack_watermark_bytes": 2828,
+      "cpu_percent": 9.91157227856755e-9
+    },
+    {
+      "name": "telemetry",
+      "stack_watermark_bytes": 1036,
+      "cpu_percent": 0.00203891717949417
+    },
+    {
+      "name": "uart_event",
+      "stack_watermark_bytes": 2048,
+      "cpu_percent": 0.391354925129749
+    },
+    {
+      "name": "esp_timer",
+      "stack_watermark_bytes": 2596,
+      "cpu_percent": 0.229123332382039
+    },
+    {
+      "name": "pwr_alloc",
+      "stack_watermark_bytes": 1444,
+      "cpu_percent": 0.241439268872894
+    },
+    {
+      "name": "wifi",
+      "stack_watermark_bytes": 2252,
+      "cpu_percent": 0.939103842547913
+    },
+    {
+      "name": "sys_evt",
+      "stack_watermark_bytes": 1488,
+      "cpu_percent": 0.0192577921558067
+    },
+    {
+      "name": "mdns",
+      "stack_watermark_bytes": 3168,
+      "cpu_percent": 0.00396321806991011
+    },
+    {
+      "name": "mqtt_msg",
+      "stack_watermark_bytes": 1648,
+      "cpu_percent": 0.000007282598528622
+    }
+  ],
+  "wifi": {
+    "ssid": "northwoodmy",
+    "bssid": "24:5a:4c:5f:32:e9",
+    "channel": 1,
+    "rssi": -48
+  }
+}
