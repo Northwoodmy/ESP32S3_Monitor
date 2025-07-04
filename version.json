@@ -1,57 +1,50 @@
 {
-    "version": "v5.6.6",
+    "version": "v5.6.8",
     "build_date": "2024-12-19",
-    "description": "ESP32S3 Monitor Project - 省市区级联选择器版本",
+    "description": "ESP32S3 Monitor Project - WiFi状态检查修复版本",
     "changes": [
-        "省市区级联选择器完全替代手动输入",
-        "全国主要省市区数据覆盖",
-        "现代化界面设计和用户体验",
-        "智能配置管理和反向查找",
-        "JavaScript级联选择器核心逻辑实现"
+        "修复时间设置页面WiFi状态检查功能",
+        "添加checkWiFiStatus()函数",
+        "恢复WiFi状态的正确显示",
+        "优化WiFi状态检查逻辑",
+        "增强NTP同步功能的可用性"
     ],
     "release_date": "2024-12-19",
     "size": 1048576,
-    "download_url": "http://egota.yingdl.com/firmware/esp32s3_monitor_v5.6.6.bin",
+    "download_url": "http://egota.yingdl.com/firmware/esp32s3_monitor_v5.6.8.bin",
     "checksum": "sha256:abcd1234567890abcdef1234567890abcdef1234567890abcdef1234567890ab",
     "changelog": {
         "added": [
-            "省市区三级级联选择器",
-            "全国主要省市区城市编码数据",
-            "城市编码反向查找功能",
-            "实时地址显示和编码生成",
-            "现代化下拉选择器样式"
+            "新增checkWiFiStatus()函数获取WiFi状态",
+            "WiFi状态定期检查机制"
         ],
         "improved": [
-            "城市配置用户体验大幅提升",
-            "消除手动输入城市编码的错误风险",
-            "配置界面视觉效果和交互性",
-            "省市区数据的组织和查找效率"
+            "时间设置页面的WiFi状态显示准确性",
+            "NTP同步功能的可用性判断",
+            "WiFi连接状态的实时更新"
         ],
         "fixed": [
-            "城市名称和编码不匹配的问题",
-            "用户输入城市编码错误的风险",
-            "配置界面不够直观的问题"
+            "时间设置页面WiFi状态一直显示'检查WiFi状态中...'的问题",
+            "NTP同步按钮无法正确启用/禁用的问题",
+            "WiFi状态检查功能失效的问题"
         ],
-        "removed": [
-            "手动输入城市名称的文本框",
-            "手动输入城市编码的文本框"
-        ]
+        "removed": []
     },
     "technical_details": {
-        "ui_changes": [
-            "重构城市配置HTML结构",
-            "新增级联选择器CSS样式",
-            "实现JavaScript级联选择逻辑"
+        "bug_fixes": [
+            "修复删除loadSystemStatus()函数后WiFi状态检查失效的问题",
+            "添加专门的WiFi状态检查函数替代原有系统状态检查",
+            "恢复WiFi状态的定期更新机制"
         ],
-        "data_structure": [
-            "省市区数据结构设计",
-            "城市编码映射关系",
-            "高效查找算法实现"
+        "code_optimization": [
+            "新增checkWiFiStatus()异步函数",
+            "集成WiFi状态检查到定时更新中",
+            "优化错误处理机制"
         ],
-        "user_experience": [
-            "三级联动选择流程",
-            "实时反馈和状态管理",
-            "响应式设计适配"
+        "functionality": [
+            "通过/info接口获取WiFi状态",
+            "自动更新NTP同步按钮状态",
+            "实时显示WiFi连接信息"
         ]
     },
     "compatibility": {
@@ -73,8 +66,10 @@
         "音频播放功能",
         "OTA固件升级",
         "美化天气界面",
-        "动画视觉效果"
+        "动画视觉效果",
+        "省市区级联选择器",
+        "时间设置功能"
     ],
-    "release_notes": "此版本大幅美化了天气界面显示效果，采用全新蓝色渐变主题，温度显示更加醒目，添加了丰富的动画效果，提升了整体视觉体验。建议所有用户升级到此版本。",
+    "release_notes": "此版本修复了时间设置页面WiFi状态检查功能，解决了WiFi状态一直显示'检查WiFi状态中...'的问题。现在WiFi状态能够正确显示，NTP同步功能的可用性判断也能正常工作。建议用户升级到此版本以获得更好的时间设置体验。",
     "status": "stable"
 } 

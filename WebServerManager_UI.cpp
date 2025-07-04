@@ -2625,7 +2625,7 @@ String WebServerManager::getSystemSettingsHTML() {
     html += "<head>\n";
     html += "    <meta charset=\"UTF-8\">\n";
     html += "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n";
-    html += "    <title>系统设置 - ESP32S3 Monitor</title>\n";
+    html += "    <title>时间设置 - ESP32S3 Monitor</title>\n";
     html += "    <style>\n";
     html += getCSS();
     html += getSystemSettingsCSS();
@@ -2635,7 +2635,7 @@ String WebServerManager::getSystemSettingsHTML() {
     html += "    <div class=\"container\">\n";
     html += "        <header class=\"header\">\n";
     html += "            <h1>小屏幕配置</h1>\n";
-    html += "            <div class=\"subtitle\">系统设置</div>\n";
+    html += "            <div class=\"subtitle\">时间设置</div>\n";
     html += "        </header>\n";
     html += "        \n";
     html += "        <div class=\"card\">\n";
@@ -2717,25 +2717,6 @@ String WebServerManager::getSystemSettingsHTML() {
     html += "                                </div>\n";
     html += "                            </div>\n";
     html += "                        </div>\n";
-    html += "                    </div>\n";
-    html += "                </div>\n";
-    html += "            </div>\n";
-    html += "            \n";
-    html += "            <!-- 其他系统设置可以在这里添加 -->\n";
-    html += "            <div class=\"settings-section\">\n";
-    html += "                <h2>系统信息</h2>\n";
-    html += "                <div class=\"system-status\">\n";
-    html += "                    <div class=\"status-item\">\n";
-    html += "                        <span class=\"label\">设备运行时间:</span>\n";
-    html += "                        <span class=\"value\" id=\"systemUptime\">加载中...</span>\n";
-    html += "                    </div>\n";
-    html += "                    <div class=\"status-item\">\n";
-    html += "                        <span class=\"label\">固件版本:</span>\n";
-    html += "                        <span class=\"value\">v5.6.3</span>\n";
-    html += "                    </div>\n";
-    html += "                    <div class=\"status-item\">\n";
-    html += "                        <span class=\"label\">WiFi状态:</span>\n";
-    html += "                        <span class=\"value\" id=\"wifiConnectionStatus\">检查中...</span>\n";
     html += "                    </div>\n";
     html += "                </div>\n";
     html += "            </div>\n";
@@ -3441,15 +3422,13 @@ String WebServerManager::getSystemSettingsJavaScript() {
     js += "    return `${secs}秒`;\n";
     js += "}\n\n";
     
-    js += "let timeUpdateInterval;\n";
-    js += "let systemUpdateInterval;\n\n";
+    js += "let timeUpdateInterval;\n\n";
     
     js += "document.addEventListener('DOMContentLoaded', function() {\n";
     js += "    initSystemSettings();\n";
     js += "    loadTimeConfig();\n";
-    js += "    loadSystemStatus();\n";
+    js += "    checkWiFiStatus();\n";
     js += "    startTimeUpdate();\n";
-    js += "    startSystemUpdate();\n";
     js += "});\n\n";
     
     js += "function initSystemSettings() {\n";
@@ -3477,18 +3456,16 @@ String WebServerManager::getSystemSettingsJavaScript() {
     js += "    }\n";
     js += "}\n\n";
     
-    js += "async function loadSystemStatus() {\n";
+    js += "async function checkWiFiStatus() {\n";
     js += "    try {\n";
     js += "        const response = await fetch('/info');\n";
     js += "        const data = await response.json();\n";
-    js += "        document.getElementById('systemUptime').textContent = formatUptime(data.uptime);\n";
     js += "        \n";
     js += "        // 更新WiFi状态\n";
     js += "        const wifiConnected = data.wifi && data.wifi.status === 'connected';\n";
     js += "        updateWiFiStatus(wifiConnected, data.wifi);\n";
     js += "        \n";
     js += "    } catch (error) {\n";
-    js += "        document.getElementById('systemUptime').textContent = '获取失败';\n";
     js += "        updateWiFiStatus(false);\n";
     js += "    }\n";
     js += "}\n\n";
@@ -3516,28 +3493,26 @@ String WebServerManager::getSystemSettingsJavaScript() {
     js += "    const indicator = document.getElementById('wifiStatusIndicator');\n";
     js += "    const text = document.getElementById('wifiStatusText');\n";
     js += "    const syncBtn = document.getElementById('syncTimeBtn');\n";
-    js += "    const statusText = document.getElementById('wifiConnectionStatus');\n";
     js += "    \n";
     js += "    if (connected) {\n";
     js += "        indicator.className = 'status-indicator connected';\n";
     js += "        text.textContent = `已连接到 ${wifiData.ssid} (${wifiData.ip})`;\n";
     js += "        syncBtn.disabled = false;\n";
-    js += "        statusText.textContent = `已连接 - ${wifiData.ssid}`;\n";
     js += "    } else {\n";
     js += "        indicator.className = 'status-indicator disconnected';\n";
     js += "        text.textContent = '未连接WiFi，无法使用NTP同步';\n";
     js += "        syncBtn.disabled = true;\n";
-    js += "        statusText.textContent = '未连接';\n";
     js += "    }\n";
     js += "}\n\n";
     
     js += "function startTimeUpdate() {\n";
-    js += "    timeUpdateInterval = setInterval(loadTimeConfig, 30000); // 每30秒更新一次时间\n";
+    js += "    timeUpdateInterval = setInterval(function() {\n";
+    js += "        loadTimeConfig();\n";
+    js += "        checkWiFiStatus();\n";
+    js += "    }, 30000); // 每30秒更新一次时间和WiFi状态\n";
     js += "}\n\n";
     
-    js += "function startSystemUpdate() {\n";
-    js += "    systemUpdateInterval = setInterval(loadSystemStatus, 60000); // 每60秒更新一次系统状态\n";
-    js += "}\n\n";
+
     
     js += "async function setTimezone() {\n";
     js += "    const timezone = document.getElementById('timezoneSelect').value;\n";
@@ -3606,7 +3581,6 @@ String WebServerManager::getSystemSettingsJavaScript() {
     js += "// 页面卸载时清理定时器\n";
     js += "window.addEventListener('beforeunload', function() {\n";
     js += "    if (timeUpdateInterval) clearInterval(timeUpdateInterval);\n";
-    js += "    if (systemUpdateInterval) clearInterval(systemUpdateInterval);\n";
     js += "});\n";
     
     return js;
