@@ -1,18 +1,13 @@
 {
-    "version": "v6.0.0",
+    "version": "v6.0.1",
     "build_date": "2024-12-19",
-    "description": "ESP32S3 Monitor Project - HTTP监控功能重构版本",
+    "description": "ESP32S3 Monitor Project - 文件结构优化版本",
     "changes": [
-        "重构Monitor类，从Hello World任务改为HTTP监控任务",
-        "新增HTTP客户端功能，支持从指定URL获取监控数据",
-        "集成ArduinoJson库，支持JSON数据解析",
-        "新增端口状态监控，实时显示端口ID、状态、电流、电压等信息",
-        "新增系统信息监控，显示启动时间、重置原因、可用堆内存",
-        "新增任务性能监控，显示任务栈使用情况和CPU占用率",
-        "新增WiFi信息监控，显示SSID、信道、信号强度等",
-        "监控任务支持PSRAM栈，提升性能和稳定性",
-        "增加WiFi连接状态检测，确保监控数据获取可靠性",
-        "支持可配置的监控数据获取间隔"
+        "分割WebServerManager_UI.cpp文件为两个更小的文件",
+        "创建WebServerManager_UI1.cpp包含基础页面和样式",
+        "创建WebServerManager_UI2.cpp包含设置页面和扩展功能",
+        "优化文件结构，提高代码可维护性",
+        "原6209行大文件分割为两个3100行左右的文件"
     ],
     "release_date": "2024-12-19",
     "size": 1048576,
