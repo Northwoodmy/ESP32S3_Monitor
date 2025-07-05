@@ -10,6 +10,7 @@
 #include "Arduino.h"
 #include <HTTPClient.h>
 #include <WiFiClient.h>
+#include "MDNSScanner.h"
 
 WebServerManager::WebServerManager(WiFiManager* wifiMgr, ConfigStorage* configStore, OTAManager* otaMgr, FileManager* fileMgr) :
     server(nullptr),
@@ -119,6 +120,7 @@ void WebServerManager::init() {
     server->on("/api/server/config", HTTP_POST, [this]() { handleSetServerConfig(); });
     server->on("/api/server/test", HTTP_POST, [this]() { handleTestServerConnection(); });
     server->on("/api/server/data", HTTP_GET, [this]() { handleGetServerData(); });
+    server->on("/api/server/mdns-scan", HTTP_GET, [this]() { handleMDNSScanServers(); });
     
     server->onNotFound([this]() { handleNotFound(); });
     
@@ -2779,6 +2781,72 @@ void WebServerManager::handleGetServerData() {
     }
     
     http.end();
+    
+    String response;
+    serializeJson(doc, response);
+    server->send(200, "application/json", response);
+}
+
+void WebServerManager::handleMDNSScanServers() {
+    printf("处理mDNS扫描服务器请求\n");
+    
+    DynamicJsonDocument doc(2048);
+    
+    if (!wifiManager->isConnected()) {
+        doc["success"] = false;
+        doc["message"] = "设备未连接WiFi，无法进行mDNS扫描";
+        printf("设备未连接WiFi，无法进行mDNS扫描\n");
+        String response;
+        serializeJson(doc, response);
+        server->send(400, "application/json", response);
+        return;
+    }
+    
+    printf("开始mDNS扫描cp02服务器...\n");
+    
+    // 使用关键词搜索cp02服务器
+    std::vector<String> keywords;
+    keywords.push_back("cp02");
+    keywords.push_back("CP02");
+    
+    // 扫描包含cp02关键词的设备
+    std::vector<MDNSDeviceInfo> devices = UniversalMDNSScanner::findDevicesByKeywords(keywords, true);
+    
+    doc["success"] = true;
+    doc["message"] = "cp02服务器扫描完成";
+    doc["scanTime"] = millis();
+    doc["deviceCount"] = devices.size();
+    
+    // 创建设备列表
+    JsonArray deviceArray = doc.createNestedArray("devices");
+    
+    for (const auto& device : devices) {
+        JsonObject deviceObj = deviceArray.createNestedObject();
+        deviceObj["hostname"] = device.hostname;
+        deviceObj["ip"] = device.ip;
+        deviceObj["name"] = device.name;
+        deviceObj["port"] = device.port;
+        deviceObj["serviceType"] = device.serviceType;
+        deviceObj["isValid"] = device.isValid;
+        deviceObj["customInfo"] = device.customInfo;
+        
+        // 生成完整的服务器URL
+        String serverUrl = "http://" + device.ip;
+        if (device.port != 80) {
+            serverUrl += ":" + String(device.port);
+        }
+        serverUrl += "/metrics.json";
+        deviceObj["serverUrl"] = serverUrl;
+        
+        printf("发现cp02服务器: %s (%s:%d)\n", device.name.c_str(), device.ip.c_str(), device.port);
+    }
+    
+    if (deviceArray.size() == 0) {
+        doc["message"] = "未发现任何cp02服务器设备";
+        printf("未发现任何cp02服务器设备\n");
+    } else {
+        printf("cp02服务器扫描完成，发现 %d 个设备\n", deviceArray.size());
+    }
     
     String response;
     serializeJson(doc, response);

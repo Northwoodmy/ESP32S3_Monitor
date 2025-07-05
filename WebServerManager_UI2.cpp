@@ -3172,8 +3172,25 @@ String WebServerManager::getServerSettingsHTML() {
     html += "                            <div class=\"form-group\">\n";
     html += "                                <label for=\"serverUrl\">服务器IP地址:</label>\n";
     html += "                                <input type=\"text\" id=\"serverUrl\" class=\"setting-input\" placeholder=\"10.10.168.168\">\n";
+    html += "                                <div class=\"scan-button-container\">\n";
+    html += "                                    <button type=\"button\" onclick=\"startMDNSScan()\" class=\"setting-btn info-btn scan-btn\">\n";
+    html += "                                        <span class=\"btn-text\">扫描cp02服务器</span>\n";
+    html += "                                        <div class=\"btn-loading hidden\">\n";
+    html += "                                            <div class=\"spinner-sm\"></div>\n";
+    html += "                                            <span>扫描中...</span>\n";
+    html += "                                        </div>\n";
+    html += "                                    </button>\n";
+    html += "                                </div>\n";
     html += "                                <div class=\"url-help\">\n";
-    html += "                                    <small>请输入服务器IP地址</small>\n";
+    html += "                                    <small>请输入服务器IP地址或点击扫描按钮自动发现cp02服务器</small>\n";
+    html += "                                </div>\n";
+    html += "                            </div>\n";
+    html += "                            \n";
+    html += "                            <!-- mDNS扫描结果 -->\n";
+    html += "                            <div class=\"mdns-scan-results\" id=\"mdnsScanResults\" style=\"display: none;\">\n";
+    html += "                                <h4>cp02服务器扫描结果</h4>\n";
+    html += "                                <div class=\"device-list\" id=\"deviceList\">\n";
+    html += "                                    <!-- 扫描结果将显示在这里 -->\n";
     html += "                                </div>\n";
     html += "                            </div>\n";
     html += "                        </div>\n";
@@ -3697,6 +3714,125 @@ String WebServerManager::getServerSettingsCSS() {
                 padding: 16px;
             }
         }
+        
+        /* mDNS扫描相关样式 */
+        .scan-button-container {
+            margin-top: 12px;
+            display: flex;
+            justify-content: flex-start;
+        }
+        
+        .scan-btn {
+            min-width: 120px;
+            white-space: nowrap;
+        }
+        
+        .mdns-scan-results {
+            margin-top: 20px;
+            padding: 20px;
+            background: linear-gradient(145deg, #f8fafc, #f1f5f9);
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        .mdns-scan-results h4 {
+            margin: 0 0 16px 0;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #374151;
+        }
+        
+        .device-list {
+            display: grid;
+            gap: 12px;
+        }
+        
+        .device-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px;
+            background: white;
+            border-radius: 8px;
+            border: 2px solid #e5e7eb;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .device-item:hover {
+            border-color: #3b82f6;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+            transform: translateY(-2px);
+        }
+        
+        .device-info {
+            flex: 1;
+        }
+        
+        .device-name {
+            font-weight: 600;
+            color: #1f2937;
+            font-size: 1rem;
+            margin-bottom: 4px;
+        }
+        
+        .device-ip {
+            color: #3b82f6;
+            font-size: 0.9rem;
+            font-family: monospace;
+            margin-bottom: 2px;
+        }
+        
+        .device-details {
+            color: #6b7280;
+            font-size: 0.8rem;
+        }
+        
+        .device-select {
+            flex-shrink: 0;
+            padding: 8px 16px;
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .device-item:hover .device-select {
+            background: linear-gradient(135deg, #1d4ed8, #1e40af);
+            transform: scale(1.05);
+        }
+        
+        .no-devices {
+            text-align: center;
+            padding: 40px 20px;
+            color: #6b7280;
+            font-style: italic;
+        }
+        
+        /* 响应式设计 - mDNS扫描 */
+        @media (max-width: 768px) {
+            .scan-button-container {
+                justify-content: center;
+            }
+            
+            .scan-btn {
+                min-width: auto;
+                width: 100%;
+            }
+            
+            .device-item {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 12px;
+            }
+            
+            .device-select {
+                text-align: center;
+            }
+        }
     )";
 }
 
@@ -3731,7 +3867,7 @@ String WebServerManager::getServerSettingsJavaScript() {
     js += "                const serverUrl = document.getElementById('serverUrl');\n";
     js += "                const requestInterval = document.getElementById('requestInterval');\n";
     js += "                const connectionTimeout = document.getElementById('connectionTimeout');\n";
-    js += "                const enableServer = document.getElementById('enableServer');\n";
+    js += "                // 不再需要enableServer元素，已移除启用开关\n";
     js += "                \n";
     js += "                // 从完整URL中提取IP地址\n";
     js += "                if (serverUrl) {\n";
@@ -3750,7 +3886,7 @@ String WebServerManager::getServerSettingsJavaScript() {
     js += "                }\n";
     js += "                if (requestInterval) requestInterval.value = data.config.requestInterval || 250;\n";
     js += "                if (connectionTimeout) connectionTimeout.value = data.config.connectionTimeout || 1000;\n";
-    js += "                if (enableServer) enableServer.checked = data.config.enabled !== false;\n";
+    js += "                // 服务器监控默认为启用状态\n";
     js += "                \n";
     js += "                console.log('服务器配置加载成功:', data.config);\n";
     js += "            } else {\n";
@@ -3798,7 +3934,7 @@ String WebServerManager::getServerSettingsJavaScript() {
     js += "    const serverIp = document.getElementById('serverUrl').value.trim();\n";
     js += "    const requestInterval = parseInt(document.getElementById('requestInterval').value) || 250;\n";
     js += "    const connectionTimeout = parseInt(document.getElementById('connectionTimeout').value) || 1000;\n";
-    js += "    const enabled = document.getElementById('enableServer').checked;\n";
+    js += "    const enabled = true; // 默认启用服务器监控\n";
     js += "    \n";
     js += "    // 基本验证\n";
     js += "    if (!serverIp) {\n";
@@ -3942,6 +4078,108 @@ String WebServerManager::getServerSettingsJavaScript() {
     js += "    const testBtn = document.querySelector('.primary-btn');\n";
     js += "    const btnText = testBtn.querySelector('.btn-text');\n";
     js += "    const btnLoading = testBtn.querySelector('.btn-loading');\n";
+    js += "    \n";
+    js += "    // 恢复按钮状态\n";
+    js += "    btnText.style.display = '';\n";
+    js += "    btnLoading.classList.add('hidden');\n";
+    js += "}\n\n";
+    
+    // mDNS扫描相关函数
+    js += "function startMDNSScan() {\n";
+    js += "    const scanBtn = document.querySelector('.scan-btn');\n";
+    js += "    const btnText = scanBtn.querySelector('.btn-text');\n";
+    js += "    const btnLoading = scanBtn.querySelector('.btn-loading');\n";
+    js += "    const scanResults = document.getElementById('mdnsScanResults');\n";
+    js += "    const deviceList = document.getElementById('deviceList');\n";
+    js += "    \n";
+    js += "    // 显示加载状态\n";
+    js += "    btnText.style.display = 'none';\n";
+    js += "    btnLoading.classList.remove('hidden');\n";
+    js += "    \n";
+    js += "    // 隐藏之前的扫描结果\n";
+    js += "    scanResults.style.display = 'none';\n";
+    js += "    \n";
+    js += "    console.log('开始扫描cp02服务器...');\n";
+    js += "    \n";
+    js += "    fetch('/api/server/mdns-scan')\n";
+    js += "        .then(response => response.json())\n";
+    js += "        .then(data => {\n";
+    js += "            if (data.success) {\n";
+    js += "                console.log('cp02服务器扫描成功:', data);\n";
+    js += "                displayScanResults(data.devices);\n";
+    js += "                \n";
+    js += "                if (data.devices.length > 0) {\n";
+    js += "                    showToast('扫描完成，发现 ' + data.devices.length + ' 个cp02服务器', 'success');\n";
+    js += "                } else {\n";
+    js += "                    showToast('未发现任何cp02服务器', 'info');\n";
+    js += "                }\n";
+    js += "            } else {\n";
+    js += "                console.error('cp02服务器扫描失败:', data.message);\n";
+    js += "                showToast('扫描失败: ' + data.message, 'error');\n";
+    js += "            }\n";
+    js += "        })\n";
+    js += "        .catch(error => {\n";
+    js += "            console.error('cp02服务器扫描错误:', error);\n";
+    js += "            showToast('cp02服务器扫描失败', 'error');\n";
+    js += "        })\n";
+    js += "        .finally(() => {\n";
+    js += "            resetScanButton();\n";
+    js += "        });\n";
+    js += "}\n\n";
+    
+    js += "function displayScanResults(devices) {\n";
+    js += "    const scanResults = document.getElementById('mdnsScanResults');\n";
+    js += "    const deviceList = document.getElementById('deviceList');\n";
+    js += "    \n";
+    js += "    if (!devices || devices.length === 0) {\n";
+    js += "        deviceList.innerHTML = '<div class=\"no-devices\">未发现任何cp02服务器</div>';\n";
+    js += "        scanResults.style.display = 'block';\n";
+    js += "        return;\n";
+    js += "    }\n";
+    js += "    \n";
+    js += "    let html = '';\n";
+    js += "    devices.forEach((device, index) => {\n";
+    js += "        const displayName = device.name || device.hostname || 'Unknown Device';\n";
+    js += "        const serviceInfo = device.serviceType ? ' (' + device.serviceType + ')' : '';\n";
+    js += "        \n";
+    js += "        html += `\n";
+    js += "            <div class=\"device-item\" onclick=\"selectDevice('${device.ip}', '${displayName}')\">\n";
+    js += "                <div class=\"device-info\">\n";
+    js += "                    <div class=\"device-name\">${displayName}${serviceInfo}</div>\n";
+    js += "                    <div class=\"device-ip\">${device.ip}:${device.port}</div>\n";
+    js += "                    <div class=\"device-details\">${device.customInfo || ''}</div>\n";
+    js += "                </div>\n";
+    js += "                <div class=\"device-select\">\n";
+    js += "                    <span class=\"select-text\">选择</span>\n";
+    js += "                </div>\n";
+    js += "            </div>\n";
+    js += "        `;\n";
+    js += "    });\n";
+    js += "    \n";
+    js += "    deviceList.innerHTML = html;\n";
+    js += "    scanResults.style.display = 'block';\n";
+    js += "}\n\n";
+    
+    js += "function selectDevice(ip, name) {\n";
+    js += "    const serverUrlInput = document.getElementById('serverUrl');\n";
+    js += "    const scanResults = document.getElementById('mdnsScanResults');\n";
+    js += "    \n";
+    js += "    // 设置IP地址到输入框\n";
+    js += "    serverUrlInput.value = ip;\n";
+    js += "    \n";
+    js += "    // 隐藏扫描结果\n";
+    js += "    scanResults.style.display = 'none';\n";
+    js += "    \n";
+    js += "    // 显示成功提示\n";
+    js += "    showToast('已选择cp02服务器: ' + name + ' (' + ip + ')', 'success');\n";
+    js += "    \n";
+    js += "    console.log('选择设备:', name, ip);\n";
+    js += "}\n\n";
+    
+    js += "function resetScanButton() {\n";
+    js += "    const scanBtn = document.querySelector('.scan-btn');\n";
+    js += "    const btnText = scanBtn.querySelector('.btn-text');\n";
+    js += "    const btnLoading = scanBtn.querySelector('.btn-loading');\n";
     js += "    \n";
     js += "    // 恢复按钮状态\n";
     js += "    btnText.style.display = '';\n";

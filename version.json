@@ -1,15 +1,12 @@
 {
-    "version": "v6.0.13",
+    "version": "v6.0.15",
     "build_date": "2024-12-19",
-    "description": "ESP32S3 Monitor Project - 服务器功能简化版本",
+    "description": "ESP32S3 Monitor Project - 修复mDNS扫描设备名称显示和JavaScript错误",
     "changes": [
-        "简化服务器状态显示：移除服务器地址、HTTP状态码、响应大小等技术细节",
-        "优化用户体验：连接成功时只显示简洁的'服务器连接正常'状态",
-        "移除服务器数据显示功能：删除整个服务器数据显示区域",
-        "移除获取数据按钮：简化操作界面，只保留测试连接和保存配置",
-        "删除相关JavaScript函数：清理getServerData、displayServerData等无用函数",
-        "移除相关CSS样式：清理服务器数据显示相关的样式定义",
-        "删除启用服务器数据获取开关：简化配置选项"
+        "修复mDNS扫描设备名称显示：优先显示实际服务名称而非通用名称",
+        "修复JavaScript错误：移除对不存在的enableServer元素的引用",
+        "优化mDNS扫描逻辑：改进设备名称的处理和显示",
+        "提升用户体验：确保显示真实的cp02设备名称如cp02-1506632306232033"
     ],
     "release_date": "2024-12-19",
     "size": 1048576,
@@ -24,7 +21,11 @@
             "任务性能监控功能",
             "WiFi连接状态监控",
             "可配置监控数据获取间隔",
-            "监控任务PSRAM栈支持"
+            "监控任务PSRAM栈支持",
+            "服务器设置页面mDNS扫描功能",
+            "网络设备自动发现功能",
+            "设备列表卡片显示",
+            "一键选择设备功能"
         ],
         "improved": [
             "Monitor类架构重构",
@@ -36,9 +37,19 @@
             "按钮加载状态动画优化",
             "JavaScript代码结构改进",
             "服务器状态显示简化优化",
-            "用户界面简化整理"
+            "用户界面简化整理",
+            "服务器IP地址输入体验优化",
+            "mDNS扫描用户界面体验",
+            "设备选择交互流程优化",
+            "响应式设计适配",
+            "mDNS扫描设备名称显示逻辑优化",
+            "设备名称显示优先级调整：实际服务名称优先"
         ],
-        "fixed": [],
+        "fixed": [
+            "修复JavaScript中访问不存在的enableServer元素导致的错误",
+            "修复mDNS扫描设备名称显示不准确的问题",
+            "修复点击保存配置按钮时的JavaScript错误"
+        ],
         "removed": [
             "Hello World简单输出功能",
             "服务器状态详细技术信息显示",
@@ -59,7 +70,12 @@
             "displayPortInfo()端口信息显示",
             "displaySystemInfo()系统信息显示",
             "displayWiFiInfo()WiFi信息显示",
-            "isWiFiConnected()WiFi状态检测"
+            "isWiFiConnected()WiFi状态检测",
+            "handleMDNSScanServers()mDNS扫描API",
+            "startMDNSScan()前端扫描函数",
+            "displayScanResults()设备列表显示",
+            "selectDevice()设备选择功能",
+            "UniversalMDNSScanner集成"
         ],
         "code_optimization": [
             "任务栈大小优化(8192字节)",
@@ -70,7 +86,10 @@
             "按钮状态管理优化",
             "前端JavaScript代码重构",
             "服务器状态显示逻辑简化",
-            "用户界面代码清理"
+            "用户界面代码清理",
+            "mDNS扫描逻辑优化",
+            "设备名称处理逻辑改进",
+            "JavaScript错误处理增强"
         ],
         "functionality": [
             "定时获取http://10.10.168.168/metrics.json数据",

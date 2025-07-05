@@ -134,6 +134,7 @@ private:
     void handleSetServerConfig();
     void handleTestServerConnection();
     void handleGetServerData();
+    void handleMDNSScanServers();  // mDNS扫描服务器
     
     // 屏幕设置相关API
     void handleScreenSettings();
