@@ -1050,7 +1050,7 @@ lv_disp_t* LVGL_Init(void) {
   // === 14. 启动演示程序 ===
   printf("[ESP_LCD_LVGL] 启动LVGL演示程序\n");
   if (lvgl_lock(-1)) {  // 获取LVGL锁
-    lv_demo_widgets();          // 启动控件演示程序
+    //lv_demo_widgets();          // 启动控件演示程序
     // 其他可选的演示程序：
     // lv_demo_music();         // 现代音乐播放器演示
     // lv_demo_stress();        // LVGL压力测试

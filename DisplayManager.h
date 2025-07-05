@@ -25,6 +25,7 @@
 #include "freertos/queue.h"
 #include "lvgl.h"
 #include "LVGL_Driver.h"
+#include "PowerMonitorData.h"
 
 // 前向声明
 class WiFiManager;
@@ -36,6 +37,11 @@ class PSRAMManager;
  */
 enum DisplayPage {
     PAGE_HOME = 0,      ///< 主页面
+    PAGE_POWER_TOTAL,   ///< 总功率页面
+    PAGE_POWER_PORT1,   ///< 端口1功率页面
+    PAGE_POWER_PORT2,   ///< 端口2功率页面
+    PAGE_POWER_PORT3,   ///< 端口3功率页面
+    PAGE_POWER_PORT4,   ///< 端口4功率页面
     PAGE_WIFI_STATUS,   ///< WiFi状态页面
     PAGE_SYSTEM_INFO,   ///< 系统信息页面
     PAGE_SETTINGS,      ///< 设置页面
@@ -59,6 +65,7 @@ struct DisplayMessage {
     enum MessageType {
         MSG_UPDATE_WIFI_STATUS,     ///< 更新WiFi状态
         MSG_UPDATE_SYSTEM_INFO,     ///< 更新系统信息
+        MSG_UPDATE_POWER_DATA,      ///< 更新功率数据
         MSG_SWITCH_PAGE,            ///< 切换页面
         MSG_SET_BRIGHTNESS,         ///< 设置亮度
         MSG_SET_THEME,              ///< 设置主题
@@ -78,6 +85,10 @@ struct DisplayMessage {
             uint32_t uptime;
             float cpu_usage;
         } system_info;
+        
+        struct {
+            PowerMonitorData power_data;
+        } power_monitor;
         
         struct {
             DisplayPage page;
@@ -206,6 +217,27 @@ public:
     void showNotification(const char* text, uint32_t duration_ms = 3000);
     
     /**
+     * @brief 更新功率监控数据
+     * 
+     * @param power_data 功率监控数据
+     */
+    void updatePowerData(const PowerMonitorData& power_data);
+    
+    /**
+     * @brief 切换到功率监控页面
+     * 
+     * @param port_index 端口索引（0=总功率，1-4=端口1-4）
+     */
+    void switchToPowerPage(int port_index);
+    
+    /**
+     * @brief 获取当前功率数据
+     * 
+     * @return 当前功率数据
+     */
+    const PowerMonitorData& getCurrentPowerData() const;
+    
+    /**
      * @brief 获取当前页面
      * 
      * @return 当前显示页面
@@ -270,6 +302,37 @@ private:
      * @brief 创建关于页面UI
      */
     void createAboutPage();
+    
+    /**
+     * @brief 创建总功率页面UI
+     */
+    void createTotalPowerPage();
+    
+    /**
+     * @brief 创建端口功率页面UI
+     * 
+     * @param port_index 端口索引（1-4）
+     */
+    void createPortPowerPage(int port_index);
+    
+    /**
+     * @brief 更新功率显示
+     */
+    void updatePowerDisplay();
+    
+    /**
+     * @brief 设置页面滑动事件
+     * 
+     * @param page 页面对象
+     */
+    void setupPageSwipeEvents(lv_obj_t* page);
+    
+    /**
+     * @brief 滑动事件回调
+     * 
+     * @param event 事件对象
+     */
+    static void swipeEventCallback(lv_event_t* event);
     
     /**
      * @brief 创建导航栏
@@ -353,6 +416,13 @@ private:
     // 通知相关
     lv_obj_t* m_notificationLabel;      ///< 通知标签
     TaskHandle_t m_notificationTimer;   ///< 通知定时器
+    
+    // 功率监控相关
+    PowerMonitorData m_powerData;       ///< 功率监控数据
+    lv_obj_t* m_powerLabels[5][10];     ///< 功率显示标签[页面][标签]
+    lv_obj_t* m_statusIndicators[4];    ///< 端口状态指示器数组（总功率页面）
+    lv_obj_t* m_portStatusDots[4];      ///< 端口页面状态指示器数组
+    int m_currentPortPage;              ///< 当前端口页面索引
     
     // 任务配置
     static const uint32_t TASK_STACK_SIZE = 8 * 1024;   ///< 任务栈大小

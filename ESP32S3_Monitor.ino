@@ -1,6 +1,6 @@
 /*
  * ESP32S3监控项目 - WiFi配置管理器
- * 版本: v6.0.9
+ * 版本: v6.1.0
  * 作者: ESP32S3_Monitor
  * 日期: 2024
  * 
@@ -45,6 +45,7 @@
 #include "I2CBusManager.h"
 #include "AudioManager.h"
 #include "WeatherManager.h"
+#include "PowerMonitorData.h"
 
 // 外部变量声明
 extern LVGLDriver* lvglDriver;
@@ -67,10 +68,18 @@ WeatherManager weatherManager;
 
 // 传感器数据已集成到LVGL驱动中，无需独立任务
 
+// 功率数据回调函数
+void powerDataCallback(const PowerMonitorData& data, void* userData) {
+  DisplayManager* displayManager = (DisplayManager*)userData;
+  if (displayManager) {
+    displayManager->updatePowerData(data);
+  }
+}
+
 void setup() {
   
   printf("=== ESP32S3 WiFi配置管理器启动 ===\n");
-  printf("版本: v6.0.9\n");
+  printf("版本: v6.1.0\n");
   printf("编译时间: %s %s\n", __DATE__, __TIME__);
   
   // 初始化PSRAM管理器（优先初始化）
@@ -120,12 +129,12 @@ void setup() {
   printf("LVGL驱动系统初始化完成\n");
 
   // 初始化显示管理器
-  //printf("开始初始化显示管理器...\n");
-  //displayManager.init(&lvglDriverInstance, &wifiManager, &configStorage, &psramManager);
+  printf("开始初始化显示管理器...\n");
+  displayManager.init(&lvglDriverInstance, &wifiManager, &configStorage, &psramManager);
   
   // 启动显示管理器任务
-  //printf("启动显示管理器任务...\n");
-  //displayManager.start();
+  printf("启动显示管理器任务...\n");
+  displayManager.start();
   
   printf("显示管理器初始化完成\n");
 
@@ -191,6 +200,10 @@ void setup() {
   
   // 初始化监控器（Hello World任务）
   monitor.init(&psramManager, &configStorage);
+  
+  // 设置功率数据回调，将Monitor的数据传递给DisplayManager
+  monitor.setPowerDataCallback(powerDataCallback, &displayManager);
+  printf("功率数据回调已设置\n");
   
   // 初始化时间管理器
   printf("开始初始化时间管理器...\n");

@@ -6,11 +6,17 @@
 #include "Monitor.h"
 #include "PSRAMManager.h"
 #include "ConfigStorage.h"
+#include "DisplayManager.h"
 #include "Arduino.h"
 
-Monitor::Monitor() : monitorTaskHandle(nullptr), m_psramManager(nullptr), m_configStorage(nullptr), isRunning(false) {
+Monitor::Monitor() : monitorTaskHandle(nullptr), m_psramManager(nullptr), m_configStorage(nullptr), isRunning(false), m_powerDataCallback(nullptr), m_callbackUserData(nullptr) {
     // 设置默认配置
     setDefaultConfig();
+    
+    // 初始化功率数据
+    memset(&m_currentPowerData, 0, sizeof(m_currentPowerData));
+    m_currentPowerData.port_count = 4;
+    m_currentPowerData.valid = false;
 }
 
 Monitor::~Monitor() {
@@ -90,6 +96,16 @@ void Monitor::stop() {
     printf("监控任务已停止\n");
 }
 
+void Monitor::setPowerDataCallback(PowerDataCallback callback, void* userData) {
+    m_powerDataCallback = callback;
+    m_callbackUserData = userData;
+    printf("功率数据回调已设置\n");
+}
+
+const PowerMonitorData& Monitor::getCurrentPowerData() const {
+    return m_currentPowerData;
+}
+
 void Monitor::setDefaultConfig() {
     metricsUrl = "http://10.10.168.168/metrics.json";
     requestInterval = 250;  // 250毫秒请求一次
@@ -153,16 +169,8 @@ void Monitor::monitoringTask(void* parameter) {
     while (monitor->isRunning) {
         // 检查WiFi连接状态
         if (monitor->isWiFiConnected()) {
-            printf("=== 开始获取系统监控数据 ===\n");
-            
             // 获取并解析监控数据
-            if (monitor->fetchMetricsData()) {
-                printf("监控数据获取成功\n");
-            } else {
-                printf("监控数据获取失败\n");
-            }
-            
-            printf("=== 监控数据获取完成 ===\n\n");
+            monitor->fetchMetricsData();
         } else {
             printf("WiFi未连接，跳过监控数据获取\n");
         }
@@ -194,16 +202,13 @@ bool Monitor::fetchMetricsData() {
     httpClient.addHeader("Accept", "application/json");
     httpClient.addHeader("Connection", "close");  // 请求完成后立即关闭连接
     
-    printf("发送HTTP请求到: %s\n", metricsUrl.c_str());
-    
     int httpCode = httpClient.GET();
     
     if (httpCode > 0) {
         if (httpCode == HTTP_CODE_OK) {
             String payload = httpClient.getString();
-            printf("HTTP请求成功，数据长度: %d bytes\n", payload.length());
             
-            // 解析并显示数据
+            // 解析数据（不输出调试信息）
             parseAndDisplayMetrics(payload);
             
             httpClient.end();
@@ -232,68 +237,140 @@ void Monitor::parseAndDisplayMetrics(const String& jsonData) {
         return;
     }
     
-    printf("--- 系统监控数据 ---\n");
+    // 重置当前数据
+    memset(&m_currentPowerData, 0, sizeof(m_currentPowerData));
+    m_currentPowerData.port_count = 4;
+    m_currentPowerData.timestamp = millis();
     
     // 解析端口信息
     if (doc.containsKey("ports")) {
         JsonArray ports = doc["ports"];
-        printf("端口信息 (共%d个端口):\n", ports.size());
-        
         for (JsonObject port : ports) {
-            displayPortInfo(port);
+            processPortData(port);
+            displayPortInfo(port);  // 保留原有的显示功能
         }
     }
     
     // 解析系统信息
     if (doc.containsKey("system")) {
         JsonObject system = doc["system"];
-        displaySystemInfo(system);
+        processSystemData(system);
+        displaySystemInfo(system);  // 保留原有的显示功能
     }
     
     // 解析WiFi信息
     if (doc.containsKey("wifi")) {
         JsonObject wifi = doc["wifi"];
-        displayWiFiInfo(wifi);
+        processWiFiData(wifi);
+        displayWiFiInfo(wifi);  // 保留原有的显示功能
     }
     
-    printf("--- 监控数据解析完成 ---\n");
+    // 计算总功率
+    calculateTotalPower();
+    
+    // 标记数据有效并触发回调
+    m_currentPowerData.valid = true;
+    triggerDataCallback();
 }
 
 void Monitor::displayPortInfo(JsonObject port) {
+    // 数据处理逻辑，不输出调试信息
     int id = port["id"];
     bool state = port["state"];
     int fcProtocol = port["fc_protocol"];
     int current = port["current"];
     int voltage = port["voltage"];
     
-    printf("  端口%d: 状态=%s, 协议=%d, 电流=%dmA, 电压=%dmV\n", 
-           id, 
-           state ? "激活" : "关闭", 
-           fcProtocol, 
-           current, 
-           voltage);
+    // 这里可以添加数据处理逻辑，而不是输出调试信息
+    // 例如：存储到变量、更新显示等
 }
 
 void Monitor::displaySystemInfo(JsonObject system) {
+    // 数据处理逻辑，不输出调试信息
     unsigned long bootTime = system["boot_time_seconds"];
     int resetReason = system["reset_reason"];
     unsigned long freeHeap = system["free_heap"];
     
-    printf("系统信息:\n");
-    printf("  启动时间: %lu秒\n", bootTime);
-    printf("  重置原因: %d\n", resetReason);
-    printf("  可用堆内存: %lu bytes\n", freeHeap);
+    // 这里可以添加数据处理逻辑，而不是输出调试信息
+    // 例如：存储到变量、更新显示等
 }
 
 void Monitor::displayWiFiInfo(JsonObject wifi) {
+    // 数据处理逻辑，不输出调试信息
     const char* ssid = wifi["ssid"];
     const char* bssid = wifi["bssid"];
     int channel = wifi["channel"];
     int rssi = wifi["rssi"];
     
-    printf("WiFi信息:\n");
-    printf("  SSID: %s\n", ssid);
-    printf("  BSSID: %s\n", bssid);
-    printf("  信道: %d\n", channel);
-    printf("  信号强度: %d dBm\n", rssi);
+    // 这里可以添加数据处理逻辑，而不是输出调试信息
+    // 例如：存储到变量、更新显示等
+}
+
+void Monitor::processPortData(JsonObject port) {
+    int id = port["id"];
+    if (id >= 1 && id <= 4) {
+        int index = id - 1;
+        m_currentPowerData.ports[index].id = id;
+        m_currentPowerData.ports[index].state = port["state"];
+        m_currentPowerData.ports[index].fc_protocol = port["fc_protocol"];
+        m_currentPowerData.ports[index].current = port["current"];
+        m_currentPowerData.ports[index].voltage = port["voltage"];
+        
+        // 计算功率 (P = V * I)
+        m_currentPowerData.ports[index].power = 
+            (m_currentPowerData.ports[index].voltage * m_currentPowerData.ports[index].current) / 1000;
+        
+        // 设置协议名称
+        const char* protocol_names[] = {"None", "QC2.0", "QC3.0", "PD", "AFC", "SCP", "VOOC"};
+        int protocol = m_currentPowerData.ports[index].fc_protocol;
+        if (protocol >= 0 && protocol < 7) {
+            strncpy(m_currentPowerData.ports[index].protocol_name, protocol_names[protocol], 15);
+            m_currentPowerData.ports[index].protocol_name[15] = '\0';
+        } else {
+            strcpy(m_currentPowerData.ports[index].protocol_name, "Unknown");
+        }
+        
+        m_currentPowerData.ports[index].valid = true;
+    }
+}
+
+void Monitor::processSystemData(JsonObject system) {
+    m_currentPowerData.system.boot_time = system["boot_time_seconds"];
+    m_currentPowerData.system.reset_reason = system["reset_reason"];
+    m_currentPowerData.system.free_heap = system["free_heap"];
+    m_currentPowerData.system.valid = true;
+}
+
+void Monitor::processWiFiData(JsonObject wifi) {
+    const char* ssid = wifi["ssid"];
+    const char* bssid = wifi["bssid"];
+    
+    if (ssid) {
+        strncpy(m_currentPowerData.wifi.ssid, ssid, 31);
+        m_currentPowerData.wifi.ssid[31] = '\0';
+    }
+    
+    if (bssid) {
+        strncpy(m_currentPowerData.wifi.bssid, bssid, 17);
+        m_currentPowerData.wifi.bssid[17] = '\0';
+    }
+    
+    m_currentPowerData.wifi.channel = wifi["channel"];
+    m_currentPowerData.wifi.rssi = wifi["rssi"];
+    m_currentPowerData.wifi.valid = true;
+}
+
+void Monitor::calculateTotalPower() {
+    m_currentPowerData.total_power = 0;
+    for (int i = 0; i < 4; i++) {
+        if (m_currentPowerData.ports[i].valid && m_currentPowerData.ports[i].state) {
+            m_currentPowerData.total_power += m_currentPowerData.ports[i].power;
+        }
+    }
+}
+
+void Monitor::triggerDataCallback() {
+    if (m_powerDataCallback && m_currentPowerData.valid) {
+        m_powerDataCallback(m_currentPowerData, m_callbackUserData);
+    }
 } 

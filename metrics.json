@@ -1,152 +1,244 @@
 {
-  "ports": [
-    {
-      "id": 0,
-      "state": true,
-      "fc_protocol": 255,
-      "current": 0,
-      "voltage": 0
-    },
-    {
-      "id": 1,
-      "state": true,
-      "fc_protocol": 255,
-      "current": 0,
-      "voltage": 0
-    },
-    {
-      "id": 2,
-      "state": true,
-      "fc_protocol": 255,
-      "current": 0,
-      "voltage": 0
-    },
-    {
-      "id": 3,
-      "state": true,
-      "fc_protocol": 255,
-      "current": 0,
-      "voltage": 0
-    },
-    {
-      "id": 4,
-      "state": true,
-      "fc_protocol": 19,
-      "current": 12,
-      "voltage": 27848
-    }
-  ],
-  "system": {
-    "boot_time_seconds": 706245,
-    "reset_reason": 3,
-    "free_heap": 61692
-  },
-  "tasks": [
-    {
-      "name": "httpd",
-      "stack_watermark_bytes": 1628,
-      "cpu_percent": 0.180666951804183
-    },
-    {
-      "name": "display",
-      "stack_watermark_bytes": 884,
-      "cpu_percent": 0.042582660225269
-    },
-    {
-      "name": "IDLE",
-      "stack_watermark_bytes": 1236,
-      "cpu_percent": 96.7535981659198
-    },
-    {
-      "name": "wifi_task",
-      "stack_watermark_bytes": 1964,
-      "cpu_percent": 0.239472586948978
-    },
-    {
-      "name": "ble_adv",
-      "stack_watermark_bytes": 1676,
-      "cpu_percent": 0.0915356186451336
-    },
-    {
-      "name": "wdg",
-      "stack_watermark_bytes": 904,
-      "cpu_percent": 0.056497983806986
-    },
-    {
-      "name": "animation",
-      "stack_watermark_bytes": 1072,
-      "cpu_percent": 0.0243834783608669
-    },
-    {
-      "name": "port_mgr",
-      "stack_watermark_bytes": 1740,
-      "cpu_percent": 0.193103656980217
-    },
-    {
-      "name": "main",
-      "stack_watermark_bytes": 2108,
-      "cpu_percent": 0.00806054353578426
-    },
-    {
-      "name": "mqtt_task",
-      "stack_watermark_bytes": 4348,
-      "cpu_percent": 0.00343077378767327
-    },
-    {
-      "name": "tiT",
-      "stack_watermark_bytes": 1924,
-      "cpu_percent": 0.465381902425474
-    },
-    {
-      "name": "Tmr Svc",
-      "stack_watermark_bytes": 2828,
-      "cpu_percent": 9.91157227856755e-9
-    },
-    {
-      "name": "telemetry",
-      "stack_watermark_bytes": 1036,
-      "cpu_percent": 0.00203891717949417
-    },
-    {
-      "name": "uart_event",
-      "stack_watermark_bytes": 2048,
-      "cpu_percent": 0.391354925129749
-    },
-    {
-      "name": "esp_timer",
-      "stack_watermark_bytes": 2596,
-      "cpu_percent": 0.229123332382039
-    },
-    {
-      "name": "pwr_alloc",
-      "stack_watermark_bytes": 1444,
-      "cpu_percent": 0.241439268872894
-    },
-    {
-      "name": "wifi",
-      "stack_watermark_bytes": 2252,
-      "cpu_percent": 0.939103842547913
-    },
-    {
-      "name": "sys_evt",
-      "stack_watermark_bytes": 1488,
-      "cpu_percent": 0.0192577921558067
-    },
-    {
-      "name": "mdns",
-      "stack_watermark_bytes": 3168,
-      "cpu_percent": 0.00396321806991011
-    },
-    {
-      "name": "mqtt_msg",
-      "stack_watermark_bytes": 1648,
-      "cpu_percent": 0.000007282598528622
-    }
-  ],
-  "wifi": {
-    "ssid": "northwoodmy",
-    "bssid": "24:5a:4c:5f:32:e9",
-    "channel": 1,
-    "rssi": -48
-  }
+	"ports":	[{
+			"id":	0,
+			"active":	true,
+			"state":	"ATTACHED",
+			"port_type":	"A",
+			"attached":	true,
+			"charging_duration_seconds":	205723,
+			"fc_protocol":	0,
+			"current":	255,
+			"voltage":	5016,
+			"vin_value":	30000,
+			"session_id":	6,
+			"session_charge":	8666953560
+		}, {
+			"id":	1,
+			"active":	true,
+			"state":	"ACTIVE",
+			"port_type":	"C",
+			"attached":	false,
+			"charging_duration_seconds":	0,
+			"fc_protocol":	255,
+			"current":	0,
+			"voltage":	0,
+			"vin_value":	30080,
+			"session_id":	14,
+			"session_charge":	0
+		}, {
+			"id":	2,
+			"active":	true,
+			"state":	"ATTACHED",
+			"port_type":	"C",
+			"attached":	true,
+			"charging_duration_seconds":	205614,
+			"fc_protocol":	16,
+			"current":	18,
+			"voltage":	14952,
+			"vin_value":	30130,
+			"session_id":	12,
+			"session_charge":	5551482517,
+			"pd_status":	{
+				"manufacturer_vid":	6790,
+				"operating_current":	3000,
+				"operating_voltage":	15000,
+				"pd_revision":	2,
+				"has_emarker":	true,
+				"pps_charging_supported":	false,
+				"has_battery":	false,
+				"dual_role_power":	false,
+				"cable_vid":	14057,
+				"cable_pid":	12289,
+				"cable_xid":	86341,
+				"bcd_device":	46426,
+				"cable_is_active":	false,
+				"cable_epr_mode_capable":	true,
+				"cable_max_vbus_voltage":	0,
+				"cable_max_vbus_current":	2,
+				"cable_usb_highest_speed":	0,
+				"sink_minimum_pdp":	0,
+				"sink_operational_pdp":	0,
+				"sink_maximum_pdp":	0,
+				"sink_capabilities":	0,
+				"sink_cap_pdo_count":	0,
+				"request_pdo_id":	4,
+				"request_usb_communications_capable":	true,
+				"request_capability_mismatch":	false,
+				"request_epr_mode_capable":	false
+			}
+		}, {
+			"id":	3,
+			"active":	true,
+			"state":	"ATTACHED",
+			"port_type":	"C",
+			"attached":	true,
+			"charging_duration_seconds":	26708,
+			"fc_protocol":	18,
+			"current":	198,
+			"voltage":	5496,
+			"vin_value":	30130,
+			"session_id":	9,
+			"session_charge":	1318162189,
+			"pd_status":	{
+				"manufacturer_vid":	0,
+				"operating_current":	5000,
+				"operating_voltage":	5500,
+				"pd_revision":	2,
+				"has_emarker":	true,
+				"pps_charging_supported":	false,
+				"has_battery":	false,
+				"dual_role_power":	false,
+				"cable_vid":	14057,
+				"cable_pid":	12289,
+				"cable_xid":	86341,
+				"bcd_device":	46426,
+				"cable_is_active":	false,
+				"cable_epr_mode_capable":	true,
+				"cable_max_vbus_voltage":	0,
+				"cable_max_vbus_current":	2,
+				"cable_usb_highest_speed":	0,
+				"sink_minimum_pdp":	0,
+				"sink_operational_pdp":	0,
+				"sink_maximum_pdp":	0,
+				"sink_capabilities":	12,
+				"sink_cap_pdo_count":	0,
+				"request_pdo_id":	7,
+				"request_usb_communications_capable":	false,
+				"request_capability_mismatch":	false,
+				"request_epr_mode_capable":	false
+			}
+		}, {
+			"id":	4,
+			"active":	true,
+			"state":	"ATTACHED",
+			"port_type":	"C",
+			"attached":	true,
+			"charging_duration_seconds":	288435,
+			"fc_protocol":	18,
+			"current":	3,
+			"voltage":	4976,
+			"vin_value":	30170,
+			"session_id":	6,
+			"session_charge":	5063473990,
+			"pd_status":	{
+				"manufacturer_vid":	0,
+				"operating_current":	5000,
+				"operating_voltage":	5000,
+				"pd_revision":	2,
+				"has_emarker":	true,
+				"pps_charging_supported":	false,
+				"has_battery":	false,
+				"dual_role_power":	false,
+				"cable_vid":	10007,
+				"cable_pid":	0,
+				"cable_xid":	0,
+				"bcd_device":	0,
+				"cable_is_active":	false,
+				"cable_epr_mode_capable":	false,
+				"cable_max_vbus_voltage":	0,
+				"cable_max_vbus_current":	2,
+				"cable_usb_highest_speed":	0,
+				"sink_minimum_pdp":	0,
+				"sink_operational_pdp":	0,
+				"sink_maximum_pdp":	0,
+				"sink_capabilities":	12,
+				"sink_cap_pdo_count":	0,
+				"request_pdo_id":	7,
+				"request_usb_communications_capable":	false,
+				"request_capability_mismatch":	false,
+				"request_epr_mode_capable":	false
+			}
+		}],
+	"system":	{
+		"boot_time_seconds":	288446,
+		"reset_reason":	3,
+		"free_heap":	52820
+	},
+	"tasks":	[{
+			"name":	"httpd",
+			"stack_watermark_bytes":	1116,
+			"cpu_percent":	0.17420488468567469
+		}, {
+			"name":	"display",
+			"stack_watermark_bytes":	896,
+			"cpu_percent":	0.053554894185240343
+		}, {
+			"name":	"IDLE",
+			"stack_watermark_bytes":	1236,
+			"cpu_percent":	91.66525297809865
+		}, {
+			"name":	"wifi_task",
+			"stack_watermark_bytes":	1968,
+			"cpu_percent":	0.288931113480039
+		}, {
+			"name":	"ble_adv",
+			"stack_watermark_bytes":	2284,
+			"cpu_percent":	0.098874835762525037
+		}, {
+			"name":	"tiT",
+			"stack_watermark_bytes":	1916,
+			"cpu_percent":	1.7196835634048582
+		}, {
+			"name":	"port_mgr",
+			"stack_watermark_bytes":	1508,
+			"cpu_percent":	0.22785339360216528
+		}, {
+			"name":	"wdg",
+			"stack_watermark_bytes":	904,
+			"cpu_percent":	0.074247036021263368
+		}, {
+			"name":	"main",
+			"stack_watermark_bytes":	2356,
+			"cpu_percent":	0.049043045007420072
+		}, {
+			"name":	"mqtt_task",
+			"stack_watermark_bytes":	4348,
+			"cpu_percent":	0.0019245900185226304
+		}, {
+			"name":	"animation",
+			"stack_watermark_bytes":	2124,
+			"cpu_percent":	0.02784313231781135
+		}, {
+			"name":	"mqtt_msg",
+			"stack_watermark_bytes":	1784,
+			"cpu_percent":	1.5243751511228519e-06
+		}, {
+			"name":	"uart_event",
+			"stack_watermark_bytes":	2056,
+			"cpu_percent":	0.46466900994039012
+		}, {
+			"name":	"pwr_alloc",
+			"stack_watermark_bytes":	1324,
+			"cpu_percent":	0.28900896512523716
+		}, {
+			"name":	"esp_timer",
+			"stack_watermark_bytes":	1796,
+			"cpu_percent":	0.3265342790614621
+		}, {
+			"name":	"mdns",
+			"stack_watermark_bytes":	3200,
+			"cpu_percent":	0.00877363634739537
+		}, {
+			"name":	"wifi",
+			"stack_watermark_bytes":	4300,
+			"cpu_percent":	2.1831277165901768
+		}, {
+			"name":	"sys_evt",
+			"stack_watermark_bytes":	1636,
+			"cpu_percent":	0.18815367274566147
+		}, {
+			"name":	"Tmr Svc",
+			"stack_watermark_bytes":	2828,
+			"cpu_percent":	2.4961339750021685e-08
+		}, {
+			"name":	"telemetry",
+			"stack_watermark_bytes":	980,
+			"cpu_percent":	0.0024328965008571343
+		}],
+	"wifi":	{
+		"ssid":	"Apple",
+		"bssid":	"mac_address",
+		"channel":	6,
+		"rssi":	-56
+	}
 }

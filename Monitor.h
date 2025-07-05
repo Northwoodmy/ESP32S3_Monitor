@@ -11,10 +11,12 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
+#include "PowerMonitorData.h"
 
 // 前向声明
 class PSRAMManager;
 class ConfigStorage;
+class DisplayManager;
 
 class Monitor {
 public:
@@ -28,6 +30,12 @@ public:
     
     // 停止监控器
     void stop();
+    
+    // 设置数据回调
+    void setPowerDataCallback(PowerDataCallback callback, void* userData);
+    
+    // 获取当前功率数据
+    const PowerMonitorData& getCurrentPowerData() const;
 
 private:
     // 任务句柄
@@ -54,6 +62,13 @@ private:
     uint32_t connectionTimeout;  // 连接超时(ms)
     bool serverEnabled;  // 服务器监控是否启用
     
+    // 数据回调
+    PowerDataCallback m_powerDataCallback;  // 功率数据回调函数
+    void* m_callbackUserData;              // 回调用户数据
+    
+    // 当前功率数据
+    PowerMonitorData m_currentPowerData;
+    
     // 私有方法
     bool fetchMetricsData();
     void parseAndDisplayMetrics(const String& jsonData);
@@ -63,6 +78,14 @@ private:
     bool isWiFiConnected();
     void loadServerConfig();  // 加载服务器配置
     void setDefaultConfig();  // 设置默认配置
+    
+    // 功率数据处理
+    void processPortData(JsonObject port);
+    void processSystemData(JsonObject system);
+    void processWiFiData(JsonObject wifi);
+    void calculateTotalPower();
+    void updatePowerData();
+    void triggerDataCallback();
 };
 
 #endif // MONITOR_H 
