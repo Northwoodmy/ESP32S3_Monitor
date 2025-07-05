@@ -116,8 +116,10 @@ void Monitor::loadServerConfig() {
     int requestIntervalConfig;
     bool enabled;
     int connectionTimeoutConfig;
+    bool autoGetData;
+    bool autoScanServer;
     
-    if (m_configStorage->loadServerConfigAsync(serverUrl, requestIntervalConfig, enabled, connectionTimeoutConfig)) {
+    if (m_configStorage->loadServerConfigAsync(serverUrl, requestIntervalConfig, enabled, connectionTimeoutConfig, autoGetData, autoScanServer)) {
         printf("服务器配置加载成功\n");
         
         // 应用配置

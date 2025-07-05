@@ -165,11 +165,14 @@ struct ServerConfigData {
     int requestInterval;            // 请求间隔（毫秒）
     bool enabled;                   // 是否启用监控
     int connectionTimeout;          // 连接超时时间（毫秒）
+    bool autoGetData;               // 自动获取数据开关
+    bool autoScanServer;            // 自动扫描服务器开关
     
         ServerConfigData() : serverUrl("http://10.10.168.168/metrics.json"), requestInterval(250),
-                         enabled(true), connectionTimeout(1000) {}
-    ServerConfigData(const String& url, int interval, bool en, int timeout) 
-        : serverUrl(url), requestInterval(interval), enabled(en), connectionTimeout(timeout) {}
+                         enabled(true), connectionTimeout(1000), autoGetData(true), autoScanServer(false) {}
+    ServerConfigData(const String& url, int interval, bool en, int timeout, bool autoGet, bool autoScan) 
+        : serverUrl(url), requestInterval(interval), enabled(en), connectionTimeout(timeout), 
+          autoGetData(autoGet), autoScanServer(autoScan) {}
 };
 
 // 通用配置请求数据结构
@@ -246,9 +249,9 @@ public:
     
     // 异步服务器配置操作接口
     bool saveServerConfigAsync(const String& serverUrl, int requestInterval, 
-                              bool enabled, int connectionTimeout, uint32_t timeoutMs = 5000);
+                              bool enabled, int connectionTimeout, bool autoGetData, bool autoScanServer, uint32_t timeoutMs = 5000);
     bool loadServerConfigAsync(String& serverUrl, int& requestInterval, 
-                              bool& enabled, int& connectionTimeout, uint32_t timeoutMs = 5000);
+                              bool& enabled, int& connectionTimeout, bool& autoGetData, bool& autoScanServer, uint32_t timeoutMs = 5000);
     bool hasServerConfigAsync(uint32_t timeoutMs = 5000);
     
     // 异步配置重置操作接口
@@ -322,6 +325,8 @@ private:
     static const char* REQUEST_INTERVAL_KEY;
     static const char* ENABLED_KEY;
     static const char* CONNECTION_TIMEOUT_KEY;
+    static const char* AUTO_GET_DATA_KEY;
+    static const char* AUTO_SCAN_SERVER_KEY;
     
     // 内部任务处理方法
     void processConfigRequest(ConfigRequest* request);
@@ -362,9 +367,9 @@ private:
     bool hasScreenConfig();
     
     bool saveServerConfig(const String& serverUrl, int requestInterval, 
-                         bool enabled, int connectionTimeout);
+                         bool enabled, int connectionTimeout, bool autoGetData, bool autoScanServer);
     bool loadServerConfig(String& serverUrl, int& requestInterval, 
-                         bool& enabled, int& connectionTimeout);
+                         bool& enabled, int& connectionTimeout, bool& autoGetData, bool& autoScanServer);
     bool hasServerConfig();
     
     bool resetAllConfig();

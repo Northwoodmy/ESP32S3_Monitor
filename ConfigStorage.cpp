@@ -41,6 +41,8 @@ const char* ConfigStorage::SERVER_URL_KEY = "srv_url";
 const char* ConfigStorage::REQUEST_INTERVAL_KEY = "srv_interval";
 const char* ConfigStorage::ENABLED_KEY = "srv_enabled";
 const char* ConfigStorage::CONNECTION_TIMEOUT_KEY = "srv_timeout";
+const char* ConfigStorage::AUTO_GET_DATA_KEY = "srv_auto_get";
+const char* ConfigStorage::AUTO_SCAN_SERVER_KEY = "srv_auto_scan";
 
 ConfigStorage::ConfigStorage() : configTaskHandle(nullptr), configQueue(nullptr), taskRunning(false) {
 }
@@ -356,7 +358,7 @@ void ConfigStorage::processConfigRequest(ConfigRequest* request) {
             ServerConfigData* data = static_cast<ServerConfigData*>(request->data);
             if (data != nullptr) {
                 request->success = saveServerConfig(data->serverUrl, data->requestInterval, 
-                                                   data->enabled, data->connectionTimeout);
+                                                   data->enabled, data->connectionTimeout, data->autoGetData, data->autoScanServer);
             }
             break;
         }
@@ -365,7 +367,7 @@ void ConfigStorage::processConfigRequest(ConfigRequest* request) {
             ServerConfigData* result = static_cast<ServerConfigData*>(request->result);
             if (result != nullptr) {
                 request->success = loadServerConfig(result->serverUrl, result->requestInterval, 
-                                                   result->enabled, result->connectionTimeout);
+                                                   result->enabled, result->connectionTimeout, result->autoGetData, result->autoScanServer);
             }
             break;
         }
@@ -745,8 +747,8 @@ bool ConfigStorage::hasScreenConfigAsync(uint32_t timeoutMs) {
 // 异步服务器配置操作接口实现
 
 bool ConfigStorage::saveServerConfigAsync(const String& serverUrl, int requestInterval, 
-                                         bool enabled, int connectionTimeout, uint32_t timeoutMs) {
-    ServerConfigData data(serverUrl, requestInterval, enabled, connectionTimeout);
+                                         bool enabled, int connectionTimeout, bool autoGetData, bool autoScanServer, uint32_t timeoutMs) {
+    ServerConfigData data(serverUrl, requestInterval, enabled, connectionTimeout, autoGetData, autoScanServer);
     ConfigRequest request;
     request.operation = CONFIG_OP_SAVE_SERVER_CONFIG;
     request.data = &data;
@@ -755,7 +757,7 @@ bool ConfigStorage::saveServerConfigAsync(const String& serverUrl, int requestIn
 }
 
 bool ConfigStorage::loadServerConfigAsync(String& serverUrl, int& requestInterval, 
-                                         bool& enabled, int& connectionTimeout, uint32_t timeoutMs) {
+                                         bool& enabled, int& connectionTimeout, bool& autoGetData, bool& autoScanServer, uint32_t timeoutMs) {
     ServerConfigData result;
     ConfigRequest request;
     request.operation = CONFIG_OP_LOAD_SERVER_CONFIG;
@@ -767,6 +769,8 @@ bool ConfigStorage::loadServerConfigAsync(String& serverUrl, int& requestInterva
         requestInterval = result.requestInterval;
         enabled = result.enabled;
         connectionTimeout = result.connectionTimeout;
+        autoGetData = result.autoGetData;
+        autoScanServer = result.autoScanServer;
     }
     
     return success;
@@ -1665,12 +1669,14 @@ bool ConfigStorage::hasScreenConfig() {
 // 服务器配置方法实现
 
 bool ConfigStorage::saveServerConfig(const String& serverUrl, int requestInterval, 
-                                     bool enabled, int connectionTimeout) {
+                                     bool enabled, int connectionTimeout, bool autoGetData, bool autoScanServer) {
     printf("💾 [ConfigStorage] 保存服务器配置\n");
     printf("  服务器地址: %s\n", serverUrl.c_str());
     printf("  请求间隔: %d毫秒\n", requestInterval);
     printf("  启用状态: %s\n", enabled ? "启用" : "禁用");
     printf("  连接超时: %d毫秒\n", connectionTimeout);
+    printf("  自动获取数据: %s\n", autoGetData ? "启用" : "禁用");
+    printf("  自动扫描服务器: %s\n", autoScanServer ? "启用" : "禁用");
     
     if (!preferences.begin(SYSTEM_NAMESPACE, false)) {
         printf("❌ [ConfigStorage] 打开系统配置命名空间失败\n");
@@ -1683,6 +1689,8 @@ bool ConfigStorage::saveServerConfig(const String& serverUrl, int requestInterva
     success &= (preferences.putInt(REQUEST_INTERVAL_KEY, requestInterval) > 0);
     success &= preferences.putBool(ENABLED_KEY, enabled);
     success &= (preferences.putInt(CONNECTION_TIMEOUT_KEY, connectionTimeout) > 0);
+    success &= preferences.putBool(AUTO_GET_DATA_KEY, autoGetData);
+    success &= preferences.putBool(AUTO_SCAN_SERVER_KEY, autoScanServer);
     
     preferences.end();
     
@@ -1696,7 +1704,7 @@ bool ConfigStorage::saveServerConfig(const String& serverUrl, int requestInterva
 }
 
 bool ConfigStorage::loadServerConfig(String& serverUrl, int& requestInterval, 
-                                     bool& enabled, int& connectionTimeout) {
+                                     bool& enabled, int& connectionTimeout, bool& autoGetData, bool& autoScanServer) {
     printf("📖 [ConfigStorage] 加载服务器配置\n");
     
     if (!preferences.begin(SYSTEM_NAMESPACE, true)) {
@@ -1705,6 +1713,8 @@ bool ConfigStorage::loadServerConfig(String& serverUrl, int& requestInterval,
         requestInterval = 250;
         enabled = true;
         connectionTimeout = 1000;
+        autoGetData = true;
+        autoScanServer = false;
         return false;
     }
     
@@ -1713,6 +1723,8 @@ bool ConfigStorage::loadServerConfig(String& serverUrl, int& requestInterval,
     requestInterval = preferences.getInt(REQUEST_INTERVAL_KEY, 250);
     enabled = preferences.getBool(ENABLED_KEY, true);
     connectionTimeout = preferences.getInt(CONNECTION_TIMEOUT_KEY, 1000);
+    autoGetData = preferences.getBool(AUTO_GET_DATA_KEY, true);
+    autoScanServer = preferences.getBool(AUTO_SCAN_SERVER_KEY, false);
     
     preferences.end();
     
@@ -1732,6 +1744,8 @@ bool ConfigStorage::loadServerConfig(String& serverUrl, int& requestInterval,
     printf("  请求间隔: %d毫秒\n", requestInterval);
     printf("  启用状态: %s\n", enabled ? "启用" : "禁用");
     printf("  连接超时: %d毫秒\n", connectionTimeout);
+    printf("  自动获取数据: %s\n", autoGetData ? "启用" : "禁用");
+    printf("  自动扫描服务器: %s\n", autoScanServer ? "启用" : "禁用");
     
     return true;
 }

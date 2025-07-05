@@ -2489,19 +2489,24 @@ void WebServerManager::handleGetServerConfig() {
             int requestInterval;
             bool enabled;
             int connectionTimeout;
+            bool autoGetData;
+            bool autoScanServer;
             
-            bool success = configStorage->loadServerConfigAsync(serverUrl, requestInterval, enabled, connectionTimeout, 3000);
+            bool success = configStorage->loadServerConfigAsync(serverUrl, requestInterval, enabled, connectionTimeout, autoGetData, autoScanServer, 3000);
             if (success) {
                 doc["success"] = true;
                 doc["config"]["serverUrl"] = serverUrl;
                 doc["config"]["requestInterval"] = requestInterval;
                 doc["config"]["enabled"] = enabled;
                 doc["config"]["connectionTimeout"] = connectionTimeout;
+                doc["config"]["autoGetData"] = autoGetData;
+                doc["config"]["autoScanServer"] = autoScanServer;
                 doc["message"] = "服务器配置获取成功";
                 
-                printf("服务器配置获取成功：URL=%s, 间隔=%d分钟, 启用=%s, 超时=%d秒\n",
+                printf("服务器配置获取成功：URL=%s, 间隔=%d分钟, 启用=%s, 超时=%d秒, 自动获取数据=%s, 自动扫描服务器=%s\n",
                        serverUrl.c_str(), requestInterval,
-                       enabled ? "是" : "否", connectionTimeout);
+                       enabled ? "是" : "否", connectionTimeout,
+                       autoGetData ? "是" : "否", autoScanServer ? "是" : "否");
             } else {
                 doc["success"] = false;
                 doc["message"] = "服务器配置加载失败";
@@ -2514,6 +2519,8 @@ void WebServerManager::handleGetServerConfig() {
             doc["config"]["requestInterval"] = 250;
             doc["config"]["enabled"] = true;
             doc["config"]["connectionTimeout"] = 1000;
+            doc["config"]["autoGetData"] = true;
+            doc["config"]["autoScanServer"] = false;
             doc["message"] = "返回默认服务器配置";
             
             printf("返回默认服务器配置\n");
@@ -2559,10 +2566,13 @@ void WebServerManager::handleSetServerConfig() {
     int requestInterval = server->hasArg("requestInterval") ? server->arg("requestInterval").toInt() : 250;
     bool enabled = server->hasArg("enabled") ? (server->arg("enabled") == "true") : true;
     int connectionTimeout = server->hasArg("connectionTimeout") ? server->arg("connectionTimeout").toInt() : 1000;
+    bool autoGetData = server->hasArg("autoGetData") ? (server->arg("autoGetData") == "true") : true;
+    bool autoScanServer = server->hasArg("autoScanServer") ? (server->arg("autoScanServer") == "true") : false;
     
-    printf("接收到服务器配置：URL=%s, 间隔=%d毫秒, 启用=%s, 超时=%d毫秒\n",
+    printf("接收到服务器配置：URL=%s, 间隔=%d毫秒, 启用=%s, 超时=%d毫秒, 自动获取数据=%s, 自动扫描服务器=%s\n",
            serverUrl.c_str(), requestInterval,
-           enabled ? "是" : "否", connectionTimeout);
+           enabled ? "是" : "否", connectionTimeout,
+           autoGetData ? "是" : "否", autoScanServer ? "是" : "否");
     
     // 参数验证
     if (serverUrl.length() < 10 || 
@@ -2597,7 +2607,7 @@ void WebServerManager::handleSetServerConfig() {
     }
     
     // 保存配置
-    bool success = configStorage->saveServerConfigAsync(serverUrl, requestInterval, enabled, connectionTimeout, 3000);
+    bool success = configStorage->saveServerConfigAsync(serverUrl, requestInterval, enabled, connectionTimeout, autoGetData, autoScanServer, 3000);
     
     doc["success"] = success;
     if (success) {
@@ -2640,7 +2650,9 @@ void WebServerManager::handleTestServerConnection() {
                 int requestInterval;
                 bool enabled;
                 int connectionTimeout;
-                bool success = configStorage->loadServerConfigAsync(configServerUrl, requestInterval, enabled, connectionTimeout, 3000);
+                bool autoGetData;
+                bool autoScanServer;
+                bool success = configStorage->loadServerConfigAsync(configServerUrl, requestInterval, enabled, connectionTimeout, autoGetData, autoScanServer, 3000);
                 if (success) {
                     serverUrl = configServerUrl;
                 }
@@ -2726,7 +2738,9 @@ void WebServerManager::handleGetServerData() {
                 int requestInterval;
                 bool enabled;
                 int connectionTimeout;
-                bool success = configStorage->loadServerConfigAsync(configServerUrl, requestInterval, enabled, connectionTimeout, 3000);
+                bool autoGetData;
+                bool autoScanServer;
+                bool success = configStorage->loadServerConfigAsync(configServerUrl, requestInterval, enabled, connectionTimeout, autoGetData, autoScanServer, 3000);
                 if (success && enabled) {
                     serverUrl = configServerUrl;
                 }
