@@ -1938,11 +1938,12 @@ void WebServerManager::handleScreenConfig() {
         doc["brightnessPercent"] = currentBrightness;
         doc["screenOn"] = true;  // 假设屏幕开启
         doc["backlightOn"] = true;  // 假设背光开启
+        doc["maxBrightness"] = "350nit";  // 最大亮度
         
         // 新增屏幕参数信息
-        doc["resolution"] = "240×240";  // 屏幕分辨率
-        doc["colorSupport"] = "16位色彩 (RGB565)";  // 色彩支持
-        doc["material"] = "IPS LCD";  // 屏幕材质
+        doc["resolution"] = "368x448";  // 屏幕分辨率
+        doc["colorSupport"] = "RGB565";  // 色彩支持
+        doc["material"] = "AMOLED";  // 屏幕材质
         
         doc["message"] = "屏幕配置获取成功";
         
@@ -1954,11 +1955,12 @@ void WebServerManager::handleScreenConfig() {
         doc["brightnessPercent"] = 50;
         doc["screenOn"] = false;
         doc["backlightOn"] = false;
+        doc["maxBrightness"] = "350nit";  // 最大亮度
         
         // 默认屏幕参数信息
-        doc["resolution"] = "240×240";  // 屏幕分辨率
-        doc["colorSupport"] = "16位色彩 (RGB565)";  // 色彩支持
-        doc["material"] = "IPS LCD";  // 屏幕材质
+        doc["resolution"] = "368x448";  // 屏幕分辨率
+        doc["colorSupport"] = "RGB565";  // 色彩支持
+        doc["material"] = "AMOLED";  // 屏幕材质
         
         printf("显示管理器未初始化\n");
     }

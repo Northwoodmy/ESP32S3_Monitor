@@ -133,7 +133,7 @@ String WebServerManager::getIndexHTML() {
     html += "                        <span class=\"value\" id=\"currentBrightness\">加载中...</span>\n";
     html += "                    </div>\n";
     html += "                    <div class=\"setting-item\">\n";
-    html += "                        <label class=\"setting-label\">屏幕状态:</label>\n";
+    html += "                        <label class=\"setting-label\">最大亮度:</label>\n";
     html += "                        <span class=\"value\" id=\"screenStatus\">加载中...</span>\n";
     html += "                    </div>\n";
     html += "                    <div class=\"setting-item\">\n";
@@ -152,14 +152,6 @@ String WebServerManager::getIndexHTML() {
     html += "                        <label class=\"setting-label\">屏幕材质:</label>\n";
     html += "                        <span class=\"value\" id=\"screenMaterial\">加载中...</span>\n";
     html += "                    </div>\n";
-    html += "                </div>\n";
-    html += "                <div class=\"action-buttons\">\n";
-    html += "                    <button onclick=\"refreshScreenInfo()\" class=\"primary-btn\">\n";
-    html += "                        刷新信息\n";
-    html += "                    </button>\n";
-    html += "                    <button onclick=\"testScreen()\" class=\"success-btn\">\n";
-    html += "                        屏幕测试\n";
-    html += "                    </button>\n";
     html += "                </div>\n";
     html += "            </div>\n";
     html += "        </div>\n";
@@ -2037,12 +2029,12 @@ String WebServerManager::getJavaScript() {
     js += "            document.getElementById('brightnessSlider').value = data.brightness || 128;\n";
     js += "            updateBrightnessValue(data.brightness || 128);\n";
     js += "            document.getElementById('currentBrightness').textContent = Math.round((data.brightness / 255) * 100) + '%';\n";
-    js += "            document.getElementById('screenStatus').textContent = data.screenOn ? '开启' : '关闭';\n";
+    js += "            document.getElementById('screenStatus').textContent = data.maxBrightness || '350nit';\n";
     js += "            document.getElementById('backlightStatus').textContent = data.backlightOn ? '开启' : '关闭';\n";
     js += "            // 新增屏幕信息显示\n";
-    js += "            document.getElementById('screenResolution').textContent = data.resolution || '240×240';\n";
-    js += "            document.getElementById('colorSupport').textContent = data.colorSupport || '16位色彩 (RGB565)';\n";
-    js += "            document.getElementById('screenMaterial').textContent = data.material || 'IPS LCD';\n";
+    js += "            document.getElementById('screenResolution').textContent = data.resolution || '368x448';\n";
+    js += "            document.getElementById('colorSupport').textContent = data.colorSupport || 'RGB565';\n";
+    js += "            document.getElementById('screenMaterial').textContent = data.material || 'AMOLED';\n";
     js += "        }\n";
     js += "    } catch (error) {\n";
     js += "        console.error('加载屏幕配置失败:', error);\n";
@@ -2092,26 +2084,6 @@ String WebServerManager::getJavaScript() {
     js += "    document.getElementById('brightnessSlider').value = value;\n";
     js += "    updateBrightnessValue(value);\n";
     js += "    setBrightness(value);\n";
-    js += "}\n\n";
-    
-    js += "async function refreshScreenInfo() {\n";
-    js += "    loadScreenConfig();\n";
-    js += "    showToast('屏幕信息已刷新', 'success');\n";
-    js += "}\n\n";
-    
-    js += "async function testScreen() {\n";
-    js += "    try {\n";
-    js += "        const response = await fetch('/api/screen/test', { method: 'POST' });\n";
-    js += "        const data = await response.json();\n";
-    js += "        if (data.success) {\n";
-    js += "            showToast('屏幕测试已启动', 'success');\n";
-    js += "        } else {\n";
-    js += "            showToast('屏幕测试失败: ' + data.message, 'error');\n";
-    js += "        }\n";
-    js += "    } catch (error) {\n";
-    js += "        console.error('屏幕测试失败:', error);\n";
-    js += "        showToast('屏幕测试失败', 'error');\n";
-    js += "    }\n";
     js += "}\n\n";
     
     js += "window.addEventListener('beforeunload', function() {\n";
