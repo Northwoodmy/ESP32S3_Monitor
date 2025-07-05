@@ -3197,13 +3197,6 @@ String WebServerManager::getServerSettingsHTML() {
     html += "                                    <small>默认1000毫秒，不建议修改</small>\n";
     html += "                                </div>\n";
     html += "                            </div>\n";
-    html += "                            <div class=\"form-group\">\n";
-    html += "                                <label class=\"switch-label\">\n";
-    html += "                                    <input type=\"checkbox\" id=\"enableServer\" class=\"switch-input\" checked>\n";
-    html += "                                    <span class=\"switch-slider\"></span>\n";
-    html += "                                    启用服务器数据获取\n";
-    html += "                                </label>\n";
-    html += "                            </div>\n";
     html += "                        </div>\n";
     html += "                    </div>\n";
     html += "                    \n";
@@ -3215,13 +3208,6 @@ String WebServerManager::getServerSettingsHTML() {
     html += "                                <div class=\"btn-loading hidden\">\n";
     html += "                                    <div class=\"spinner-sm\"></div>\n";
     html += "                                    <span>测试中...</span>\n";
-    html += "                                </div>\n";
-    html += "                            </button>\n";
-    html += "                            <button onclick=\"getServerData()\" class=\"setting-btn info-btn\">\n";
-    html += "                                <span class=\"btn-text\">获取数据</span>\n";
-    html += "                                <div class=\"btn-loading hidden\">\n";
-    html += "                                    <div class=\"spinner-sm\"></div>\n";
-    html += "                                    <span>获取中...</span>\n";
     html += "                                </div>\n";
     html += "                            </button>\n";
     html += "                            <button onclick=\"saveServerConfig()\" class=\"setting-btn success-btn\">\n";
@@ -3236,17 +3222,6 @@ String WebServerManager::getServerSettingsHTML() {
     html += "                </div>\n";
     html += "            </div>\n";
     html += "            \n";
-    html += "            <!-- 服务器数据显示 -->\n";
-    html += "            <div class=\"settings-section\">\n";
-    html += "                <h2>服务器数据</h2>\n";
-    html += "                <div class=\"server-data\">\n";
-    html += "                    <div class=\"data-display\" id=\"serverDataDisplay\">\n";
-    html += "                        <div class=\"data-placeholder\">\n";
-    html += "                            <p>暂无数据，请点击\"获取数据\"按钮</p>\n";
-    html += "                        </div>\n";
-    html += "                    </div>\n";
-    html += "                </div>\n";
-    html += "            </div>\n";
     html += "        </div>\n";
     html += "    </div>\n";
     html += "    \n";
@@ -3619,89 +3594,6 @@ String WebServerManager::getServerSettingsCSS() {
             box-shadow: none;
         }
         
-        /* 服务器数据显示区域 */
-        .server-data {
-            background: linear-gradient(145deg, #ffffff, #f8fafc);
-            border-radius: 16px;
-            padding: 24px;
-            border: 1px solid #e2e8f0;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-            animation: fadeInUp 0.6s ease-out forwards;
-            opacity: 0;
-            animation-delay: 0.4s;
-        }
-        
-        .data-display {
-            min-height: 200px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .data-placeholder {
-            text-align: center;
-            color: #6b7280;
-            font-size: 1.1rem;
-        }
-        
-        .data-content {
-            width: 100%;
-        }
-        
-        .data-table {
-            width: 100%;
-            border-collapse: collapse;
-            background: white;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-        }
-        
-        .data-table th,
-        .data-table td {
-            padding: 12px 16px;
-            text-align: left;
-            border-bottom: 1px solid #e5e7eb;
-        }
-        
-        .data-table th {
-            background: #f8fafc;
-            font-weight: 600;
-            color: #374151;
-        }
-        
-        .data-table td {
-            color: #4b5563;
-        }
-        
-        .data-table tr:last-child td {
-            border-bottom: none;
-        }
-        
-        .data-table tr:hover {
-            background: #f9fafb;
-        }
-        
-        /* JSON数据显示 */
-        .json-display {
-            background: #1f2937;
-            border-radius: 12px;
-            padding: 20px;
-            overflow-x: auto;
-            font-family: 'Courier New', Monaco, monospace;
-            font-size: 0.9rem;
-            line-height: 1.5;
-            color: #e5e7eb;
-            max-height: 400px;
-            overflow-y: auto;
-        }
-        
-        .json-display pre {
-            margin: 0;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-        }
-        
         /* 加载和错误状态 */
         .spinner-sm {
             width: 16px;
@@ -3802,10 +3694,6 @@ String WebServerManager::getServerSettingsCSS() {
             }
             
             .setting-group {
-                padding: 16px;
-            }
-            
-            .server-data {
                 padding: 16px;
             }
         }
@@ -4000,10 +3888,7 @@ String WebServerManager::getServerSettingsJavaScript() {
     js += "                statusInfo.innerHTML = `\n";
     js += "                    <div class=\"status-success\">\n";
     js += "                        <h3>连接成功</h3>\n";
-    js += "                        <p>服务器地址: ${data.serverUrl}</p>\n";
-    js += "                        <p>HTTP状态码: ${data.httpCode}</p>\n";
-    js += "                        <p>响应大小: ${data.responseSize} 字节</p>\n";
-    js += "                        ${data.responseValid ? '<p style=\"color: #10b981;\">✓ JSON格式有效</p>' : '<p style=\"color: #f59e0b;\">⚠ 响应非JSON格式</p>'}\n";
+    js += "                        <p style=\"color: #10b981;\">✓ 服务器连接正常</p>\n";
     js += "                    </div>\n";
     js += "                `;\n";
     js += "            }\n";
@@ -4041,87 +3926,7 @@ String WebServerManager::getServerSettingsJavaScript() {
     js += "    });\n";
     js += "}\n\n";
     
-    js += "function getServerData() {\n";
-    js += "    const dataBtn = document.querySelector('.info-btn');\n";
-    js += "    const btnText = dataBtn.querySelector('.btn-text');\n";
-    js += "    const btnLoading = dataBtn.querySelector('.btn-loading');\n";
-    js += "    const dataDisplay = document.getElementById('serverDataDisplay');\n";
-    js += "    \n";
-    js += "    // 显示加载状态\n";
-    js += "    btnText.style.display = 'none';\n";
-    js += "    btnLoading.classList.remove('hidden');\n";
-    js += "    \n";
-    js += "    // 更新数据显示区域\n";
-    js += "    if (dataDisplay) {\n";
-    js += "        dataDisplay.innerHTML = `\n";
-    js += "            <div class=\"status-loading\">\n";
-    js += "                <div class=\"spinner\"></div>\n";
-    js += "                <span>正在获取服务器数据...</span>\n";
-    js += "            </div>\n";
-    js += "        `;\n";
-    js += "    }\n";
-    js += "    \n";
-    js += "    const serverIp = document.getElementById('serverUrl').value.trim();\n";
-    js += "    \n";
-    js += "    const params = new URLSearchParams();\n";
-    js += "    if (serverIp) {\n";
-    js += "        // 自动拼接完整URL\n";
-    js += "        const serverUrl = 'http://' + serverIp + '/metrics.json';\n";
-    js += "        params.append('serverUrl', serverUrl);\n";
-    js += "    }\n";
-    js += "    \n";
-    js += "    fetch('/api/server/data?' + params.toString())\n";
-    js += "    .then(response => response.json())\n";
-    js += "    .then(data => {\n";
-    js += "        if (data.success && data.data) {\n";
-    js += "            showToast('服务器数据获取成功', 'success');\n";
-    js += "            displayServerData(data.data, data.timestamp);\n";
-    js += "        } else {\n";
-    js += "            showToast('获取数据失败: ' + data.message, 'error');\n";
-    js += "            displayError(data.message, data.serverUrl);\n";
-    js += "        }\n";
-    js += "    })\n";
-    js += "    .catch(error => {\n";
-    js += "        console.error('获取数据失败:', error);\n";
-    js += "        showToast('获取数据失败', 'error');\n";
-    js += "        displayError('网络或服务器错误');\n";
-    js += "    })\n";
-    js += "    .finally(() => {\n";
-    js += "        resetDataButton();\n";
-    js += "    });\n";
-    js += "}\n\n";
-    
-    js += "function displayServerData(data, timestamp) {\n";
-    js += "    const dataDisplay = document.getElementById('serverDataDisplay');\n";
-    js += "    if (!dataDisplay) return;\n";
-    js += "    \n";
-    js += "    const timeStr = timestamp ? new Date(timestamp).toLocaleString() : new Date().toLocaleString();\n";
-    js += "    \n";
-    js += "    dataDisplay.innerHTML = `\n";
-    js += "        <div class=\"data-content\">\n";
-    js += "            <div style=\"display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;\">\n";
-    js += "                <h3 style=\"margin: 0; color: #374151; font-size: 1.2rem;\">服务器数据</h3>\n";
-    js += "                <small style=\"color: #6b7280;\">获取时间: ${timeStr}</small>\n";
-    js += "            </div>\n";
-    js += "            <div class=\"json-display\">\n";
-    js += "                <pre>${JSON.stringify(data, null, 2)}</pre>\n";
-    js += "            </div>\n";
-    js += "        </div>\n";
-    js += "    `;\n";
-    js += "}\n\n";
-    
-    js += "function displayError(message, serverUrl) {\n";
-    js += "    const dataDisplay = document.getElementById('serverDataDisplay');\n";
-    js += "    if (!dataDisplay) return;\n";
-    js += "    \n";
-    js += "    dataDisplay.innerHTML = `\n";
-    js += "        <div class=\"data-placeholder\">\n";
-    js += "            <p style=\"color: #ef4444; font-weight: 500;\">获取数据失败</p>\n";
-    js += "            <p style=\"color: #6b7280;\">${message}</p>\n";
-    js += "            ${serverUrl ? '<p style=\"color: #6b7280; font-size: 0.9rem;\">服务器: ' + serverUrl + '</p>' : ''}\n";
-    js += "        </div>\n";
-    js += "    `;\n";
-    js += "}\n\n";
+
     
     js += "function resetSaveButton() {\n";
     js += "    const saveBtn = document.querySelector('.success-btn');\n";
@@ -4137,16 +3942,6 @@ String WebServerManager::getServerSettingsJavaScript() {
     js += "    const testBtn = document.querySelector('.primary-btn');\n";
     js += "    const btnText = testBtn.querySelector('.btn-text');\n";
     js += "    const btnLoading = testBtn.querySelector('.btn-loading');\n";
-    js += "    \n";
-    js += "    // 恢复按钮状态\n";
-    js += "    btnText.style.display = '';\n";
-    js += "    btnLoading.classList.add('hidden');\n";
-    js += "}\n\n";
-    
-    js += "function resetDataButton() {\n";
-    js += "    const dataBtn = document.querySelector('.info-btn');\n";
-    js += "    const btnText = dataBtn.querySelector('.btn-text');\n";
-    js += "    const btnLoading = dataBtn.querySelector('.btn-loading');\n";
     js += "    \n";
     js += "    // 恢复按钮状态\n";
     js += "    btnText.style.display = '';\n";
