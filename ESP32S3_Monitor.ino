@@ -1,6 +1,6 @@
 /*
  * ESP32S3监控项目 - WiFi配置管理器
- * 版本: v6.1.0
+ * 版本: v7.0.0
  * 作者: ESP32S3_Monitor
  * 日期: 2024
  * 
@@ -79,7 +79,7 @@ void powerDataCallback(const PowerMonitorData& data, void* userData) {
 void setup() {
   
   printf("=== ESP32S3 WiFi配置管理器启动 ===\n");
-  printf("版本: v6.1.0\n");
+  printf("版本: v7.0.0 - 全新SquareLine Studio UI系统\n");
   printf("编译时间: %s %s\n", __DATE__, __TIME__);
   
   // 初始化PSRAM管理器（优先初始化）

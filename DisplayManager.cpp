@@ -7,21 +7,47 @@
  * - 主题和亮度控制
  * - 触摸交互事件处理
  * - 通知消息显示
+ * - 集成SquareLine Studio生成的UI系统
  * 
  * 技术特点：
  * - FreeRTOS任务调度
  * - 线程安全的消息队列
  * - LVGL UI组件管理
  * - 模块化页面设计
+ * - 功率监控数据实时更新
  */
 
 #include "DisplayManager.h"
 #include "WiFiManager.h"
 #include "ConfigStorage.h"
 #include "PSRAMManager.h"
+#include "TimeManager.h"
 #include <WiFi.h>
 #include <cstring>
 #include <cstdio>
+#include <time.h>
+
+// 外部声明新UI系统的屏幕对象
+extern lv_obj_t * ui_standbySCREEN;
+extern lv_obj_t * ui_totalpowerSCREEN;
+extern lv_obj_t * ui_prot1SCREEN;
+extern lv_obj_t * ui_prot2SCREEN;
+extern lv_obj_t * ui_prot3SCREEN;
+extern lv_obj_t * ui_prot4SCREEN;
+
+// 外部声明新UI系统的标签对象
+extern lv_obj_t * ui_timeLabel;
+extern lv_obj_t * ui_dataLabel;
+extern lv_obj_t * ui_weekLabel;
+extern lv_obj_t * ui_totalpowerlabel;
+extern lv_obj_t * ui_port1power;
+extern lv_obj_t * ui_port2power;
+extern lv_obj_t * ui_port3power;
+extern lv_obj_t * ui_port4power;
+extern lv_obj_t * ui_port1powerbar;
+extern lv_obj_t * ui_port2powerbar;
+extern lv_obj_t * ui_port3powerbar;
+extern lv_obj_t * ui_port4powerbar;
 
 /**
  * @brief 构造函数
@@ -73,7 +99,7 @@ DisplayManager::DisplayManager()
     m_powerData.port_count = 4;
     m_powerData.valid = false;
     
-    printf("[DisplayManager] 显示管理器已创建\n");
+    printf("[DisplayManager] 显示管理器已创建（新UI系统）\n");
 }
 
 /**
@@ -126,9 +152,12 @@ bool DisplayManager::init(LVGLDriver* lvgl_driver, WiFiManager* wifi_manager, Co
         return false;
     }
     
-    // 获取LVGL锁并创建UI
+    // 获取LVGL锁并初始化新的UI系统
     if (m_lvglDriver->lock(5000)) {
-        // 创建主屏幕
+        // 初始化新的UI系统
+        ui_init();
+        
+        // 获取主屏幕
         m_screen = lv_scr_act();
         if (!m_screen) {
             printf("[DisplayManager] 错误：获取主屏幕失败\n");
@@ -136,40 +165,18 @@ bool DisplayManager::init(LVGLDriver* lvgl_driver, WiFiManager* wifi_manager, Co
             return false;
         }
         
-        // 初始化页面容器
-        initPageContainers();
-        
-        // 创建状态栏
-        createStatusBar();
-        
-        // 创建导航栏
-        createNavigationBar();
-        
-        // 创建主页面
-        createHomePage();
-        
-        // 创建功率监控页面
-        createTotalPowerPage();
-        createPortPowerPage(1);
-        createPortPowerPage(2);
-        createPortPowerPage(3);
-        createPortPowerPage(4);
-        
-        // 创建其他页面
-        createSystemInfoPage();
-        
-        // 应用默认主题
-        applyTheme();
-        
-        // 显示默认页面（主页）
-        if (m_pages[PAGE_HOME] != nullptr) {
-            lv_obj_clear_flag(m_pages[PAGE_HOME], LV_OBJ_FLAG_HIDDEN);
-            printf("[DisplayManager] 显示默认页面：主页\n");
+        // 显示默认页面（待机屏幕）
+        if (ui_standbySCREEN) {
+            lv_scr_load(ui_standbySCREEN);
+            printf("[DisplayManager] 显示默认页面：待机屏幕\n");
         }
+        
+        // 初始化时间和日期显示
+        updateTimeDisplay();
         
         m_lvglDriver->unlock();
         
-        printf("[DisplayManager] UI界面创建完成\n");
+        printf("[DisplayManager] 新UI系统初始化完成\n");
     } else {
         printf("[DisplayManager] 错误：获取LVGL锁超时\n");
         return false;
@@ -297,13 +304,12 @@ void DisplayManager::displayTask() {
             processMessage(msg);
         }
         
-        // 定期更新状态栏
+        // 定期更新时间显示
         TickType_t currentTime = xTaskGetTickCount();
         if (currentTime - lastUpdateTime >= updateInterval) {
-            if (m_lvglDriver->lock(100)) {
-                updateStatusBar();
-                m_lvglDriver->unlock();
-            }
+            // 更新时间显示
+            updateTimeDisplay();
+            
             lastUpdateTime = currentTime;
         }
         
@@ -339,10 +345,8 @@ void DisplayManager::processMessage(const DisplayMessage& msg) {
             break;
             
         case DisplayMessage::MSG_UPDATE_POWER_DATA:
-            // 更新功率数据显示
-            m_powerData = msg.data.power_monitor.power_data;
-            updatePowerDisplay();
-            printf("[DisplayManager] 更新功率数据：总功率=%d mW\n", m_powerData.total_power);
+            // 功率数据已在updatePowerData中直接更新
+            printf("[DisplayManager] 功率数据已更新：总功率=%d mW\n", m_powerData.total_power);
             break;
             
         case DisplayMessage::MSG_SWITCH_PAGE:
@@ -807,6 +811,13 @@ bool DisplayManager::isRunning() const {
 }
 
 void DisplayManager::updatePowerData(const PowerMonitorData& power_data) {
+    // 直接更新内部数据
+    m_powerData = power_data;
+    
+    // 立即更新新UI系统的显示
+    updatePowerDataDisplay();
+    
+    // 同时发送消息到队列进行后续处理
     DisplayMessage msg;
     msg.type = DisplayMessage::MSG_UPDATE_POWER_DATA;
     msg.data.power_monitor.power_data = power_data;
@@ -1228,4 +1239,143 @@ void DisplayManager::swipeEventCallback(lv_event_t* event) {
             }
         }
     }
+}
+
+/**
+ * @brief 更新时间显示
+ */
+void DisplayManager::updateTimeDisplay() {
+    if (!m_lvglDriver || !m_lvglDriver->lock(100)) {
+        return;
+    }
+    
+    // 获取当前时间
+    time_t now = time(nullptr);
+    struct tm* timeinfo = localtime(&now);
+    
+    // 更新时间标签
+    if (ui_timeLabel) {
+        char time_str[16];
+        strftime(time_str, sizeof(time_str), "%H:%M:%S", timeinfo);
+        lv_label_set_text(ui_timeLabel, time_str);
+    }
+    
+    // 更新日期标签
+    if (ui_dataLabel) {
+        char date_str[16];
+        strftime(date_str, sizeof(date_str), "%m-%d", timeinfo);
+        lv_label_set_text(ui_dataLabel, date_str);
+    }
+    
+    // 更新星期标签
+    if (ui_weekLabel) {
+        const char* weekdays[] = {"星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"};
+        lv_label_set_text(ui_weekLabel, weekdays[timeinfo->tm_wday]);
+    }
+    
+    m_lvglDriver->unlock();
+}
+
+/**
+ * @brief 更新功率数据显示
+ */
+void DisplayManager::updatePowerDataDisplay() {
+    if (!m_lvglDriver || !m_lvglDriver->lock(100)) {
+        return;
+    }
+    
+    // 更新总功率显示
+    if (ui_totalpowerlabel && m_powerData.valid) {
+        char total_power_str[16];
+        snprintf(total_power_str, sizeof(total_power_str), "%.1fW", m_powerData.total_power / 1000.0f);
+        lv_label_set_text(ui_totalpowerlabel, total_power_str);
+    }
+    
+    // 更新各端口功率显示
+    if (m_powerData.valid) {
+        // 端口1
+        if (ui_port1power && m_powerData.ports[0].valid) {
+            char port1_str[16];
+            snprintf(port1_str, sizeof(port1_str), "%.2fW", m_powerData.ports[0].power / 1000.0f);
+            lv_label_set_text(ui_port1power, port1_str);
+        }
+        
+        // 端口2
+        if (ui_port2power && m_powerData.ports[1].valid) {
+            char port2_str[16];
+            snprintf(port2_str, sizeof(port2_str), "%.2fW", m_powerData.ports[1].power / 1000.0f);
+            lv_label_set_text(ui_port2power, port2_str);
+        }
+        
+        // 端口3
+        if (ui_port3power && m_powerData.ports[2].valid) {
+            char port3_str[16];
+            snprintf(port3_str, sizeof(port3_str), "%.2fW", m_powerData.ports[2].power / 1000.0f);
+            lv_label_set_text(ui_port3power, port3_str);
+        }
+        
+        // 端口4
+        if (ui_port4power && m_powerData.ports[3].valid) {
+            char port4_str[16];
+            snprintf(port4_str, sizeof(port4_str), "%.2fW", m_powerData.ports[3].power / 1000.0f);
+            lv_label_set_text(ui_port4power, port4_str);
+        }
+        
+        // 更新功率条显示
+        updatePowerBars();
+    }
+    
+    m_lvglDriver->unlock();
+}
+
+/**
+ * @brief 更新功率条显示
+ */
+void DisplayManager::updatePowerBars() {
+    // 计算功率条的比例 (基于最大功率100W)
+    const float MAX_POWER = 100000.0f; // 100W in mW
+    
+    if (ui_port1powerbar && m_powerData.ports[0].valid) {
+        float ratio = m_powerData.ports[0].power / MAX_POWER;
+        if (ratio > 1.0f) ratio = 1.0f;
+        lv_bar_set_value(ui_port1powerbar, (int32_t)(ratio * 100), LV_ANIM_ON);
+    }
+    
+    if (ui_port2powerbar && m_powerData.ports[1].valid) {
+        float ratio = m_powerData.ports[1].power / MAX_POWER;
+        if (ratio > 1.0f) ratio = 1.0f;
+        lv_bar_set_value(ui_port2powerbar, (int32_t)(ratio * 100), LV_ANIM_ON);
+    }
+    
+    if (ui_port3powerbar && m_powerData.ports[2].valid) {
+        float ratio = m_powerData.ports[2].power / MAX_POWER;
+        if (ratio > 1.0f) ratio = 1.0f;
+        lv_bar_set_value(ui_port3powerbar, (int32_t)(ratio * 100), LV_ANIM_ON);
+    }
+    
+    if (ui_port4powerbar && m_powerData.ports[3].valid) {
+        float ratio = m_powerData.ports[3].power / MAX_POWER;
+        if (ratio > 1.0f) ratio = 1.0f;
+        lv_bar_set_value(ui_port4powerbar, (int32_t)(ratio * 100), LV_ANIM_ON);
+    }
+}
+
+/**
+ * @brief 更新端口详细信息显示
+ */
+void DisplayManager::updatePortDetailDisplay(int port_index) {
+    if (!m_lvglDriver || !m_lvglDriver->lock(100)) {
+        return;
+    }
+    
+    if (port_index < 0 || port_index >= 4 || !m_powerData.ports[port_index].valid) {
+        m_lvglDriver->unlock();
+        return;
+    }
+    
+    // 根据端口索引获取对应的详细屏幕标签
+    // 这里需要根据实际的UI结构来更新相应的标签
+    // 例如：电压、电流、协议等信息
+    
+    m_lvglDriver->unlock();
 } 

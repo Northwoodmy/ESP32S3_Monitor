@@ -27,6 +27,9 @@
 #include "LVGL_Driver.h"
 #include "PowerMonitorData.h"
 
+// 新的UI系统头文件
+#include "ui.h"
+
 // 前向声明
 class WiFiManager;
 class ConfigStorage;
@@ -257,6 +260,26 @@ public:
      * @return true 任务运行中，false 任务未运行
      */
     bool isRunning() const;
+    
+    /**
+     * @brief 更新端口详细信息显示
+     */
+    void updatePortDetailDisplay(int port_index);
+    
+    /**
+     * @brief 更新时间显示
+     */
+    void updateTimeDisplay();
+    
+    /**
+     * @brief 更新功率数据显示
+     */
+    void updatePowerDataDisplay();
+    
+    /**
+     * @brief 更新功率条显示
+     */
+    void updatePowerBars();
 
 private:
     /**
@@ -425,10 +448,10 @@ private:
     int m_currentPortPage;              ///< 当前端口页面索引
     
     // 任务配置
-    static const uint32_t TASK_STACK_SIZE = 8 * 1024;   ///< 任务栈大小
-    static const UBaseType_t TASK_PRIORITY = 3;         ///< 任务优先级
-    static const uint32_t TASK_CORE = 1;                ///< 任务运行核心
-    static const uint32_t MESSAGE_QUEUE_SIZE = 10;      ///< 消息队列大小
+    static const uint32_t TASK_STACK_SIZE = 8 * 1024;    ///< 任务栈大小
+    static const UBaseType_t TASK_PRIORITY = 3;          ///< 任务优先级
+    static const BaseType_t TASK_CORE = 0;               ///< 任务运行核心
+    static const uint32_t MESSAGE_QUEUE_SIZE = 10;       ///< 消息队列大小
 };
 
 #endif // DISPLAY_MANAGER_H 

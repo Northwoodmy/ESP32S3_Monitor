@@ -1047,17 +1047,8 @@ lv_disp_t* LVGL_Init(void) {
   // 创建LVGL主处理任务
   //xTaskCreate(lvgl_port_task, "LVGL_Task", LVGL_TASK_STACK_SIZE, NULL, LVGL_TASK_PRIORITY, NULL);
   
-  // === 14. 启动演示程序 ===
-  printf("[ESP_LCD_LVGL] 启动LVGL演示程序\n");
-  if (lvgl_lock(-1)) {  // 获取LVGL锁
-    //lv_demo_widgets();          // 启动控件演示程序
-    // 其他可选的演示程序：
-    // lv_demo_music();         // 现代音乐播放器演示
-    // lv_demo_stress();        // LVGL压力测试
-    // lv_demo_benchmark();     // 性能基准测试
-    
-    lvgl_unlock();      // 释放LVGL锁
-  }
+  // === 14. 不启动演示程序，UI将由DisplayManager管理 ===
+  printf("[ESP_LCD_LVGL] LVGL初始化完成，UI将由DisplayManager管理\n");
   
   printf("[ESP_LCD_LVGL] 系统初始化完成！\n");
   
