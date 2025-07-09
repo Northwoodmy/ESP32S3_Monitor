@@ -330,6 +330,30 @@ void Monitor::processPortData(JsonObject port) {
             strcpy(m_currentPowerData.ports[index].protocol_name, "Unknown");
         }
         
+        // 解析PD状态信息
+        if (port.containsKey("pd_status")) {
+            JsonObject pd_status = port["pd_status"];
+            
+            m_currentPowerData.ports[index].manufacturer_vid = pd_status["manufacturer_vid"] | 0;
+            m_currentPowerData.ports[index].cable_vid = pd_status["cable_vid"] | 0;
+            m_currentPowerData.ports[index].cable_max_vbus_voltage = pd_status["cable_max_vbus_voltage"] | 0;
+            m_currentPowerData.ports[index].cable_max_vbus_current = pd_status["cable_max_vbus_current"] | 0;
+            m_currentPowerData.ports[index].operating_voltage = pd_status["operating_voltage"] | 0;
+            m_currentPowerData.ports[index].operating_current = pd_status["operating_current"] | 0;
+            m_currentPowerData.ports[index].has_emarker = pd_status["has_emarker"] | false;
+            m_currentPowerData.ports[index].pps_charging_supported = pd_status["pps_charging_supported"] | false;
+        } else {
+            // 没有PD状态信息时设置默认值
+            m_currentPowerData.ports[index].manufacturer_vid = 0;
+            m_currentPowerData.ports[index].cable_vid = 0;
+            m_currentPowerData.ports[index].cable_max_vbus_voltage = 0;
+            m_currentPowerData.ports[index].cable_max_vbus_current = 0;
+            m_currentPowerData.ports[index].operating_voltage = 0;
+            m_currentPowerData.ports[index].operating_current = 0;
+            m_currentPowerData.ports[index].has_emarker = false;
+            m_currentPowerData.ports[index].pps_charging_supported = false;
+        }
+        
         m_currentPowerData.ports[index].valid = true;
     }
 }

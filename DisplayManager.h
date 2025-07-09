@@ -34,6 +34,7 @@
 class WiFiManager;
 class ConfigStorage;
 class PSRAMManager;
+class WeatherManager;
 
 /**
  * @brief 显示页面枚举
@@ -69,6 +70,7 @@ struct DisplayMessage {
         MSG_UPDATE_WIFI_STATUS,     ///< 更新WiFi状态
         MSG_UPDATE_SYSTEM_INFO,     ///< 更新系统信息
         MSG_UPDATE_POWER_DATA,      ///< 更新功率数据
+        MSG_UPDATE_WEATHER_DATA,    ///< 更新天气数据
         MSG_SWITCH_PAGE,            ///< 切换页面
         MSG_SET_BRIGHTNESS,         ///< 设置亮度
         MSG_SET_THEME,              ///< 设置主题
@@ -92,6 +94,12 @@ struct DisplayMessage {
         struct {
             PowerMonitorData power_data;
         } power_monitor;
+        
+        struct {
+            char temperature[16];
+            char weather[32];
+            bool valid;
+        } weather_data;
         
         struct {
             DisplayPage page;
@@ -141,9 +149,10 @@ public:
      * @param wifi_manager WiFi管理器实例指针
      * @param config_storage 配置存储实例指针
      * @param psram_manager PSRAM管理器实例指针（可选）
+     * @param weather_manager 天气管理器实例指针（可选）
      * @return true 初始化成功，false 初始化失败
      */
-    bool init(LVGLDriver* lvgl_driver, WiFiManager* wifi_manager, ConfigStorage* config_storage, PSRAMManager* psram_manager = nullptr);
+    bool init(LVGLDriver* lvgl_driver, WiFiManager* wifi_manager, ConfigStorage* config_storage, PSRAMManager* psram_manager = nullptr, WeatherManager* weather_manager = nullptr);
     
     /**
      * @brief 启动显示管理器任务
@@ -227,6 +236,14 @@ public:
     void updatePowerData(const PowerMonitorData& power_data);
     
     /**
+     * @brief 更新天气数据显示
+     * 
+     * @param temperature 温度字符串
+     * @param weather 天气状况字符串
+     */
+    void updateWeatherData(const char* temperature, const char* weather);
+    
+    /**
      * @brief 切换到功率监控页面
      * 
      * @param port_index 端口索引（0=总功率，1-4=端口1-4）
@@ -280,6 +297,11 @@ public:
      * @brief 更新功率条显示
      */
     void updatePowerBars();
+    
+    /**
+     * @brief 更新天气显示
+     */
+    void updateWeatherDisplay();
 
 private:
     /**
@@ -415,6 +437,7 @@ private:
     WiFiManager* m_wifiManager;         ///< WiFi管理器指针
     ConfigStorage* m_configStorage;     ///< 配置存储指针
     PSRAMManager* m_psramManager;        ///< PSRAM管理器指针
+    WeatherManager* m_weatherManager;   ///< 天气管理器指针
     
     // 显示状态
     DisplayPage m_currentPage;          ///< 当前页面

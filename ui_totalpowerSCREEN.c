@@ -98,8 +98,8 @@ void ui_totalpowerSCREEN_screen_init(void)
 
     ui_totalwallpaper = lv_obj_create(ui_totalpowerSCREEN);
     lv_obj_remove_style_all(ui_totalwallpaper);
-    lv_obj_set_width(ui_totalwallpaper, 368);
-    lv_obj_set_height(ui_totalwallpaper, 448);
+    lv_obj_set_width(ui_totalwallpaper, lv_pct(100));
+    lv_obj_set_height(ui_totalwallpaper, lv_pct(100));
     lv_obj_set_align(ui_totalwallpaper, LV_ALIGN_CENTER);
     lv_obj_set_flex_flow(ui_totalwallpaper, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(ui_totalwallpaper, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);

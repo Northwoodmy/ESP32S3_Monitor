@@ -18,7 +18,7 @@ extern void ui_event_prot1SCREEN(lv_event_t * e);
 extern lv_obj_t * ui_prot1SCREEN;
 extern lv_obj_t * ui_Container6;
 extern lv_obj_t * ui_Container15;
-extern lv_obj_t * ui_Label9;
+extern lv_obj_t * ui_port1powerpagelabel;
 extern lv_obj_t * ui_Container16;
 extern lv_obj_t * ui_Container7;
 extern lv_obj_t * ui_Label14;

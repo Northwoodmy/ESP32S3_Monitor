@@ -128,21 +128,47 @@ void setup() {
   
   printf("LVGL驱动系统初始化完成\n");
 
-  // 初始化显示管理器
+  // 初始化OTA管理器
+  otaManager.init();
+  
+  // 初始化文件管理器
+  fileManager.init();
+  
+  // 初始化天气管理器（需要在DisplayManager之前初始化）
+  printf("开始初始化天气管理器...\n");
+  if (weatherManager.init(&psramManager, &wifiManager, &configStorage)) {
+    printf("✅ 天气管理器初始化成功\n");
+    
+    // 启动天气管理器
+    if (weatherManager.start()) {
+      printf("✅ 天气管理器启动成功\n");
+      
+      // 启用调试模式查看详细信息
+      weatherManager.setDebugMode(true);
+      
+      printf("🌤️ 天气管理器配置完成\n");
+      printf("💡 请在Web界面设置高德天气API密钥以启用天气功能\n");
+      printf("🔗 高德开发者平台: https://console.amap.com/\n");
+      
+      // 打印天气配置信息
+      weatherManager.printConfig();
+    } else {
+      printf("❌ 天气管理器启动失败\n");
+    }
+  } else {
+    printf("❌ 天气管理器初始化失败\n");
+  }
+  printf("天气管理器初始化完成\n");
+
+  // 初始化显示管理器（现在包含WeatherManager）
   printf("开始初始化显示管理器...\n");
-  displayManager.init(&lvglDriverInstance, &wifiManager, &configStorage, &psramManager);
+  displayManager.init(&lvglDriverInstance, &wifiManager, &configStorage, &psramManager, &weatherManager);
   
   // 启动显示管理器任务
   printf("启动显示管理器任务...\n");
   displayManager.start();
   
   printf("显示管理器初始化完成\n");
-
-  // 初始化OTA管理器
-  otaManager.init();
-  
-  // 初始化文件管理器
-  fileManager.init();
   
   // 初始化音频管理器
   printf("开始初始化音频管理器...\n");
@@ -218,31 +244,7 @@ void setup() {
   
   printf("时间管理器初始化完成\n");
   
-  // 初始化天气管理器
-  printf("开始初始化天气管理器...\n");
-  if (weatherManager.init(&psramManager, &wifiManager, &configStorage)) {
-    printf("✅ 天气管理器初始化成功\n");
-    
-    // 启动天气管理器
-    if (weatherManager.start()) {
-      printf("✅ 天气管理器启动成功\n");
-      
-      // 启用调试模式查看详细信息
-      weatherManager.setDebugMode(true);
-      
-      printf("🌤️ 天气管理器配置完成\n");
-      printf("💡 请在Web界面设置高德天气API密钥以启用天气功能\n");
-      printf("🔗 高德开发者平台: https://console.amap.com/\n");
-      
-      // 打印天气配置信息
-      weatherManager.printConfig();
-    } else {
-      printf("❌ 天气管理器启动失败\n");
-    }
-  } else {
-    printf("❌ 天气管理器初始化失败\n");
-  }
-  printf("天气管理器初始化完成\n");
+
   
   // 显示当前状态
   vTaskDelay(pdMS_TO_TICKS(2000));

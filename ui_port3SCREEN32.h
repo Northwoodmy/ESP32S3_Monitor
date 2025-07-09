@@ -20,22 +20,22 @@ extern lv_obj_t * ui_Container51;
 extern lv_obj_t * ui_Container52;
 extern lv_obj_t * ui_Container53;
 extern lv_obj_t * ui_Label47;
-extern lv_obj_t * ui_port1state2;
+extern lv_obj_t * ui_port3state;
 extern lv_obj_t * ui_Container54;
 extern lv_obj_t * ui_Label48;
-extern lv_obj_t * ui_port1protocol2;
+extern lv_obj_t * ui_port3protocol;
 extern lv_obj_t * ui_Container55;
 extern lv_obj_t * ui_Label49;
-extern lv_obj_t * ui_Label50;
+extern lv_obj_t * ui_port3manufactuervid;
 extern lv_obj_t * ui_Container56;
 extern lv_obj_t * ui_Label51;
-extern lv_obj_t * ui_Label52;
+extern lv_obj_t * ui_port3cablevid;
 extern lv_obj_t * ui_Container57;
 extern lv_obj_t * ui_Label53;
-extern lv_obj_t * ui_Label54;
+extern lv_obj_t * ui_port3maxvbusvoltage;
 extern lv_obj_t * ui_Container58;
 extern lv_obj_t * ui_Label55;
-extern lv_obj_t * ui_Label56;
+extern lv_obj_t * ui_port3maxvbuscurrent;
 // CUSTOM VARIABLES
 
 #ifdef __cplusplus

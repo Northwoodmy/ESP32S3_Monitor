@@ -8,7 +8,7 @@
 lv_obj_t * ui_prot1SCREEN = NULL;
 lv_obj_t * ui_Container6 = NULL;
 lv_obj_t * ui_Container15 = NULL;
-lv_obj_t * ui_Label9 = NULL;
+lv_obj_t * ui_port1powerpagelabel = NULL;
 lv_obj_t * ui_Container16 = NULL;
 lv_obj_t * ui_Container7 = NULL;
 lv_obj_t * ui_Label14 = NULL;
@@ -51,8 +51,8 @@ void ui_prot1SCREEN_screen_init(void)
 
     ui_Container6 = lv_obj_create(ui_prot1SCREEN);
     lv_obj_remove_style_all(ui_Container6);
-    lv_obj_set_width(ui_Container6, 368);
-    lv_obj_set_height(ui_Container6, 448);
+    lv_obj_set_width(ui_Container6, lv_pct(100));
+    lv_obj_set_height(ui_Container6, lv_pct(100));
     lv_obj_set_align(ui_Container6, LV_ALIGN_CENTER);
     lv_obj_set_flex_flow(ui_Container6, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(ui_Container6, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
@@ -68,21 +68,21 @@ void ui_prot1SCREEN_screen_init(void)
     lv_obj_set_align(ui_Container15, LV_ALIGN_CENTER);
     lv_obj_clear_flag(ui_Container15, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);      /// Flags
 
-    ui_Label9 = lv_label_create(ui_Container6);
-    lv_obj_set_width(ui_Label9, LV_SIZE_CONTENT);   /// 1
-    lv_obj_set_height(ui_Label9, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_x(ui_Label9, -5);
-    lv_obj_set_y(ui_Label9, -193);
-    lv_obj_set_align(ui_Label9, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_Label9, "C1端口");
-    lv_obj_set_style_text_color(ui_Label9, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_opa(ui_Label9, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(ui_Label9, &ui_font_DaoLit36zhong, LV_PART_MAIN | LV_STATE_DEFAULT);
+    ui_port1powerpagelabel = lv_label_create(ui_Container6);
+    lv_obj_set_width(ui_port1powerpagelabel, LV_SIZE_CONTENT);   /// 1
+    lv_obj_set_height(ui_port1powerpagelabel, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_x(ui_port1powerpagelabel, -5);
+    lv_obj_set_y(ui_port1powerpagelabel, -193);
+    lv_obj_set_align(ui_port1powerpagelabel, LV_ALIGN_CENTER);
+    lv_label_set_text(ui_port1powerpagelabel, "C1端口");
+    lv_obj_set_style_text_color(ui_port1powerpagelabel, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_opa(ui_port1powerpagelabel, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_port1powerpagelabel, &ui_font_DaoLit36zhong, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_Container16 = lv_obj_create(ui_Container6);
     lv_obj_remove_style_all(ui_Container16);
     lv_obj_set_width(ui_Container16, 246);
-    lv_obj_set_height(ui_Container16, 19);
+    lv_obj_set_height(ui_Container16, 15);
     lv_obj_set_x(ui_Container16, -30);
     lv_obj_set_y(ui_Container16, -174);
     lv_obj_set_align(ui_Container16, LV_ALIGN_CENTER);
@@ -201,7 +201,7 @@ void ui_prot1SCREEN_screen_destroy(void)
     ui_prot1SCREEN = NULL;
     ui_Container6 = NULL;
     ui_Container15 = NULL;
-    ui_Label9 = NULL;
+    ui_port1powerpagelabel = NULL;
     ui_Container16 = NULL;
     ui_Container7 = NULL;
     ui_Label14 = NULL;

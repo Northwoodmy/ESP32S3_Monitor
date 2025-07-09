@@ -16,16 +16,16 @@ lv_obj_t * ui_Label38 = NULL;
 lv_obj_t * ui_port1protocol = NULL;
 lv_obj_t * ui_Container37 = NULL;
 lv_obj_t * ui_Label21 = NULL;
-lv_obj_t * ui_Label23 = NULL;
+lv_obj_t * ui_port1manufactuervid = NULL;
 lv_obj_t * ui_Container39 = NULL;
 lv_obj_t * ui_Label22 = NULL;
-lv_obj_t * ui_Label24 = NULL;
+lv_obj_t * ui_port1cablevid = NULL;
 lv_obj_t * ui_Container41 = NULL;
 lv_obj_t * ui_Label25 = NULL;
-lv_obj_t * ui_Label26 = NULL;
+lv_obj_t * ui_port1maxvbusvoltage = NULL;
 lv_obj_t * ui_Container42 = NULL;
 lv_obj_t * ui_Label27 = NULL;
-lv_obj_t * ui_Label28 = NULL;
+lv_obj_t * ui_port1maxvbuscurrent = NULL;
 // event funtions
 void ui_event_port1SCREEN12(lv_event_t * e)
 {
@@ -46,8 +46,8 @@ void ui_port1SCREEN12_screen_init(void)
 
     ui_Container35 = lv_obj_create(ui_port1SCREEN12);
     lv_obj_remove_style_all(ui_Container35);
-    lv_obj_set_width(ui_Container35, 368);
-    lv_obj_set_height(ui_Container35, 448);
+    lv_obj_set_width(ui_Container35, lv_pct(100));
+    lv_obj_set_height(ui_Container35, lv_pct(100));
     lv_obj_set_align(ui_Container35, LV_ALIGN_CENTER);
     lv_obj_set_flex_flow(ui_Container35, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(ui_Container35, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
@@ -57,7 +57,7 @@ void ui_port1SCREEN12_screen_init(void)
     ui_Container40 = lv_obj_create(ui_Container35);
     lv_obj_remove_style_all(ui_Container40);
     lv_obj_set_width(ui_Container40, 309);
-    lv_obj_set_height(ui_Container40, 23);
+    lv_obj_set_height(ui_Container40, 18);
     lv_obj_set_x(ui_Container40, -100);
     lv_obj_set_y(ui_Container40, -217);
     lv_obj_set_align(ui_Container40, LV_ALIGN_CENTER);
@@ -149,16 +149,16 @@ void ui_port1SCREEN12_screen_init(void)
     lv_obj_set_style_text_opa(ui_Label21, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_font(ui_Label21, &ui_font_daoli24zhong, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    ui_Label23 = lv_label_create(ui_Container37);
-    lv_obj_set_width(ui_Label23, LV_SIZE_CONTENT);   /// 1
-    lv_obj_set_height(ui_Label23, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_x(ui_Label23, 26);
-    lv_obj_set_y(ui_Label23, -122);
-    lv_obj_set_align(ui_Label23, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_Label23, "酷态科");
-    lv_obj_set_style_text_color(ui_Label23, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_opa(ui_Label23, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(ui_Label23, &ui_font_daoli24zhong, LV_PART_MAIN | LV_STATE_DEFAULT);
+    ui_port1manufactuervid = lv_label_create(ui_Container37);
+    lv_obj_set_width(ui_port1manufactuervid, LV_SIZE_CONTENT);   /// 1
+    lv_obj_set_height(ui_port1manufactuervid, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_x(ui_port1manufactuervid, 26);
+    lv_obj_set_y(ui_port1manufactuervid, -122);
+    lv_obj_set_align(ui_port1manufactuervid, LV_ALIGN_CENTER);
+    lv_label_set_text(ui_port1manufactuervid, "酷态科");
+    lv_obj_set_style_text_color(ui_port1manufactuervid, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_opa(ui_port1manufactuervid, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_port1manufactuervid, &ui_font_daoli24zhong, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_Container39 = lv_obj_create(ui_Container35);
     lv_obj_remove_style_all(ui_Container39);
@@ -182,16 +182,16 @@ void ui_port1SCREEN12_screen_init(void)
     lv_obj_set_style_text_opa(ui_Label22, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_font(ui_Label22, &ui_font_daoli24zhong, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    ui_Label24 = lv_label_create(ui_Container39);
-    lv_obj_set_width(ui_Label24, LV_SIZE_CONTENT);   /// 1
-    lv_obj_set_height(ui_Label24, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_x(ui_Label24, 93);
-    lv_obj_set_y(ui_Label24, -78);
-    lv_obj_set_align(ui_Label24, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_Label24, "制糖工厂");
-    lv_obj_set_style_text_color(ui_Label24, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_opa(ui_Label24, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(ui_Label24, &ui_font_daoli24zhong, LV_PART_MAIN | LV_STATE_DEFAULT);
+    ui_port1cablevid = lv_label_create(ui_Container39);
+    lv_obj_set_width(ui_port1cablevid, LV_SIZE_CONTENT);   /// 1
+    lv_obj_set_height(ui_port1cablevid, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_x(ui_port1cablevid, 93);
+    lv_obj_set_y(ui_port1cablevid, -78);
+    lv_obj_set_align(ui_port1cablevid, LV_ALIGN_CENTER);
+    lv_label_set_text(ui_port1cablevid, "制糖工厂");
+    lv_obj_set_style_text_color(ui_port1cablevid, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_opa(ui_port1cablevid, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_port1cablevid, &ui_font_daoli24zhong, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_Container41 = lv_obj_create(ui_Container35);
     lv_obj_remove_style_all(ui_Container41);
@@ -215,16 +215,16 @@ void ui_port1SCREEN12_screen_init(void)
     lv_obj_set_style_text_opa(ui_Label25, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_font(ui_Label25, &ui_font_daoli24zhong, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    ui_Label26 = lv_label_create(ui_Container41);
-    lv_obj_set_width(ui_Label26, LV_SIZE_CONTENT);   /// 1
-    lv_obj_set_height(ui_Label26, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_x(ui_Label26, -38);
-    lv_obj_set_y(ui_Label26, -85);
-    lv_obj_set_align(ui_Label26, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_Label26, "20V");
-    lv_obj_set_style_text_color(ui_Label26, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_opa(ui_Label26, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(ui_Label26, &ui_font_daoli24zhong, LV_PART_MAIN | LV_STATE_DEFAULT);
+    ui_port1maxvbusvoltage = lv_label_create(ui_Container41);
+    lv_obj_set_width(ui_port1maxvbusvoltage, LV_SIZE_CONTENT);   /// 1
+    lv_obj_set_height(ui_port1maxvbusvoltage, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_x(ui_port1maxvbusvoltage, -38);
+    lv_obj_set_y(ui_port1maxvbusvoltage, -85);
+    lv_obj_set_align(ui_port1maxvbusvoltage, LV_ALIGN_CENTER);
+    lv_label_set_text(ui_port1maxvbusvoltage, "20V");
+    lv_obj_set_style_text_color(ui_port1maxvbusvoltage, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_opa(ui_port1maxvbusvoltage, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_port1maxvbusvoltage, &ui_font_daoli24zhong, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_Container42 = lv_obj_create(ui_Container41);
     lv_obj_remove_style_all(ui_Container42);
@@ -246,16 +246,16 @@ void ui_port1SCREEN12_screen_init(void)
     lv_obj_set_style_text_opa(ui_Label27, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_font(ui_Label27, &ui_font_daoli24zhong, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    ui_Label28 = lv_label_create(ui_Container41);
-    lv_obj_set_width(ui_Label28, LV_SIZE_CONTENT);   /// 1
-    lv_obj_set_height(ui_Label28, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_x(ui_Label28, 85);
-    lv_obj_set_y(ui_Label28, -93);
-    lv_obj_set_align(ui_Label28, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_Label28, "3A");
-    lv_obj_set_style_text_color(ui_Label28, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_opa(ui_Label28, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(ui_Label28, &ui_font_daoli24zhong, LV_PART_MAIN | LV_STATE_DEFAULT);
+    ui_port1maxvbuscurrent = lv_label_create(ui_Container41);
+    lv_obj_set_width(ui_port1maxvbuscurrent, LV_SIZE_CONTENT);   /// 1
+    lv_obj_set_height(ui_port1maxvbuscurrent, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_x(ui_port1maxvbuscurrent, 85);
+    lv_obj_set_y(ui_port1maxvbuscurrent, -93);
+    lv_obj_set_align(ui_port1maxvbuscurrent, LV_ALIGN_CENTER);
+    lv_label_set_text(ui_port1maxvbuscurrent, "3A");
+    lv_obj_set_style_text_color(ui_port1maxvbuscurrent, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_opa(ui_port1maxvbuscurrent, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_port1maxvbuscurrent, &ui_font_daoli24zhong, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     lv_obj_add_event_cb(ui_port1SCREEN12, ui_event_port1SCREEN12, LV_EVENT_ALL, NULL);
 
@@ -277,16 +277,16 @@ void ui_port1SCREEN12_screen_destroy(void)
     ui_port1protocol = NULL;
     ui_Container37 = NULL;
     ui_Label21 = NULL;
-    ui_Label23 = NULL;
+    ui_port1manufactuervid = NULL;
     ui_Container39 = NULL;
     ui_Label22 = NULL;
-    ui_Label24 = NULL;
+    ui_port1cablevid = NULL;
     ui_Container41 = NULL;
     ui_Label25 = NULL;
-    ui_Label26 = NULL;
+    ui_port1maxvbusvoltage = NULL;
     ui_Container42 = NULL;
     ui_Label27 = NULL;
-    ui_Label28 = NULL;
+    ui_port1maxvbuscurrent = NULL;
 
 }
 

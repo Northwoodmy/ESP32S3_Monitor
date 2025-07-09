@@ -55,13 +55,13 @@ LV_IMG_DECLARE(ui_img_919862230);    // assets/port_副本.png
 LV_IMG_DECLARE(ui_img_934861631);    // assets/xieyi_副本.png
 
 // FONTS
+LV_FONT_DECLARE(ui_font_daoli24zhong);
+LV_FONT_DECLARE(ui_font_daoli26zhong);
 LV_FONT_DECLARE(ui_font_DaoLit36zhong);
 LV_FONT_DECLARE(ui_font_DaoLit36zhong3);
 LV_FONT_DECLARE(ui_font_DaoLiti30);
 LV_FONT_DECLARE(ui_font_DaoLiti36);
 LV_FONT_DECLARE(ui_font_DaoLiti72);
-LV_FONT_DECLARE(ui_font_daoli26zhong);
-LV_FONT_DECLARE(ui_font_daoli24zhong);
 
 // UI INIT
 void ui_init(void);

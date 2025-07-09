@@ -18,17 +18,17 @@ extern void ui_event_prot4SCREEN(lv_event_t * e);
 extern lv_obj_t * ui_prot4SCREEN;
 extern lv_obj_t * ui_Container29;
 extern lv_obj_t * ui_Container30;
-extern lv_obj_t * ui_Label17;
+extern lv_obj_t * ui_port4powerpagelabel;
 extern lv_obj_t * ui_Container31;
 extern lv_obj_t * ui_Container32;
 extern lv_obj_t * ui_Label18;
-extern lv_obj_t * ui_port1voltage3;
+extern lv_obj_t * ui_port4voltage;
 extern lv_obj_t * ui_Container33;
 extern lv_obj_t * ui_Label19;
-extern lv_obj_t * ui_port1current3;
+extern lv_obj_t * ui_port4current;
 extern lv_obj_t * ui_Container34;
 extern lv_obj_t * ui_Label20;
-extern lv_obj_t * ui_port1powerlabel3;
+extern lv_obj_t * ui_port4powerlabel;
 // CUSTOM VARIABLES
 
 #ifdef __cplusplus

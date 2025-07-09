@@ -12,6 +12,17 @@ struct PortData {
     int voltage;            ///< 电压(mV)
     int power;              ///< 功率(mW)
     char protocol_name[16]; ///< 协议名称
+    
+    // PD状态相关字段
+    int manufacturer_vid;   ///< 制造商VID
+    int cable_vid;          ///< 线缆VID
+    int cable_max_vbus_voltage; ///< 线缆最大电压
+    int cable_max_vbus_current; ///< 线缆最大电流
+    int operating_voltage;  ///< 工作电压
+    int operating_current;  ///< 工作电流
+    bool has_emarker;       ///< 是否有E-marker
+    bool pps_charging_supported; ///< 是否支持PPS充电
+    
     bool valid;             ///< 数据有效性
 };
 

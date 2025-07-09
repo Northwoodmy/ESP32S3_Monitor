@@ -10,22 +10,22 @@ lv_obj_t * ui_Container59 = NULL;
 lv_obj_t * ui_Container60 = NULL;
 lv_obj_t * ui_Container61 = NULL;
 lv_obj_t * ui_Label57 = NULL;
-lv_obj_t * ui_port1state3 = NULL;
+lv_obj_t * ui_port4state = NULL;
 lv_obj_t * ui_Container62 = NULL;
 lv_obj_t * ui_Label58 = NULL;
-lv_obj_t * ui_port1protocol3 = NULL;
+lv_obj_t * ui_port4protocol = NULL;
 lv_obj_t * ui_Container63 = NULL;
 lv_obj_t * ui_Label59 = NULL;
-lv_obj_t * ui_Label60 = NULL;
+lv_obj_t * ui_port4manufactuervid = NULL;
 lv_obj_t * ui_Container64 = NULL;
 lv_obj_t * ui_Label61 = NULL;
-lv_obj_t * ui_Label62 = NULL;
+lv_obj_t * ui_port4cablevid = NULL;
 lv_obj_t * ui_Container65 = NULL;
 lv_obj_t * ui_Label63 = NULL;
-lv_obj_t * ui_Label64 = NULL;
+lv_obj_t * ui_port4maxvbusvoltage = NULL;
 lv_obj_t * ui_Container66 = NULL;
 lv_obj_t * ui_Label65 = NULL;
-lv_obj_t * ui_Label66 = NULL;
+lv_obj_t * ui_port4maxvbuscurrent = NULL;
 // event funtions
 void ui_event_port4SCREEN42(lv_event_t * e)
 {
@@ -46,8 +46,8 @@ void ui_port4SCREEN42_screen_init(void)
 
     ui_Container59 = lv_obj_create(ui_port4SCREEN42);
     lv_obj_remove_style_all(ui_Container59);
-    lv_obj_set_width(ui_Container59, 368);
-    lv_obj_set_height(ui_Container59, 448);
+    lv_obj_set_width(ui_Container59, lv_pct(100));
+    lv_obj_set_height(ui_Container59, lv_pct(100));
     lv_obj_set_align(ui_Container59, LV_ALIGN_CENTER);
     lv_obj_set_flex_flow(ui_Container59, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(ui_Container59, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
@@ -57,7 +57,7 @@ void ui_port4SCREEN42_screen_init(void)
     ui_Container60 = lv_obj_create(ui_Container59);
     lv_obj_remove_style_all(ui_Container60);
     lv_obj_set_width(ui_Container60, 309);
-    lv_obj_set_height(ui_Container60, 23);
+    lv_obj_set_height(ui_Container60, 18);
     lv_obj_set_x(ui_Container60, -100);
     lv_obj_set_y(ui_Container60, -217);
     lv_obj_set_align(ui_Container60, LV_ALIGN_CENTER);
@@ -85,16 +85,16 @@ void ui_port4SCREEN42_screen_init(void)
     lv_obj_set_style_text_opa(ui_Label57, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_font(ui_Label57, &ui_font_daoli24zhong, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    ui_port1state3 = lv_label_create(ui_Container61);
-    lv_obj_set_width(ui_port1state3, LV_SIZE_CONTENT);   /// 1
-    lv_obj_set_height(ui_port1state3, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_x(ui_port1state3, 38);
-    lv_obj_set_y(ui_port1state3, -149);
-    lv_obj_set_align(ui_port1state3, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_port1state3, "已连接");
-    lv_obj_set_style_text_color(ui_port1state3, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_opa(ui_port1state3, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(ui_port1state3, &ui_font_daoli24zhong, LV_PART_MAIN | LV_STATE_DEFAULT);
+    ui_port4state = lv_label_create(ui_Container61);
+    lv_obj_set_width(ui_port4state, LV_SIZE_CONTENT);   /// 1
+    lv_obj_set_height(ui_port4state, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_x(ui_port4state, 38);
+    lv_obj_set_y(ui_port4state, -149);
+    lv_obj_set_align(ui_port4state, LV_ALIGN_CENTER);
+    lv_label_set_text(ui_port4state, "已连接");
+    lv_obj_set_style_text_color(ui_port4state, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_opa(ui_port4state, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_port4state, &ui_font_daoli24zhong, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_Container62 = lv_obj_create(ui_Container61);
     lv_obj_remove_style_all(ui_Container62);
@@ -116,16 +116,16 @@ void ui_port4SCREEN42_screen_init(void)
     lv_obj_set_style_text_opa(ui_Label58, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_font(ui_Label58, &ui_font_daoli24zhong, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    ui_port1protocol3 = lv_label_create(ui_Container61);
-    lv_obj_set_width(ui_port1protocol3, LV_SIZE_CONTENT);   /// 1
-    lv_obj_set_height(ui_port1protocol3, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_x(ui_port1protocol3, 27);
-    lv_obj_set_y(ui_port1protocol3, -94);
-    lv_obj_set_align(ui_port1protocol3, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_port1protocol3, "PD3.1");
-    lv_obj_set_style_text_color(ui_port1protocol3, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_opa(ui_port1protocol3, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(ui_port1protocol3, &ui_font_daoli24zhong, LV_PART_MAIN | LV_STATE_DEFAULT);
+    ui_port4protocol = lv_label_create(ui_Container61);
+    lv_obj_set_width(ui_port4protocol, LV_SIZE_CONTENT);   /// 1
+    lv_obj_set_height(ui_port4protocol, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_x(ui_port4protocol, 27);
+    lv_obj_set_y(ui_port4protocol, -94);
+    lv_obj_set_align(ui_port4protocol, LV_ALIGN_CENTER);
+    lv_label_set_text(ui_port4protocol, "PD3.1");
+    lv_obj_set_style_text_color(ui_port4protocol, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_opa(ui_port4protocol, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_port4protocol, &ui_font_daoli24zhong, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_Container63 = lv_obj_create(ui_Container59);
     lv_obj_remove_style_all(ui_Container63);
@@ -149,16 +149,16 @@ void ui_port4SCREEN42_screen_init(void)
     lv_obj_set_style_text_opa(ui_Label59, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_font(ui_Label59, &ui_font_daoli24zhong, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    ui_Label60 = lv_label_create(ui_Container63);
-    lv_obj_set_width(ui_Label60, LV_SIZE_CONTENT);   /// 1
-    lv_obj_set_height(ui_Label60, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_x(ui_Label60, 26);
-    lv_obj_set_y(ui_Label60, -122);
-    lv_obj_set_align(ui_Label60, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_Label60, "VIVO");
-    lv_obj_set_style_text_color(ui_Label60, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_opa(ui_Label60, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(ui_Label60, &ui_font_daoli24zhong, LV_PART_MAIN | LV_STATE_DEFAULT);
+    ui_port4manufactuervid = lv_label_create(ui_Container63);
+    lv_obj_set_width(ui_port4manufactuervid, LV_SIZE_CONTENT);   /// 1
+    lv_obj_set_height(ui_port4manufactuervid, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_x(ui_port4manufactuervid, 26);
+    lv_obj_set_y(ui_port4manufactuervid, -122);
+    lv_obj_set_align(ui_port4manufactuervid, LV_ALIGN_CENTER);
+    lv_label_set_text(ui_port4manufactuervid, "VIVO");
+    lv_obj_set_style_text_color(ui_port4manufactuervid, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_opa(ui_port4manufactuervid, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_port4manufactuervid, &ui_font_daoli24zhong, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_Container64 = lv_obj_create(ui_Container59);
     lv_obj_remove_style_all(ui_Container64);
@@ -182,16 +182,16 @@ void ui_port4SCREEN42_screen_init(void)
     lv_obj_set_style_text_opa(ui_Label61, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_font(ui_Label61, &ui_font_daoli24zhong, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    ui_Label62 = lv_label_create(ui_Container64);
-    lv_obj_set_width(ui_Label62, LV_SIZE_CONTENT);   /// 1
-    lv_obj_set_height(ui_Label62, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_x(ui_Label62, 93);
-    lv_obj_set_y(ui_Label62, -78);
-    lv_obj_set_align(ui_Label62, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_Label62, "制糖工厂");
-    lv_obj_set_style_text_color(ui_Label62, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_opa(ui_Label62, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(ui_Label62, &ui_font_daoli24zhong, LV_PART_MAIN | LV_STATE_DEFAULT);
+    ui_port4cablevid = lv_label_create(ui_Container64);
+    lv_obj_set_width(ui_port4cablevid, LV_SIZE_CONTENT);   /// 1
+    lv_obj_set_height(ui_port4cablevid, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_x(ui_port4cablevid, 93);
+    lv_obj_set_y(ui_port4cablevid, -78);
+    lv_obj_set_align(ui_port4cablevid, LV_ALIGN_CENTER);
+    lv_label_set_text(ui_port4cablevid, "制糖工厂");
+    lv_obj_set_style_text_color(ui_port4cablevid, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_opa(ui_port4cablevid, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_port4cablevid, &ui_font_daoli24zhong, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_Container65 = lv_obj_create(ui_Container59);
     lv_obj_remove_style_all(ui_Container65);
@@ -215,16 +215,16 @@ void ui_port4SCREEN42_screen_init(void)
     lv_obj_set_style_text_opa(ui_Label63, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_font(ui_Label63, &ui_font_daoli24zhong, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    ui_Label64 = lv_label_create(ui_Container65);
-    lv_obj_set_width(ui_Label64, LV_SIZE_CONTENT);   /// 1
-    lv_obj_set_height(ui_Label64, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_x(ui_Label64, -38);
-    lv_obj_set_y(ui_Label64, -85);
-    lv_obj_set_align(ui_Label64, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_Label64, "20V");
-    lv_obj_set_style_text_color(ui_Label64, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_opa(ui_Label64, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(ui_Label64, &ui_font_daoli24zhong, LV_PART_MAIN | LV_STATE_DEFAULT);
+    ui_port4maxvbusvoltage = lv_label_create(ui_Container65);
+    lv_obj_set_width(ui_port4maxvbusvoltage, LV_SIZE_CONTENT);   /// 1
+    lv_obj_set_height(ui_port4maxvbusvoltage, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_x(ui_port4maxvbusvoltage, -38);
+    lv_obj_set_y(ui_port4maxvbusvoltage, -85);
+    lv_obj_set_align(ui_port4maxvbusvoltage, LV_ALIGN_CENTER);
+    lv_label_set_text(ui_port4maxvbusvoltage, "20V");
+    lv_obj_set_style_text_color(ui_port4maxvbusvoltage, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_opa(ui_port4maxvbusvoltage, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_port4maxvbusvoltage, &ui_font_daoli24zhong, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_Container66 = lv_obj_create(ui_Container65);
     lv_obj_remove_style_all(ui_Container66);
@@ -246,16 +246,16 @@ void ui_port4SCREEN42_screen_init(void)
     lv_obj_set_style_text_opa(ui_Label65, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_font(ui_Label65, &ui_font_daoli24zhong, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    ui_Label66 = lv_label_create(ui_Container65);
-    lv_obj_set_width(ui_Label66, LV_SIZE_CONTENT);   /// 1
-    lv_obj_set_height(ui_Label66, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_x(ui_Label66, 85);
-    lv_obj_set_y(ui_Label66, -93);
-    lv_obj_set_align(ui_Label66, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_Label66, "5A");
-    lv_obj_set_style_text_color(ui_Label66, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_opa(ui_Label66, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(ui_Label66, &ui_font_daoli24zhong, LV_PART_MAIN | LV_STATE_DEFAULT);
+    ui_port4maxvbuscurrent = lv_label_create(ui_Container65);
+    lv_obj_set_width(ui_port4maxvbuscurrent, LV_SIZE_CONTENT);   /// 1
+    lv_obj_set_height(ui_port4maxvbuscurrent, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_x(ui_port4maxvbuscurrent, 85);
+    lv_obj_set_y(ui_port4maxvbuscurrent, -93);
+    lv_obj_set_align(ui_port4maxvbuscurrent, LV_ALIGN_CENTER);
+    lv_label_set_text(ui_port4maxvbuscurrent, "5A");
+    lv_obj_set_style_text_color(ui_port4maxvbuscurrent, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_opa(ui_port4maxvbuscurrent, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_port4maxvbuscurrent, &ui_font_daoli24zhong, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     lv_obj_add_event_cb(ui_port4SCREEN42, ui_event_port4SCREEN42, LV_EVENT_ALL, NULL);
 
@@ -271,22 +271,22 @@ void ui_port4SCREEN42_screen_destroy(void)
     ui_Container60 = NULL;
     ui_Container61 = NULL;
     ui_Label57 = NULL;
-    ui_port1state3 = NULL;
+    ui_port4state = NULL;
     ui_Container62 = NULL;
     ui_Label58 = NULL;
-    ui_port1protocol3 = NULL;
+    ui_port4protocol = NULL;
     ui_Container63 = NULL;
     ui_Label59 = NULL;
-    ui_Label60 = NULL;
+    ui_port4manufactuervid = NULL;
     ui_Container64 = NULL;
     ui_Label61 = NULL;
-    ui_Label62 = NULL;
+    ui_port4cablevid = NULL;
     ui_Container65 = NULL;
     ui_Label63 = NULL;
-    ui_Label64 = NULL;
+    ui_port4maxvbusvoltage = NULL;
     ui_Container66 = NULL;
     ui_Label65 = NULL;
-    ui_Label66 = NULL;
+    ui_port4maxvbuscurrent = NULL;
 
 }
 

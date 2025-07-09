@@ -1,7 +1,7 @@
 {
-    "version": "v7.0.0",
+    "version": "v7.0.1",
     "build_date": "2024-12-19",
-    "description": "ESP32S3 Monitor Project - 全新SquareLine Studio UI系统集成，完全替换原有UI实现",
+    "description": "ESP32S3 Monitor Project - 完善UI适配，新增天气显示和端口详细信息功能",
     "changes": [
         "集成SquareLine Studio生成的全新UI系统，替换原有DisplayManager创建的UI",
         "实现专业的功率监控界面：待机屏幕、总功率显示、端口详细信息",
@@ -11,11 +11,16 @@
         "优化显示管理器：直接更新UI标签，减少消息队列延迟",
         "支持10个屏幕界面：待机、总功率、4个端口详细页面",
         "现代化设计语言：自定义字体、图标、背景图片",
-        "流畅的动画效果：屏幕切换动画、数据更新动画"
+        "流畅的动画效果：屏幕切换动画、数据更新动画",
+        "新增天气显示功能：集成WeatherManager，显示实时天气信息",
+        "完善端口详细信息显示：状态、协议、VID、电压、电流等详细参数",
+        "扩展PowerMonitorData结构：支持PD状态、制造商VID、线缆信息",
+        "优化功率显示：支持所有端口功率页面的电压、电流、功率显示",
+        "改进初始化流程：正确的依赖关系和参数传递"
     ],
     "release_date": "2024-12-19",
     "size": 1048576,
-    "download_url": "http://egota.yingdl.com/firmware/esp32s3_monitor_v7.0.0.bin",
+    "download_url": "http://egota.yingdl.com/firmware/esp32s3_monitor_v7.0.1.bin",
     "checksum": "sha256:abcd1234567890abcdef1234567890abcdef1234567890abcdef1234567890ab",
     "changelog": {
         "added": [
@@ -32,7 +37,13 @@
             "ui_totalpowerSCREEN总功率界面",
             "ui_prot1-4SCREEN端口详细界面",
             "ui_port1-4SCREEN端口扩展界面",
-            "完整的UI事件处理系统"
+            "完整的UI事件处理系统",
+            "天气显示功能：ui_temperatureLabel和ui_weatherLabel组件",
+            "端口详细信息显示：状态、协议、VID、电压、电流标签",
+            "PD状态数据支持：制造商VID、线缆VID、最大电压电流",
+            "端口功率页面详细信息：电压、电流、功率实时显示",
+            "updatePortDetailDisplay方法：端口详细信息更新",
+            "updateWeatherDisplay方法：天气数据显示更新"
         ],
         "improved": [
             "DisplayManager架构重构，使用新UI系统",
@@ -44,7 +55,14 @@
             "触摸交互体验优化",
             "视觉设计现代化升级",
             "数据展示清晰度提升",
-            "界面导航逻辑简化"
+            "界面导航逻辑简化",
+            "DisplayManager初始化流程：增加WeatherManager集成",
+            "功率显示完整性：支持所有端口页面的详细信息",
+            "数据结构扩展：PowerMonitorData支持更多PD状态字段",
+            "UI组件声明优化：添加所有必要的extern声明",
+            "主程序初始化顺序：确保依赖关系正确",
+            "Monitor数据解析：支持PD状态信息解析",
+            "天气数据集成：定期更新和显示天气信息"
         ],
         "fixed": [
             "修复原有UI系统的内存泄漏问题",
@@ -138,6 +156,6 @@
         "OTA固件升级",
         "屏幕设置功能"
     ],
-    "release_notes": "这是ESP32S3监控项目的重大版本更新，引入了全新的SquareLine Studio专业UI系统。新UI系统完全替换了原有的手动创建界面方式，提供了10个精心设计的监控界面，包括待机屏幕、总功率显示和详细的端口监控页面。支持现代化的手势交互（左右滑动）、实时时间显示、动画过渡效果，以及高效的功率数据可视化。新系统在保持所有原有功能的基础上，大幅提升了用户体验和界面美观度，是一次不兼容的重大升级。",
+    "release_notes": "这是ESP32S3监控项目的增量更新版本，完善了UI系统的功能集成。本次更新主要集成了WeatherManager天气显示功能，用户可以在界面上看到实时的天气信息（温度、天气状况）。同时完善了端口详细信息显示，包括端口状态、协议类型、制造商VID、线缆VID、最大电压电流等详细参数。扩展了PowerMonitorData数据结构以支持更多的PD状态信息，优化了所有端口功率页面的显示功能，确保电压、电流、功率等信息能够正确显示。改进了系统初始化流程，确保WeatherManager在DisplayManager之前正确初始化。",
     "status": "stable"
 } 

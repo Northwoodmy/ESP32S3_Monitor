@@ -22,6 +22,7 @@
 #include "ConfigStorage.h"
 #include "PSRAMManager.h"
 #include "TimeManager.h"
+#include "WeatherManager.h"
 #include <WiFi.h>
 #include <cstring>
 #include <cstdio>
@@ -34,6 +35,10 @@ extern lv_obj_t * ui_prot1SCREEN;
 extern lv_obj_t * ui_prot2SCREEN;
 extern lv_obj_t * ui_prot3SCREEN;
 extern lv_obj_t * ui_prot4SCREEN;
+extern lv_obj_t * ui_port1SCREEN12;
+extern lv_obj_t * ui_port2SCREEN22;
+extern lv_obj_t * ui_port3SCREEN32;
+extern lv_obj_t * ui_port4SCREEN42;
 
 // 外部声明新UI系统的标签对象
 extern lv_obj_t * ui_timeLabel;
@@ -49,6 +54,57 @@ extern lv_obj_t * ui_port2powerbar;
 extern lv_obj_t * ui_port3powerbar;
 extern lv_obj_t * ui_port4powerbar;
 
+// 外部声明天气相关组件
+extern lv_obj_t * ui_temperatureLabel;
+extern lv_obj_t * ui_weatherLabel;
+
+// 外部声明端口功率页面标签
+extern lv_obj_t * ui_port1powerlabel;
+extern lv_obj_t * ui_port1voltage;
+extern lv_obj_t * ui_port1current;
+extern lv_obj_t * ui_port2powerlabel;
+extern lv_obj_t * ui_port2voltage;
+extern lv_obj_t * ui_port2current;
+extern lv_obj_t * ui_port3powerlabel;
+extern lv_obj_t * ui_port3voltage;
+extern lv_obj_t * ui_port3current;
+extern lv_obj_t * ui_port4powerlabel;
+extern lv_obj_t * ui_port4voltage;
+extern lv_obj_t * ui_port4current;
+
+// 外部声明端口详细信息组件
+// 端口1详细信息
+extern lv_obj_t * ui_port1state;
+extern lv_obj_t * ui_port1protocol;
+extern lv_obj_t * ui_port1manufactuervid;
+extern lv_obj_t * ui_port1cablevid;
+extern lv_obj_t * ui_port1maxvbusvoltage;
+extern lv_obj_t * ui_port1maxvbuscurrent;
+
+// 端口2详细信息
+extern lv_obj_t * ui_port2state;
+extern lv_obj_t * ui_port2protocol;
+extern lv_obj_t * ui_port2manufactuervid;
+extern lv_obj_t * ui_port2cablevid;
+extern lv_obj_t * ui_port2maxvbusvoltage;
+extern lv_obj_t * ui_port2maxvbuscurrent;
+
+// 端口3详细信息
+extern lv_obj_t * ui_port3state;
+extern lv_obj_t * ui_port3protocol;
+extern lv_obj_t * ui_port3manufactuervid;
+extern lv_obj_t * ui_port3cablevid;
+extern lv_obj_t * ui_port3maxvbusvoltage;
+extern lv_obj_t * ui_port3maxvbuscurrent;
+
+// 端口4详细信息
+extern lv_obj_t * ui_port4state;
+extern lv_obj_t * ui_port4protocol;
+extern lv_obj_t * ui_port4manufactuervid;
+extern lv_obj_t * ui_port4cablevid;
+extern lv_obj_t * ui_port4maxvbusvoltage;
+extern lv_obj_t * ui_port4maxvbuscurrent;
+
 /**
  * @brief 构造函数
  */
@@ -61,6 +117,7 @@ DisplayManager::DisplayManager()
     , m_wifiManager(nullptr)
     , m_configStorage(nullptr)
     , m_psramManager(nullptr)
+    , m_weatherManager(nullptr)
     , m_currentPage(PAGE_HOME)
     , m_currentTheme(THEME_LIGHT)
     , m_brightness(80)
@@ -120,7 +177,7 @@ DisplayManager::~DisplayManager() {
 /**
  * @brief 初始化显示管理器
  */
-bool DisplayManager::init(LVGLDriver* lvgl_driver, WiFiManager* wifi_manager, ConfigStorage* config_storage, PSRAMManager* psram_manager) {
+bool DisplayManager::init(LVGLDriver* lvgl_driver, WiFiManager* wifi_manager, ConfigStorage* config_storage, PSRAMManager* psram_manager, WeatherManager* weather_manager) {
     if (m_initialized) {
         printf("[DisplayManager] 警告：重复初始化\n");
         return true;
@@ -138,6 +195,7 @@ bool DisplayManager::init(LVGLDriver* lvgl_driver, WiFiManager* wifi_manager, Co
     m_wifiManager = wifi_manager;
     m_configStorage = config_storage;
     m_psramManager = psram_manager;
+    m_weatherManager = weather_manager;
     
     // 创建消息队列
     m_messageQueue = xQueueCreate(MESSAGE_QUEUE_SIZE, sizeof(DisplayMessage));
@@ -310,6 +368,9 @@ void DisplayManager::displayTask() {
             // 更新时间显示
             updateTimeDisplay();
             
+            // 更新天气显示
+            updateWeatherDisplay();
+            
             lastUpdateTime = currentTime;
         }
         
@@ -347,6 +408,17 @@ void DisplayManager::processMessage(const DisplayMessage& msg) {
         case DisplayMessage::MSG_UPDATE_POWER_DATA:
             // 功率数据已在updatePowerData中直接更新
             printf("[DisplayManager] 功率数据已更新：总功率=%d mW\n", m_powerData.total_power);
+            break;
+            
+        case DisplayMessage::MSG_UPDATE_WEATHER_DATA:
+            // 更新天气数据显示
+            if (msg.data.weather_data.valid) {
+                printf("[DisplayManager] 天气数据已更新：温度=%s，天气=%s\n", 
+                       msg.data.weather_data.temperature, 
+                       msg.data.weather_data.weather);
+            } else {
+                printf("[DisplayManager] 天气数据无效\n");
+            }
             break;
             
         case DisplayMessage::MSG_SWITCH_PAGE:
@@ -817,10 +889,40 @@ void DisplayManager::updatePowerData(const PowerMonitorData& power_data) {
     // 立即更新新UI系统的显示
     updatePowerDataDisplay();
     
+    // 更新所有端口的详细信息显示
+    for (int i = 0; i < 4; i++) {
+        updatePortDetailDisplay(i);
+    }
+    
     // 同时发送消息到队列进行后续处理
     DisplayMessage msg;
     msg.type = DisplayMessage::MSG_UPDATE_POWER_DATA;
     msg.data.power_monitor.power_data = power_data;
+    
+    if (m_messageQueue) {
+        xQueueSend(m_messageQueue, &msg, pdMS_TO_TICKS(100));
+    }
+}
+
+void DisplayManager::updateWeatherData(const char* temperature, const char* weather) {
+    if (!temperature || !weather) {
+        return;
+    }
+    
+    // 立即更新UI显示
+    updateWeatherDisplay();
+    
+    // 发送消息到队列进行后续处理
+    DisplayMessage msg;
+    msg.type = DisplayMessage::MSG_UPDATE_WEATHER_DATA;
+    
+    strncpy(msg.data.weather_data.temperature, temperature, sizeof(msg.data.weather_data.temperature) - 1);
+    msg.data.weather_data.temperature[sizeof(msg.data.weather_data.temperature) - 1] = '\0';
+    
+    strncpy(msg.data.weather_data.weather, weather, sizeof(msg.data.weather_data.weather) - 1);
+    msg.data.weather_data.weather[sizeof(msg.data.weather_data.weather) - 1] = '\0';
+    
+    msg.data.weather_data.valid = true;
     
     if (m_messageQueue) {
         xQueueSend(m_messageQueue, &msg, pdMS_TO_TICKS(100));
@@ -1325,6 +1427,77 @@ void DisplayManager::updatePowerDataDisplay() {
         updatePowerBars();
     }
     
+    // 更新端口功率页面的详细信息
+    if (m_powerData.valid) {
+        // 端口1功率页面
+        if (ui_port1powerlabel && m_powerData.ports[0].valid) {
+            char port1_power_str[16];
+            snprintf(port1_power_str, sizeof(port1_power_str), "%.3fW", m_powerData.ports[0].power / 1000.0f);
+            lv_label_set_text(ui_port1powerlabel, port1_power_str);
+        }
+        if (ui_port1voltage && m_powerData.ports[0].valid) {
+            char port1_voltage_str[16];
+            snprintf(port1_voltage_str, sizeof(port1_voltage_str), "%.3fV", m_powerData.ports[0].voltage / 1000.0f);
+            lv_label_set_text(ui_port1voltage, port1_voltage_str);
+        }
+        if (ui_port1current && m_powerData.ports[0].valid) {
+            char port1_current_str[16];
+            snprintf(port1_current_str, sizeof(port1_current_str), "%.3fA", m_powerData.ports[0].current / 1000.0f);
+            lv_label_set_text(ui_port1current, port1_current_str);
+        }
+        
+        // 端口2功率页面
+        if (ui_port2powerlabel && m_powerData.ports[1].valid) {
+            char port2_power_str[16];
+            snprintf(port2_power_str, sizeof(port2_power_str), "%.3fW", m_powerData.ports[1].power / 1000.0f);
+            lv_label_set_text(ui_port2powerlabel, port2_power_str);
+        }
+        if (ui_port2voltage && m_powerData.ports[1].valid) {
+            char port2_voltage_str[16];
+            snprintf(port2_voltage_str, sizeof(port2_voltage_str), "%.3fV", m_powerData.ports[1].voltage / 1000.0f);
+            lv_label_set_text(ui_port2voltage, port2_voltage_str);
+        }
+        if (ui_port2current && m_powerData.ports[1].valid) {
+            char port2_current_str[16];
+            snprintf(port2_current_str, sizeof(port2_current_str), "%.3fA", m_powerData.ports[1].current / 1000.0f);
+            lv_label_set_text(ui_port2current, port2_current_str);
+        }
+        
+        // 端口3功率页面
+        if (ui_port3powerlabel && m_powerData.ports[2].valid) {
+            char port3_power_str[16];
+            snprintf(port3_power_str, sizeof(port3_power_str), "%.3fW", m_powerData.ports[2].power / 1000.0f);
+            lv_label_set_text(ui_port3powerlabel, port3_power_str);
+        }
+        if (ui_port3voltage && m_powerData.ports[2].valid) {
+            char port3_voltage_str[16];
+            snprintf(port3_voltage_str, sizeof(port3_voltage_str), "%.3fV", m_powerData.ports[2].voltage / 1000.0f);
+            lv_label_set_text(ui_port3voltage, port3_voltage_str);
+        }
+        if (ui_port3current && m_powerData.ports[2].valid) {
+            char port3_current_str[16];
+            snprintf(port3_current_str, sizeof(port3_current_str), "%.3fA", m_powerData.ports[2].current / 1000.0f);
+            lv_label_set_text(ui_port3current, port3_current_str);
+        }
+        
+        // 端口4功率页面
+        if (ui_port4powerlabel && m_powerData.ports[3].valid) {
+            char port4_power_str[16];
+            snprintf(port4_power_str, sizeof(port4_power_str), "%.3fW", m_powerData.ports[3].power / 1000.0f);
+            lv_label_set_text(ui_port4powerlabel, port4_power_str);
+        }
+        if (ui_port4voltage && m_powerData.ports[3].valid) {
+            char port4_voltage_str[16];
+            snprintf(port4_voltage_str, sizeof(port4_voltage_str), "%.3fV", m_powerData.ports[3].voltage / 1000.0f);
+            lv_label_set_text(ui_port4voltage, port4_voltage_str);
+        }
+        if (ui_port4current && m_powerData.ports[3].valid) {
+            char port4_current_str[16];
+            snprintf(port4_current_str, sizeof(port4_current_str), "%.3fA", m_powerData.ports[3].current / 1000.0f);
+            lv_label_set_text(ui_port4current, port4_current_str);
+        }
+    }
+    
     m_lvglDriver->unlock();
 }
 
@@ -1373,9 +1546,158 @@ void DisplayManager::updatePortDetailDisplay(int port_index) {
         return;
     }
     
-    // 根据端口索引获取对应的详细屏幕标签
-    // 这里需要根据实际的UI结构来更新相应的标签
-    // 例如：电压、电流、协议等信息
+    // 获取当前端口的数据
+    const PortData& portData = m_powerData.ports[port_index];
+    
+    // 根据端口索引更新对应的详细屏幕标签
+    lv_obj_t* state_label = nullptr;
+    lv_obj_t* protocol_label = nullptr;
+    lv_obj_t* manufacturer_label = nullptr;
+    lv_obj_t* cable_label = nullptr;
+    lv_obj_t* voltage_label = nullptr;
+    lv_obj_t* current_label = nullptr;
+    
+    // 根据端口索引获取对应的UI组件
+    switch (port_index) {
+        case 0:
+            state_label = ui_port1state;
+            protocol_label = ui_port1protocol;
+            manufacturer_label = ui_port1manufactuervid;
+            cable_label = ui_port1cablevid;
+            voltage_label = ui_port1maxvbusvoltage;
+            current_label = ui_port1maxvbuscurrent;
+            break;
+        case 1:
+            state_label = ui_port2state;
+            protocol_label = ui_port2protocol;
+            manufacturer_label = ui_port2manufactuervid;
+            cable_label = ui_port2cablevid;
+            voltage_label = ui_port2maxvbusvoltage;
+            current_label = ui_port2maxvbuscurrent;
+            break;
+        case 2:
+            state_label = ui_port3state;
+            protocol_label = ui_port3protocol;
+            manufacturer_label = ui_port3manufactuervid;
+            cable_label = ui_port3cablevid;
+            voltage_label = ui_port3maxvbusvoltage;
+            current_label = ui_port3maxvbuscurrent;
+            break;
+        case 3:
+            state_label = ui_port4state;
+            protocol_label = ui_port4protocol;
+            manufacturer_label = ui_port4manufactuervid;
+            cable_label = ui_port4cablevid;
+            voltage_label = ui_port4maxvbusvoltage;
+            current_label = ui_port4maxvbuscurrent;
+            break;
+    }
+    
+    // 更新状态显示
+    if (state_label) {
+        const char* state_text = portData.state ? "已连接" : "未连接";
+        lv_label_set_text(state_label, state_text);
+    }
+    
+    // 更新协议显示
+    if (protocol_label) {
+        if (strlen(portData.protocol_name) > 0) {
+            lv_label_set_text(protocol_label, portData.protocol_name);
+        } else {
+            lv_label_set_text(protocol_label, "未知");
+        }
+    }
+    
+    // 更新制造商VID显示
+    if (manufacturer_label) {
+        if (portData.manufacturer_vid > 0) {
+            char manufacturer_str[16];
+            snprintf(manufacturer_str, sizeof(manufacturer_str), "0x%04X", portData.manufacturer_vid);
+            lv_label_set_text(manufacturer_label, manufacturer_str);
+        } else {
+            lv_label_set_text(manufacturer_label, "未知");
+        }
+    }
+    
+    // 更新线缆VID显示
+    if (cable_label) {
+        if (portData.cable_vid > 0) {
+            char cable_str[16];
+            snprintf(cable_str, sizeof(cable_str), "0x%04X", portData.cable_vid);
+            lv_label_set_text(cable_label, cable_str);
+        } else {
+            lv_label_set_text(cable_label, "未知");
+        }
+    }
+    
+    // 更新最大电压显示
+    if (voltage_label) {
+        if (portData.cable_max_vbus_voltage > 0) {
+            char voltage_str[16];
+            snprintf(voltage_str, sizeof(voltage_str), "%.1fV", portData.cable_max_vbus_voltage / 1000.0f);
+            lv_label_set_text(voltage_label, voltage_str);
+        } else {
+            lv_label_set_text(voltage_label, "未知");
+        }
+    }
+    
+    // 更新最大电流显示
+    if (current_label) {
+        if (portData.cable_max_vbus_current > 0) {
+            char current_str[16];
+            snprintf(current_str, sizeof(current_str), "%.2fA", portData.cable_max_vbus_current / 1000.0f);
+            lv_label_set_text(current_label, current_str);
+        } else {
+            lv_label_set_text(current_label, "未知");
+        }
+    }
+    
+    m_lvglDriver->unlock();
+}
+
+/**
+ * @brief 更新天气显示
+ */
+void DisplayManager::updateWeatherDisplay() {
+    if (!m_lvglDriver || !m_lvglDriver->lock(100)) {
+        return;
+    }
+    
+    // 如果没有天气管理器，跳过更新
+    if (!m_weatherManager) {
+        m_lvglDriver->unlock();
+        return;
+    }
+    
+    // 获取当前天气数据
+    auto currentWeather = m_weatherManager->getCurrentWeather();
+    
+    if (currentWeather.isValid) {
+        // 更新温度显示
+        if (ui_temperatureLabel) {
+            char temp_str[16];
+            snprintf(temp_str, sizeof(temp_str), "%s度", currentWeather.temperature.c_str());
+            lv_label_set_text(ui_temperatureLabel, temp_str);
+        }
+        
+        // 更新天气状况显示
+        if (ui_weatherLabel) {
+            lv_label_set_text(ui_weatherLabel, currentWeather.weather.c_str());
+        }
+        
+        printf("[DisplayManager] 天气显示已更新：%s度 %s\n", 
+               currentWeather.temperature.c_str(), 
+               currentWeather.weather.c_str());
+    } else {
+        // 天气数据无效时显示默认值
+        if (ui_temperatureLabel) {
+            lv_label_set_text(ui_temperatureLabel, "--度");
+        }
+        
+        if (ui_weatherLabel) {
+            lv_label_set_text(ui_weatherLabel, "--");
+        }
+    }
     
     m_lvglDriver->unlock();
 } 

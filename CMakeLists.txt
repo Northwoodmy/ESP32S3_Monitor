@@ -17,12 +17,12 @@ SET(SOURCES ui_standbySCREEN.c
     ui_img_888914300.c
     ui_img_919862230.c
     ui_img_934861631.c
+    fonts/ui_font_daoli24zhong.c
+    fonts/ui_font_daoli26zhong.c
     fonts/ui_font_DaoLit36zhong.c
     fonts/ui_font_DaoLit36zhong3.c
     fonts/ui_font_DaoLiti30.c
     fonts/ui_font_DaoLiti36.c
-    fonts/ui_font_DaoLiti72.c
-    fonts/ui_font_daoli26zhong.c
-    fonts/ui_font_daoli24zhong.c)
+    fonts/ui_font_DaoLiti72.c)
 
 add_library(ui ${SOURCES})

@@ -12,6 +12,10 @@ lv_obj_t * ui_timeLabel = NULL;
 lv_obj_t * ui_dataweekContainer = NULL;
 lv_obj_t * ui_dataLabel = NULL;
 lv_obj_t * ui_Container3 = NULL;
+lv_obj_t * ui_temperatureLabel = NULL;
+lv_obj_t * ui_Label9 = NULL;
+lv_obj_t * ui_weatherLabel = NULL;
+lv_obj_t * ui_Container67 = NULL;
 lv_obj_t * ui_weekLabel = NULL;
 // event funtions
 void ui_event_standbySCREEN(lv_event_t * e)
@@ -33,8 +37,8 @@ void ui_standbySCREEN_screen_init(void)
 
     ui_standbywallpaper = lv_obj_create(ui_standbySCREEN);
     lv_obj_remove_style_all(ui_standbywallpaper);
-    lv_obj_set_width(ui_standbywallpaper, 368);
-    lv_obj_set_height(ui_standbywallpaper, 448);
+    lv_obj_set_width(ui_standbywallpaper, lv_pct(100));
+    lv_obj_set_height(ui_standbywallpaper, lv_pct(100));
     lv_obj_set_align(ui_standbywallpaper, LV_ALIGN_CENTER);
     lv_obj_set_flex_flow(ui_standbywallpaper, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(ui_standbywallpaper, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
@@ -44,7 +48,7 @@ void ui_standbySCREEN_screen_init(void)
     ui_Container4 = lv_obj_create(ui_standbywallpaper);
     lv_obj_remove_style_all(ui_Container4);
     lv_obj_set_width(ui_Container4, 226);
-    lv_obj_set_height(ui_Container4, 25);
+    lv_obj_set_height(ui_Container4, 10);
     lv_obj_set_x(ui_Container4, -66);
     lv_obj_set_y(ui_Container4, -211);
     lv_obj_set_align(ui_Container4, LV_ALIGN_CENTER);
@@ -67,8 +71,8 @@ void ui_standbySCREEN_screen_init(void)
 
     ui_dataweekContainer = lv_obj_create(ui_standbywallpaper);
     lv_obj_remove_style_all(ui_dataweekContainer);
-    lv_obj_set_width(ui_dataweekContainer, 225);
-    lv_obj_set_height(ui_dataweekContainer, 46);
+    lv_obj_set_width(ui_dataweekContainer, lv_pct(100));
+    lv_obj_set_height(ui_dataweekContainer, lv_pct(7));
     lv_obj_set_x(ui_dataweekContainer, 53);
     lv_obj_set_y(ui_dataweekContainer, -90);
     lv_obj_set_align(ui_dataweekContainer, LV_ALIGN_CENTER);
@@ -85,18 +89,62 @@ void ui_standbySCREEN_screen_init(void)
     lv_label_set_text(ui_dataLabel, "07-07");
     lv_obj_set_style_text_color(ui_dataLabel, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui_dataLabel, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(ui_dataLabel, &ui_font_DaoLiti30, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_dataLabel, &ui_font_daoli26zhong, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_Container3 = lv_obj_create(ui_dataweekContainer);
     lv_obj_remove_style_all(ui_Container3);
-    lv_obj_set_width(ui_Container3, 48);
-    lv_obj_set_height(ui_Container3, 50);
+    lv_obj_set_width(ui_Container3, 25);
+    lv_obj_set_height(ui_Container3, 15);
     lv_obj_set_x(ui_Container3, -7);
     lv_obj_set_y(ui_Container3, -128);
     lv_obj_set_align(ui_Container3, LV_ALIGN_CENTER);
     lv_obj_set_flex_flow(ui_Container3, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(ui_Container3, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
     lv_obj_clear_flag(ui_Container3, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);      /// Flags
+
+    ui_temperatureLabel = lv_label_create(ui_dataweekContainer);
+    lv_obj_set_width(ui_temperatureLabel, LV_SIZE_CONTENT);   /// 1
+    lv_obj_set_height(ui_temperatureLabel, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_x(ui_temperatureLabel, 121);
+    lv_obj_set_y(ui_temperatureLabel, -98);
+    lv_obj_set_align(ui_temperatureLabel, LV_ALIGN_CENTER);
+    lv_label_set_text(ui_temperatureLabel, "30度");
+    lv_obj_set_style_text_color(ui_temperatureLabel, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_opa(ui_temperatureLabel, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_temperatureLabel, &ui_font_daoli26zhong, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    ui_Label9 = lv_label_create(ui_dataweekContainer);
+    lv_obj_set_width(ui_Label9, LV_SIZE_CONTENT);   /// 1
+    lv_obj_set_height(ui_Label9, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_x(ui_Label9, -68);
+    lv_obj_set_y(ui_Label9, -69);
+    lv_obj_set_align(ui_Label9, LV_ALIGN_CENTER);
+    lv_label_set_text(ui_Label9, "·");
+    lv_obj_set_style_text_color(ui_Label9, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_opa(ui_Label9, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_Label9, &ui_font_daoli26zhong, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    ui_weatherLabel = lv_label_create(ui_dataweekContainer);
+    lv_obj_set_width(ui_weatherLabel, LV_SIZE_CONTENT);   /// 1
+    lv_obj_set_height(ui_weatherLabel, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_x(ui_weatherLabel, 121);
+    lv_obj_set_y(ui_weatherLabel, -98);
+    lv_obj_set_align(ui_weatherLabel, LV_ALIGN_CENTER);
+    lv_label_set_text(ui_weatherLabel, "小雨");
+    lv_obj_set_style_text_color(ui_weatherLabel, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_opa(ui_weatherLabel, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_weatherLabel, &ui_font_daoli26zhong, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    ui_Container67 = lv_obj_create(ui_dataweekContainer);
+    lv_obj_remove_style_all(ui_Container67);
+    lv_obj_set_width(ui_Container67, 25);
+    lv_obj_set_height(ui_Container67, 16);
+    lv_obj_set_x(ui_Container67, -7);
+    lv_obj_set_y(ui_Container67, -128);
+    lv_obj_set_align(ui_Container67, LV_ALIGN_CENTER);
+    lv_obj_set_flex_flow(ui_Container67, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(ui_Container67, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+    lv_obj_clear_flag(ui_Container67, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);      /// Flags
 
     ui_weekLabel = lv_label_create(ui_dataweekContainer);
     lv_obj_set_width(ui_weekLabel, LV_SIZE_CONTENT);   /// 1
@@ -107,7 +155,7 @@ void ui_standbySCREEN_screen_init(void)
     lv_label_set_text(ui_weekLabel, "星期一");
     lv_obj_set_style_text_color(ui_weekLabel, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui_weekLabel, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(ui_weekLabel, &ui_font_DaoLiti30, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_weekLabel, &ui_font_daoli26zhong, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     lv_obj_add_event_cb(ui_standbySCREEN, ui_event_standbySCREEN, LV_EVENT_ALL, NULL);
 
@@ -125,6 +173,10 @@ void ui_standbySCREEN_screen_destroy(void)
     ui_dataweekContainer = NULL;
     ui_dataLabel = NULL;
     ui_Container3 = NULL;
+    ui_temperatureLabel = NULL;
+    ui_Label9 = NULL;
+    ui_weatherLabel = NULL;
+    ui_Container67 = NULL;
     ui_weekLabel = NULL;
 
 }

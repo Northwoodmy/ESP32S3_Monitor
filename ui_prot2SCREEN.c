@@ -8,17 +8,17 @@
 lv_obj_t * ui_prot2SCREEN = NULL;
 lv_obj_t * ui_Container17 = NULL;
 lv_obj_t * ui_Container18 = NULL;
-lv_obj_t * ui_Label5 = NULL;
+lv_obj_t * ui_port2powerpagelabel = NULL;
 lv_obj_t * ui_Container19 = NULL;
 lv_obj_t * ui_Container20 = NULL;
 lv_obj_t * ui_Label6 = NULL;
-lv_obj_t * ui_port1voltage1 = NULL;
+lv_obj_t * ui_port2voltage = NULL;
 lv_obj_t * ui_Container21 = NULL;
 lv_obj_t * ui_Label7 = NULL;
-lv_obj_t * ui_port1current1 = NULL;
+lv_obj_t * ui_port2current = NULL;
 lv_obj_t * ui_Container22 = NULL;
 lv_obj_t * ui_Label8 = NULL;
-lv_obj_t * ui_port1powerlabel1 = NULL;
+lv_obj_t * ui_port2powerlabel = NULL;
 // event funtions
 void ui_event_prot2SCREEN(lv_event_t * e)
 {
@@ -51,8 +51,8 @@ void ui_prot2SCREEN_screen_init(void)
 
     ui_Container17 = lv_obj_create(ui_prot2SCREEN);
     lv_obj_remove_style_all(ui_Container17);
-    lv_obj_set_width(ui_Container17, 368);
-    lv_obj_set_height(ui_Container17, 448);
+    lv_obj_set_width(ui_Container17, lv_pct(100));
+    lv_obj_set_height(ui_Container17, lv_pct(100));
     lv_obj_set_align(ui_Container17, LV_ALIGN_CENTER);
     lv_obj_set_flex_flow(ui_Container17, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(ui_Container17, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
@@ -68,21 +68,21 @@ void ui_prot2SCREEN_screen_init(void)
     lv_obj_set_align(ui_Container18, LV_ALIGN_CENTER);
     lv_obj_clear_flag(ui_Container18, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);      /// Flags
 
-    ui_Label5 = lv_label_create(ui_Container17);
-    lv_obj_set_width(ui_Label5, LV_SIZE_CONTENT);   /// 1
-    lv_obj_set_height(ui_Label5, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_x(ui_Label5, -5);
-    lv_obj_set_y(ui_Label5, -193);
-    lv_obj_set_align(ui_Label5, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_Label5, "C2端口");
-    lv_obj_set_style_text_color(ui_Label5, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_opa(ui_Label5, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(ui_Label5, &ui_font_DaoLit36zhong, LV_PART_MAIN | LV_STATE_DEFAULT);
+    ui_port2powerpagelabel = lv_label_create(ui_Container17);
+    lv_obj_set_width(ui_port2powerpagelabel, LV_SIZE_CONTENT);   /// 1
+    lv_obj_set_height(ui_port2powerpagelabel, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_x(ui_port2powerpagelabel, -5);
+    lv_obj_set_y(ui_port2powerpagelabel, -193);
+    lv_obj_set_align(ui_port2powerpagelabel, LV_ALIGN_CENTER);
+    lv_label_set_text(ui_port2powerpagelabel, "C2端口");
+    lv_obj_set_style_text_color(ui_port2powerpagelabel, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_opa(ui_port2powerpagelabel, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_port2powerpagelabel, &ui_font_DaoLit36zhong, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_Container19 = lv_obj_create(ui_Container17);
     lv_obj_remove_style_all(ui_Container19);
     lv_obj_set_width(ui_Container19, 246);
-    lv_obj_set_height(ui_Container19, 19);
+    lv_obj_set_height(ui_Container19, 15);
     lv_obj_set_x(ui_Container19, -30);
     lv_obj_set_y(ui_Container19, -174);
     lv_obj_set_align(ui_Container19, LV_ALIGN_CENTER);
@@ -110,16 +110,16 @@ void ui_prot2SCREEN_screen_init(void)
     lv_obj_set_style_text_opa(ui_Label6, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_font(ui_Label6, &ui_font_DaoLit36zhong, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    ui_port1voltage1 = lv_label_create(ui_Container20);
-    lv_obj_set_width(ui_port1voltage1, LV_SIZE_CONTENT);   /// 1
-    lv_obj_set_height(ui_port1voltage1, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_x(ui_port1voltage1, 33);
-    lv_obj_set_y(ui_port1voltage1, -126);
-    lv_obj_set_align(ui_port1voltage1, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_port1voltage1, "27.896V");
-    lv_obj_set_style_text_color(ui_port1voltage1, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_opa(ui_port1voltage1, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(ui_port1voltage1, &ui_font_DaoLiti36, LV_PART_MAIN | LV_STATE_DEFAULT);
+    ui_port2voltage = lv_label_create(ui_Container20);
+    lv_obj_set_width(ui_port2voltage, LV_SIZE_CONTENT);   /// 1
+    lv_obj_set_height(ui_port2voltage, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_x(ui_port2voltage, 33);
+    lv_obj_set_y(ui_port2voltage, -126);
+    lv_obj_set_align(ui_port2voltage, LV_ALIGN_CENTER);
+    lv_label_set_text(ui_port2voltage, "27.896V");
+    lv_obj_set_style_text_color(ui_port2voltage, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_opa(ui_port2voltage, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_port2voltage, &ui_font_DaoLiti36, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_Container21 = lv_obj_create(ui_Container17);
     lv_obj_remove_style_all(ui_Container21);
@@ -143,18 +143,18 @@ void ui_prot2SCREEN_screen_init(void)
     lv_obj_set_style_text_opa(ui_Label7, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_font(ui_Label7, &ui_font_DaoLit36zhong, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    ui_port1current1 = lv_label_create(ui_Container21);
-    lv_obj_set_width(ui_port1current1, LV_SIZE_CONTENT);   /// 1
-    lv_obj_set_height(ui_port1current1, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_x(ui_port1current1, 26);
-    lv_obj_set_y(ui_port1current1, -71);
-    lv_obj_set_align(ui_port1current1, LV_ALIGN_CENTER);
-    lv_obj_set_flex_flow(ui_port1current1, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(ui_port1current1, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
-    lv_label_set_text(ui_port1current1, "3.597A");
-    lv_obj_set_style_text_color(ui_port1current1, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_opa(ui_port1current1, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(ui_port1current1, &ui_font_DaoLiti36, LV_PART_MAIN | LV_STATE_DEFAULT);
+    ui_port2current = lv_label_create(ui_Container21);
+    lv_obj_set_width(ui_port2current, LV_SIZE_CONTENT);   /// 1
+    lv_obj_set_height(ui_port2current, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_x(ui_port2current, 26);
+    lv_obj_set_y(ui_port2current, -71);
+    lv_obj_set_align(ui_port2current, LV_ALIGN_CENTER);
+    lv_obj_set_flex_flow(ui_port2current, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(ui_port2current, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+    lv_label_set_text(ui_port2current, "3.597A");
+    lv_obj_set_style_text_color(ui_port2current, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_opa(ui_port2current, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_port2current, &ui_font_DaoLiti36, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_Container22 = lv_obj_create(ui_Container17);
     lv_obj_remove_style_all(ui_Container22);
@@ -178,16 +178,16 @@ void ui_prot2SCREEN_screen_init(void)
     lv_obj_set_style_text_opa(ui_Label8, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_font(ui_Label8, &ui_font_DaoLit36zhong, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    ui_port1powerlabel1 = lv_label_create(ui_Container22);
-    lv_obj_set_width(ui_port1powerlabel1, LV_SIZE_CONTENT);   /// 1
-    lv_obj_set_height(ui_port1powerlabel1, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_x(ui_port1powerlabel1, 41);
-    lv_obj_set_y(ui_port1powerlabel1, -17);
-    lv_obj_set_align(ui_port1powerlabel1, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_port1powerlabel1, "37.592W");
-    lv_obj_set_style_text_color(ui_port1powerlabel1, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_opa(ui_port1powerlabel1, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(ui_port1powerlabel1, &ui_font_DaoLiti36, LV_PART_MAIN | LV_STATE_DEFAULT);
+    ui_port2powerlabel = lv_label_create(ui_Container22);
+    lv_obj_set_width(ui_port2powerlabel, LV_SIZE_CONTENT);   /// 1
+    lv_obj_set_height(ui_port2powerlabel, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_x(ui_port2powerlabel, 41);
+    lv_obj_set_y(ui_port2powerlabel, -17);
+    lv_obj_set_align(ui_port2powerlabel, LV_ALIGN_CENTER);
+    lv_label_set_text(ui_port2powerlabel, "37.592W");
+    lv_obj_set_style_text_color(ui_port2powerlabel, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_opa(ui_port2powerlabel, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_port2powerlabel, &ui_font_DaoLiti36, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     lv_obj_add_event_cb(ui_prot2SCREEN, ui_event_prot2SCREEN, LV_EVENT_ALL, NULL);
 
@@ -201,17 +201,17 @@ void ui_prot2SCREEN_screen_destroy(void)
     ui_prot2SCREEN = NULL;
     ui_Container17 = NULL;
     ui_Container18 = NULL;
-    ui_Label5 = NULL;
+    ui_port2powerpagelabel = NULL;
     ui_Container19 = NULL;
     ui_Container20 = NULL;
     ui_Label6 = NULL;
-    ui_port1voltage1 = NULL;
+    ui_port2voltage = NULL;
     ui_Container21 = NULL;
     ui_Label7 = NULL;
-    ui_port1current1 = NULL;
+    ui_port2current = NULL;
     ui_Container22 = NULL;
     ui_Label8 = NULL;
-    ui_port1powerlabel1 = NULL;
+    ui_port2powerlabel = NULL;
 
 }
 

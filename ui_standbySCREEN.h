@@ -22,6 +22,10 @@ extern lv_obj_t * ui_timeLabel;
 extern lv_obj_t * ui_dataweekContainer;
 extern lv_obj_t * ui_dataLabel;
 extern lv_obj_t * ui_Container3;
+extern lv_obj_t * ui_temperatureLabel;
+extern lv_obj_t * ui_Label9;
+extern lv_obj_t * ui_weatherLabel;
+extern lv_obj_t * ui_Container67;
 extern lv_obj_t * ui_weekLabel;
 // CUSTOM VARIABLES
 
