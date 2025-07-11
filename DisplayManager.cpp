@@ -132,6 +132,15 @@ DisplayManager::DisplayManager()
     , m_notificationLabel(nullptr)
     , m_notificationTimer(nullptr)
     , m_currentPortPage(0)
+    , m_screenMode(SCREEN_MODE_ALWAYS_ON)
+    , m_screenStartHour(8)
+    , m_screenStartMinute(0)
+    , m_screenEndHour(22)
+    , m_screenEndMinute(0)
+    , m_screenTimeoutMinutes(10)
+    , m_screenOn(true)
+    , m_lastTouchTime(0)
+    , m_lastScreenModeCheck(0)
 {
     // 初始化页面对象数组
     for (int i = 0; i < PAGE_COUNT; i++) {
@@ -253,6 +262,15 @@ bool DisplayManager::init(LVGLDriver* lvgl_driver, WiFiManager* wifi_manager, Co
         printf("[DisplayManager] 使用默认亮度: %d%%\n", m_brightness);
     }
     
+    // 加载屏幕模式配置
+    if (!loadScreenModeConfig()) {
+        printf("[DisplayManager] 警告：加载屏幕模式配置失败，使用默认配置\n");
+    }
+    
+    // 初始化触摸时间
+    m_lastTouchTime = xTaskGetTickCount() * portTICK_PERIOD_MS;
+    m_lastScreenModeCheck = m_lastTouchTime;
+    
     m_initialized = true;
     printf("[DisplayManager] 显示管理器初始化完成\n");
     return true;
@@ -362,7 +380,7 @@ void DisplayManager::displayTask() {
             processMessage(msg);
         }
         
-        // 定期更新时间显示
+        // 定期更新时间显示和屏幕模式检查
         TickType_t currentTime = xTaskGetTickCount();
         if (currentTime - lastUpdateTime >= updateInterval) {
             // 更新时间显示
@@ -370,6 +388,9 @@ void DisplayManager::displayTask() {
             
             // 更新天气显示
             updateWeatherDisplay();
+            
+            // 处理屏幕模式管理逻辑
+            processScreenModeLogic();
             
             lastUpdateTime = currentTime;
         }
@@ -479,6 +500,44 @@ void DisplayManager::processMessage(const DisplayMessage& msg) {
                 // 设置通知自动隐藏定时器（简化实现）
                 // 实际项目中可以使用LVGL动画或定时器
             }
+            break;
+            
+        case DisplayMessage::MSG_SCREEN_MODE_CHANGED:
+            // 屏幕模式变更
+            m_screenMode = msg.data.screen_mode.mode;
+            m_screenStartHour = msg.data.screen_mode.startHour;
+            m_screenStartMinute = msg.data.screen_mode.startMinute;
+            m_screenEndHour = msg.data.screen_mode.endHour;
+            m_screenEndMinute = msg.data.screen_mode.endMinute;
+            m_screenTimeoutMinutes = msg.data.screen_mode.timeoutMinutes;
+            
+            printf("[DisplayManager] 屏幕模式已更改: 模式=%d, 时间=%02d:%02d-%02d:%02d, 延时=%d分钟\n",
+                   m_screenMode, m_screenStartHour, m_screenStartMinute,
+                   m_screenEndHour, m_screenEndMinute, m_screenTimeoutMinutes);
+            
+            // 重新评估屏幕状态
+            processScreenModeLogic();
+            break;
+            
+        case DisplayMessage::MSG_TOUCH_ACTIVITY:
+            // 触摸活动
+            m_lastTouchTime = xTaskGetTickCount() * portTICK_PERIOD_MS;
+            printf("[DisplayManager] 触摸活动检测，延时计时器已重置\n");
+            
+            // 如果屏幕当前关闭，触摸活动应立即开启屏幕
+            if (!m_screenOn) {
+                performScreenOn();
+            }
+            break;
+            
+        case DisplayMessage::MSG_SCREEN_ON:
+            // 强制开启屏幕
+            performScreenOn();
+            break;
+            
+        case DisplayMessage::MSG_SCREEN_OFF:
+            // 强制关闭屏幕
+            performScreenOff();
             break;
     }
     
@@ -1701,3 +1760,252 @@ void DisplayManager::updateWeatherDisplay() {
     
     m_lvglDriver->unlock();
 } 
+
+// === 屏幕模式管理功能实现 ===
+
+/**
+ * @brief 加载屏幕模式配置
+ */
+bool DisplayManager::loadScreenModeConfig() {
+    if (!m_configStorage) {
+        printf("[DisplayManager] 错误：配置存储未初始化\n");
+        return false;
+    }
+    
+    if (!m_configStorage->hasScreenConfigAsync(3000)) {
+        printf("[DisplayManager] 未找到屏幕模式配置，使用默认配置\n");
+        return false;
+    }
+    
+    ScreenMode mode;
+    int startHour, startMinute, endHour, endMinute, timeoutMinutes;
+    
+    if (m_configStorage->loadScreenConfigAsync(mode, startHour, startMinute, 
+                                             endHour, endMinute, timeoutMinutes, 3000)) {
+        m_screenMode = mode;
+        m_screenStartHour = startHour;
+        m_screenStartMinute = startMinute;
+        m_screenEndHour = endHour;
+        m_screenEndMinute = endMinute;
+        m_screenTimeoutMinutes = timeoutMinutes;
+        
+        printf("[DisplayManager] 屏幕模式配置加载成功：模式=%d, 时间=%02d:%02d-%02d:%02d, 延时=%d分钟\n",
+               m_screenMode, m_screenStartHour, m_screenStartMinute,
+               m_screenEndHour, m_screenEndMinute, m_screenTimeoutMinutes);
+        
+        return true;
+    } else {
+        printf("[DisplayManager] 屏幕模式配置加载失败\n");
+        return false;
+    }
+}
+
+/**
+ * @brief 设置屏幕模式
+ */
+void DisplayManager::setScreenMode(ScreenMode mode, int startHour, int startMinute, 
+                                 int endHour, int endMinute, int timeoutMinutes) {
+    DisplayMessage msg;
+    msg.type = DisplayMessage::MSG_SCREEN_MODE_CHANGED;
+    msg.data.screen_mode.mode = mode;
+    msg.data.screen_mode.startHour = startHour;
+    msg.data.screen_mode.startMinute = startMinute;
+    msg.data.screen_mode.endHour = endHour;
+    msg.data.screen_mode.endMinute = endMinute;
+    msg.data.screen_mode.timeoutMinutes = timeoutMinutes;
+    
+    if (m_messageQueue) {
+        xQueueSend(m_messageQueue, &msg, pdMS_TO_TICKS(100));
+    }
+}
+
+/**
+ * @brief 获取当前屏幕模式
+ */
+ScreenMode DisplayManager::getScreenMode() const {
+    return m_screenMode;
+}
+
+/**
+ * @brief 检查屏幕是否应该开启
+ */
+bool DisplayManager::shouldScreenBeOn() const {
+    switch (m_screenMode) {
+        case SCREEN_MODE_ALWAYS_ON:
+            return true;
+            
+        case SCREEN_MODE_ALWAYS_OFF:
+            return false;
+            
+        case SCREEN_MODE_SCHEDULED:
+            return isInScheduledTime();
+            
+        case SCREEN_MODE_TIMEOUT:
+            return !isTimeoutExpired();
+            
+        default:
+            return true;
+    }
+}
+
+/**
+ * @brief 强制开启屏幕
+ */
+void DisplayManager::forceScreenOn() {
+    DisplayMessage msg;
+    msg.type = DisplayMessage::MSG_SCREEN_ON;
+    
+    if (m_messageQueue) {
+        xQueueSend(m_messageQueue, &msg, pdMS_TO_TICKS(100));
+    }
+}
+
+/**
+ * @brief 强制关闭屏幕
+ */
+void DisplayManager::forceScreenOff() {
+    DisplayMessage msg;
+    msg.type = DisplayMessage::MSG_SCREEN_OFF;
+    
+    if (m_messageQueue) {
+        xQueueSend(m_messageQueue, &msg, pdMS_TO_TICKS(100));
+    }
+}
+
+/**
+ * @brief 通知触摸活动
+ */
+void DisplayManager::notifyTouchActivity() {
+    DisplayMessage msg;
+    msg.type = DisplayMessage::MSG_TOUCH_ACTIVITY;
+    
+    if (m_messageQueue) {
+        xQueueSend(m_messageQueue, &msg, pdMS_TO_TICKS(100));
+    }
+}
+
+/**
+ * @brief 检查屏幕是否开启
+ */
+bool DisplayManager::isScreenOn() const {
+    return m_screenOn;
+}
+
+/**
+ * @brief 处理屏幕模式逻辑
+ */
+void DisplayManager::processScreenModeLogic() {
+    uint32_t currentTime = xTaskGetTickCount() * portTICK_PERIOD_MS;
+    
+    // 检查是否到了处理时间
+    if (currentTime - m_lastScreenModeCheck < SCREEN_MODE_CHECK_INTERVAL) {
+        return;
+    }
+    
+    m_lastScreenModeCheck = currentTime;
+    
+    // 根据屏幕模式决定屏幕状态
+    bool shouldBeOn = shouldScreenBeOn();
+    
+    if (shouldBeOn && !m_screenOn) {
+        performScreenOn();
+    } else if (!shouldBeOn && m_screenOn) {
+        performScreenOff();
+    }
+}
+
+/**
+ * @brief 检查定时模式是否应该开启屏幕
+ */
+bool DisplayManager::isInScheduledTime() const {
+    // 获取当前时间
+    time_t now;
+    time(&now);
+    struct tm* timeinfo = localtime(&now);
+    
+    int currentHour = timeinfo->tm_hour;
+    int currentMinute = timeinfo->tm_min;
+    
+    // 计算当前时间的分钟数（从00:00开始）
+    int currentMinutes = currentHour * 60 + currentMinute;
+    int startMinutes = m_screenStartHour * 60 + m_screenStartMinute;
+    int endMinutes = m_screenEndHour * 60 + m_screenEndMinute;
+    
+    // 处理跨天的情况
+    if (startMinutes <= endMinutes) {
+        // 同一天内的时间段
+        return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
+    } else {
+        // 跨天的时间段（例如：22:00 - 08:00）
+        return currentMinutes >= startMinutes || currentMinutes <= endMinutes;
+    }
+}
+
+/**
+ * @brief 检查延时模式是否应该关闭屏幕
+ */
+bool DisplayManager::isTimeoutExpired() const {
+    uint32_t currentTime = xTaskGetTickCount() * portTICK_PERIOD_MS;
+    uint32_t timeoutMs = m_screenTimeoutMinutes * 60 * 1000; // 转换为毫秒
+    
+    return (currentTime - m_lastTouchTime) > timeoutMs;
+}
+
+/**
+ * @brief 执行屏幕开启操作
+ */
+void DisplayManager::performScreenOn() {
+    if (m_screenOn) {
+        return; // 已经开启
+    }
+    
+    printf("[DisplayManager] 开启屏幕\n");
+    
+    // 恢复屏幕亮度
+    if (m_lvglDriver) {
+        m_lvglDriver->setBrightness(m_brightness);
+    }
+    
+    // 显示屏幕内容
+    if (m_lvglDriver && m_lvglDriver->lock(1000)) {
+        // 可以在这里添加屏幕开启时的UI更新逻辑
+        // 例如：显示待机屏幕或恢复上次的屏幕内容
+        m_lvglDriver->unlock();
+    }
+    
+    m_screenOn = true;
+    printf("[DisplayManager] 屏幕已开启\n");
+}
+
+/**
+ * @brief 执行屏幕关闭操作
+ */
+void DisplayManager::performScreenOff() {
+    if (!m_screenOn) {
+        return; // 已经关闭
+    }
+    
+    printf("[DisplayManager] 关闭屏幕\n");
+    
+    // 设置屏幕亮度为0（关闭背光）
+    if (m_lvglDriver) {
+        m_lvglDriver->setBrightness(0);
+    }
+    
+    // 可以在这里添加屏幕关闭时的UI更新逻辑
+    // 例如：显示黑屏或省电模式界面
+    if (m_lvglDriver && m_lvglDriver->lock(1000)) {
+        // 可以创建一个黑屏或省电模式的界面
+        m_lvglDriver->unlock();
+    }
+    
+    m_screenOn = false;
+    printf("[DisplayManager] 屏幕已关闭\n");
+}
+
+/**
+ * @brief 重置延时计时器
+ */
+void DisplayManager::resetTimeoutTimer() {
+    m_lastTouchTime = xTaskGetTickCount() * portTICK_PERIOD_MS;
+}

@@ -5,6 +5,8 @@
  * - 管理LVGL显示界面和页面切换
  * - 处理系统状态显示和更新
  * - 管理显示模式和主题切换
+ * - 屏幕模式管理（定时开关、延时熄屏等）
+ * - 触摸活动检测和超时控制
  * - 提供高级显示功能接口
  * - WiFi状态、系统信息显示
  * - 触摸按钮和交互处理
@@ -14,6 +16,7 @@
  * - FreeRTOS任务管理
  * - 线程安全的显示更新
  * - 可扩展的页面管理系统
+ * - 智能屏幕模式控制
  */
 
 #ifndef DISPLAY_MANAGER_H
@@ -26,6 +29,7 @@
 #include "lvgl.h"
 #include "LVGL_Driver.h"
 #include "PowerMonitorData.h"
+#include "ConfigStorage.h"
 
 // 新的UI系统头文件
 #include "ui.h"
@@ -74,7 +78,11 @@ struct DisplayMessage {
         MSG_SWITCH_PAGE,            ///< 切换页面
         MSG_SET_BRIGHTNESS,         ///< 设置亮度
         MSG_SET_THEME,              ///< 设置主题
-        MSG_SHOW_NOTIFICATION       ///< 显示通知
+        MSG_SHOW_NOTIFICATION,      ///< 显示通知
+        MSG_SCREEN_MODE_CHANGED,    ///< 屏幕模式改变
+        MSG_TOUCH_ACTIVITY,         ///< 触摸活动
+        MSG_SCREEN_ON,              ///< 屏幕开启
+        MSG_SCREEN_OFF              ///< 屏幕关闭
     } type;
     
     union {
@@ -117,6 +125,15 @@ struct DisplayMessage {
             char text[64];
             uint32_t duration_ms;
         } notification;
+        
+        struct {
+            ScreenMode mode;
+            int startHour;
+            int startMinute;
+            int endHour;
+            int endMinute;
+            int timeoutMinutes;
+        } screen_mode;
     } data;
 };
 
@@ -127,6 +144,7 @@ struct DisplayMessage {
  * - 多页面UI管理
  * - 实时状态显示
  * - 主题和亮度控制
+ * - 屏幕模式管理（定时开关、延时熄屏等）
  * - 触摸交互处理
  * - 通知和消息显示
  */
@@ -302,6 +320,66 @@ public:
      * @brief 更新天气显示
      */
     void updateWeatherDisplay();
+    
+    // === 屏幕模式管理功能 ===
+    
+    /**
+     * @brief 加载屏幕模式配置
+     * 
+     * @return true 加载成功，false 加载失败
+     */
+    bool loadScreenModeConfig();
+    
+    /**
+     * @brief 设置屏幕模式
+     * 
+     * @param mode 屏幕模式
+     * @param startHour 开始小时（定时模式）
+     * @param startMinute 开始分钟（定时模式）
+     * @param endHour 结束小时（定时模式）
+     * @param endMinute 结束分钟（定时模式）
+     * @param timeoutMinutes 延时分钟（延时模式）
+     */
+    void setScreenMode(ScreenMode mode, int startHour = 8, int startMinute = 0, 
+                       int endHour = 22, int endMinute = 0, int timeoutMinutes = 10);
+    
+    /**
+     * @brief 获取当前屏幕模式
+     * 
+     * @return 当前屏幕模式
+     */
+    ScreenMode getScreenMode() const;
+    
+    /**
+     * @brief 检查屏幕是否应该开启
+     * 
+     * @return true 应该开启，false 应该关闭
+     */
+    bool shouldScreenBeOn() const;
+    
+    /**
+     * @brief 强制开启屏幕
+     */
+    void forceScreenOn();
+    
+    /**
+     * @brief 强制关闭屏幕
+     */
+    void forceScreenOff();
+    
+    /**
+     * @brief 通知触摸活动
+     * 
+     * 用于延时模式的活动检测
+     */
+    void notifyTouchActivity();
+    
+    /**
+     * @brief 检查屏幕是否开启
+     * 
+     * @return true 屏幕开启，false 屏幕关闭
+     */
+    bool isScreenOn() const;
 
 private:
     /**
@@ -424,6 +502,38 @@ private:
      * @param page 要清理的页面
      */
     void cleanupPage(DisplayPage page);
+    
+    // === 屏幕模式管理私有方法 ===
+    
+    /**
+     * @brief 处理屏幕模式逻辑
+     */
+    void processScreenModeLogic();
+    
+    /**
+     * @brief 检查定时模式是否应该开启屏幕
+     */
+    bool isInScheduledTime() const;
+    
+    /**
+     * @brief 检查延时模式是否应该关闭屏幕
+     */
+    bool isTimeoutExpired() const;
+    
+    /**
+     * @brief 执行屏幕开启操作
+     */
+    void performScreenOn();
+    
+    /**
+     * @brief 执行屏幕关闭操作
+     */
+    void performScreenOff();
+    
+    /**
+     * @brief 重置延时计时器
+     */
+    void resetTimeoutTimer();
 
 private:
     // 成员变量
@@ -470,11 +580,27 @@ private:
     lv_obj_t* m_portStatusDots[4];      ///< 端口页面状态指示器数组
     int m_currentPortPage;              ///< 当前端口页面索引
     
+    // === 屏幕模式管理成员变量 ===
+    ScreenMode m_screenMode;            ///< 当前屏幕模式
+    int m_screenStartHour;              ///< 定时开始小时
+    int m_screenStartMinute;            ///< 定时开始分钟
+    int m_screenEndHour;                ///< 定时结束小时
+    int m_screenEndMinute;              ///< 定时结束分钟
+    int m_screenTimeoutMinutes;         ///< 延时分钟数
+    
+    bool m_screenOn;                    ///< 屏幕开启状态
+    uint32_t m_lastTouchTime;           ///< 最后触摸时间
+    uint32_t m_lastScreenModeCheck;     ///< 最后屏幕模式检查时间
+    
     // 任务配置
     static const uint32_t TASK_STACK_SIZE = 8 * 1024;    ///< 任务栈大小
     static const UBaseType_t TASK_PRIORITY = 3;          ///< 任务优先级
     static const BaseType_t TASK_CORE = 0;               ///< 任务运行核心
     static const uint32_t MESSAGE_QUEUE_SIZE = 10;       ///< 消息队列大小
+    
+    // 屏幕模式相关常量
+    static const uint32_t SCREEN_MODE_CHECK_INTERVAL = 1000;  ///< 屏幕模式检查间隔（毫秒）
+    static const uint32_t TOUCH_TIMEOUT_MARGIN = 5000;        ///< 触摸超时边距（毫秒）
 };
 
 #endif // DISPLAY_MANAGER_H 

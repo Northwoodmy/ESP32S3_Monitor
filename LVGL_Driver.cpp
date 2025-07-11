@@ -226,6 +226,11 @@ static void lvgl_touch_cb(lv_indev_drv_t *drv, lv_indev_data_t *data) {
     data->point.y = final_y;
     data->state = LV_INDEV_STATE_PRESSED;  // 设置为按下状态
     
+    // 触发触摸活动回调（用于屏幕延时模式）
+    if (lvglDriver && lvglDriver->isInitialized()) {
+      lvglDriver->triggerTouchActivityCallback();
+    }
+    
     // 输出调试信息到串口
     //printf("触摸坐标 原始X: %d, Y: %d -> 转换后X: %d, Y: %d (旋转: %d)\n", 
     //       tp_x, tp_y, final_x, final_y, current_rotation);
@@ -321,6 +326,8 @@ LVGLDriver::LVGLDriver()
     , m_display(nullptr)
     , m_brightness(80)
     , m_tca9554_initialized(false)  // 初始化TCA9554状态标志
+    , m_touchActivityCallback(nullptr)  // 初始化触摸活动回调
+    , m_touchActivityUserdata(nullptr)  // 初始化触摸活动用户数据
 #if USE_GYROSCOPE
     , m_rotation_initialized(false)
     , m_current_rotation(SCREEN_ROTATION_0)
@@ -1181,4 +1188,35 @@ bool LVGLDriver::isTCA9554Connected() {
 }
 
 // === 全局C接口（保持向后兼容） ===
+
+// === 触摸活动回调功能实现 ===
+
+/**
+ * @brief 设置触摸活动回调函数
+ */
+void LVGLDriver::setTouchActivityCallback(TouchActivityCallback callback, void* userdata) {
+    m_touchActivityCallback = callback;
+    m_touchActivityUserdata = userdata;
+    printf("[LVGLDriver] 触摸活动回调函数已设置\n");
+}
+
+/**
+ * @brief 清除触摸活动回调函数
+ */
+void LVGLDriver::clearTouchActivityCallback() {
+    m_touchActivityCallback = nullptr;
+    m_touchActivityUserdata = nullptr;
+    printf("[LVGLDriver] 触摸活动回调函数已清除\n");
+}
+
+/**
+ * @brief 触发触摸活动回调
+ * 
+ * 该函数会在触摸事件发生时被调用
+ */
+void LVGLDriver::triggerTouchActivityCallback() {
+    if (m_touchActivityCallback) {
+        m_touchActivityCallback(m_touchActivityUserdata);
+    }
+}
 

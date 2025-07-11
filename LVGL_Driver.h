@@ -27,6 +27,12 @@
 #include "I2CBusManager.h"    // 使用统一的I2C总线管理器
 #include "tca9554_bsp.h"      // TCA9554 BSP接口
 
+// 前向声明
+class DisplayManager;
+
+// 触摸活动回调函数类型
+typedef void (*TouchActivityCallback)(void* userdata);
+
 // === TCA9554控制引脚定义 ===
 #define TCA9554_LCD_RESET_PIN     0    // TCA9554 GPIO0 - LCD复位引脚
 #define TCA9554_POWER_RESET_PIN   1    // TCA9554 GPIO1 - 电源复位引脚
@@ -205,6 +211,26 @@ public:
      * @return true TCA9554已连接且正常工作，false 连接异常
      */
     bool isTCA9554Connected();
+    
+    /**
+     * @brief 设置触摸活动回调函数
+     * 
+     * @param callback 触摸活动回调函数
+     * @param userdata 用户数据指针
+     */
+    void setTouchActivityCallback(TouchActivityCallback callback, void* userdata);
+    
+    /**
+     * @brief 清除触摸活动回调函数
+     */
+    void clearTouchActivityCallback();
+    
+    /**
+     * @brief 触发触摸活动回调
+     * 
+     * 该函数会在触摸事件发生时被调用
+     */
+    void triggerTouchActivityCallback();
 
 #if USE_GYROSCOPE
     /**
@@ -308,6 +334,10 @@ private:
     
     // TCA9554 IO扩展芯片相关
     bool m_tca9554_initialized;   ///< TCA9554初始化状态标志
+    
+    // 触摸活动回调相关
+    TouchActivityCallback m_touchActivityCallback;  ///< 触摸活动回调函数
+    void* m_touchActivityUserdata;                  ///< 触摸活动回调用户数据
     
 #if USE_GYROSCOPE
     // 屏幕自动旋转相关成员变量

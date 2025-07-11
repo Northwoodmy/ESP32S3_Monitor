@@ -2180,6 +2180,13 @@ void WebServerManager::handleSetScreenSettings() {
     if (success) {
         doc["message"] = "屏幕设置配置保存成功";
         printf("屏幕设置配置保存成功\n");
+        
+        // 通知DisplayManager屏幕模式已改变
+        if (m_displayManager) {
+            m_displayManager->setScreenMode((ScreenMode)mode, startHour, startMinute, 
+                                          endHour, endMinute, timeoutMinutes);
+            printf("已通知DisplayManager屏幕模式变更\n");
+        }
     } else {
         doc["message"] = "屏幕设置配置保存失败";
         printf("屏幕设置配置保存失败\n");

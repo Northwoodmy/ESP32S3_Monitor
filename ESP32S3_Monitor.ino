@@ -168,6 +168,15 @@ void setup() {
   printf("启动显示管理器任务...\n");
   displayManager.start();
   
+  // 设置触摸活动回调，将触摸事件传递给DisplayManager
+  printf("设置触摸活动回调...\n");
+  lvglDriverInstance.setTouchActivityCallback([](void* userdata) {
+    DisplayManager* dm = static_cast<DisplayManager*>(userdata);
+    if (dm) {
+      dm->notifyTouchActivity();
+    }
+  }, &displayManager);
+  
   printf("显示管理器初始化完成\n");
   
   // 初始化音频管理器
@@ -230,6 +239,14 @@ void setup() {
   // 设置功率数据回调，将Monitor的数据传递给DisplayManager
   monitor.setPowerDataCallback(powerDataCallback, &displayManager);
   printf("功率数据回调已设置\n");
+  
+  // 加载并应用屏幕设置配置
+  printf("加载屏幕设置配置...\n");
+  if (displayManager.loadScreenModeConfig()) {
+    printf("屏幕设置配置加载成功\n");
+  } else {
+    printf("屏幕设置配置加载失败，将使用默认配置\n");
+  }
   
   // 初始化时间管理器
   printf("开始初始化时间管理器...\n");
