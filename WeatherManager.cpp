@@ -22,7 +22,7 @@ static const WeatherConfig DEFAULT_CONFIG = {
     .cityName = "",                             // 空值，需要用户配置
     .autoUpdate = true,
     .updateInterval = 30,                       // 30分钟
-    .enableForecast = true
+    .enableForecast = false
 };
 
 // 构造函数
@@ -1075,7 +1075,7 @@ bool WeatherManager::loadConfig() {
     // 加载其他配置
     config.autoUpdate = _configStorage->getBoolAsync(getConfigKey("autoUpdate"), true);
     config.updateInterval = _configStorage->getIntAsync(getConfigKey("updateInterval"), 30);
-    config.enableForecast = _configStorage->getBoolAsync(getConfigKey("enableForecast"), true);
+    config.enableForecast = _configStorage->getBoolAsync(getConfigKey("enableForecast"), false);
     
     printf("[WeatherManager] 加载自动更新: %s\n", config.autoUpdate ? "启用" : "禁用");
     printf("[WeatherManager] 加载更新间隔: %d分钟\n", config.updateInterval);
