@@ -13,7 +13,7 @@ lv_obj_t * ui2_Container19 = NULL;
 lv_obj_t * ui2_Panel26 = NULL;
 lv_obj_t * ui2_Panel23 = NULL;
 lv_obj_t * ui2_Label33 = NULL;
-lv_obj_t * ui2_port1current2 = NULL;
+lv_obj_t * ui2_port1voltage1 = NULL;
 lv_obj_t * ui2_Container24 = NULL;
 lv_obj_t * ui2_Panel27 = NULL;
 lv_obj_t * ui2_Panel24 = NULL;
@@ -162,16 +162,16 @@ void ui2_port1SCREEN_screen_init(void)
     lv_obj_set_style_text_opa(ui2_Label33, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_font(ui2_Label33, &ui2_font_ShuHei30, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    ui2_port1current2 = lv_label_create(ui2_Panel26);
-    lv_obj_set_width(ui2_port1current2, LV_SIZE_CONTENT);   /// 1
-    lv_obj_set_height(ui2_port1current2, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_x(ui2_port1current2, -7);
-    lv_obj_set_y(ui2_port1current2, -131);
-    lv_obj_set_align(ui2_port1current2, LV_ALIGN_CENTER);
-    lv_label_set_text(ui2_port1current2, "27.842V");
-    lv_obj_set_style_text_color(ui2_port1current2, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_opa(ui2_port1current2, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(ui2_port1current2, &ui2_font_ShuHei36, LV_PART_MAIN | LV_STATE_DEFAULT);
+    ui2_port1voltage1 = lv_label_create(ui2_Panel26);
+    lv_obj_set_width(ui2_port1voltage1, LV_SIZE_CONTENT);   /// 1
+    lv_obj_set_height(ui2_port1voltage1, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_x(ui2_port1voltage1, -7);
+    lv_obj_set_y(ui2_port1voltage1, -131);
+    lv_obj_set_align(ui2_port1voltage1, LV_ALIGN_CENTER);
+    lv_label_set_text(ui2_port1voltage1, "27.842V");
+    lv_obj_set_style_text_color(ui2_port1voltage1, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_opa(ui2_port1voltage1, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui2_port1voltage1, &ui2_font_ShuHei36, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui2_Container24 = lv_obj_create(ui2_Container19);
     lv_obj_remove_style_all(ui2_Container24);
@@ -647,7 +647,7 @@ void ui2_port1SCREEN_screen_destroy(void)
     ui2_Panel26 = NULL;
     ui2_Panel23 = NULL;
     ui2_Label33 = NULL;
-    ui2_port1current2 = NULL;
+    ui2_port1voltage1 = NULL;
     ui2_Container24 = NULL;
     ui2_Panel27 = NULL;
     ui2_Panel24 = NULL;

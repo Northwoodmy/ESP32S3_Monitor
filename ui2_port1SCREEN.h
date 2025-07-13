@@ -23,7 +23,7 @@ extern lv_obj_t * ui2_Container19;
 extern lv_obj_t * ui2_Panel26;
 extern lv_obj_t * ui2_Panel23;
 extern lv_obj_t * ui2_Label33;
-extern lv_obj_t * ui2_port1current2;
+extern lv_obj_t * ui2_port1voltage1;
 extern lv_obj_t * ui2_Container24;
 extern lv_obj_t * ui2_Panel27;
 extern lv_obj_t * ui2_Panel24;
