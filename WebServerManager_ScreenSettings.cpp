@@ -13,7 +13,7 @@ String WebServerManager::getScreenSettingsHTML() {
     html += "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n";
     html += "    <title>屏幕设置 - ESP32S3 Monitor</title>\n";
     html += "    <style>\n";
-    html += getCSS();
+    html += getBaseCSS();
     html += getScreenSettingsCSS();
     html += "    </style>\n";
     html += "</head>\n";
@@ -115,6 +115,46 @@ String WebServerManager::getScreenSettingsHTML() {
     html += "                        </button>\n";
     html += "                        <button onclick=\"resetSettings()\" class=\"reset-btn warning-btn\">\n";
     html += "                            重置为默认\n";
+    html += "                        </button>\n";
+    html += "                    </div>\n";
+    html += "                </div>\n";
+    html += "            </div>\n";
+    html += "            \n";
+    html += "            <!-- 主题选择设置部分 -->\n";
+    html += "            <div class=\"settings-section\">\n";
+    html += "                <h2>UI主题配置</h2>\n";
+    html += "                <div class=\"theme-config\">\n";
+    html += "                    <div class=\"theme-selector\">\n";
+    html += "                        <h3>选择UI主题</h3>\n";
+    html += "                        <div class=\"theme-slider-container\">\n";
+    html += "                            <div class=\"theme-slider\" id=\"themeSlider\">\n";
+    html += "                                <div class=\"slider-track\">\n";
+    html += "                                    <div class=\"slider-indicator\" id=\"themeSliderIndicator\"></div>\n";
+    html += "                                </div>\n";
+    html += "                                <div class=\"slider-options\">\n";
+    html += "                                    <div class=\"slider-option\" data-theme=\"0\">\n";
+    html += "                                        <div class=\"option-label\">UI1</div>\n";
+    html += "                                    </div>\n";
+    html += "                                    <div class=\"slider-option\" data-theme=\"1\">\n";
+    html += "                                        <div class=\"option-label\">UI2</div>\n";
+    html += "                                    </div>\n";
+    html += "                                </div>\n";
+    html += "                            </div>\n";
+    html += "                            <div class=\"theme-description\" id=\"themeDescription\">\n";
+    html += "                                <span class=\"description-text\">经典UI界面风格</span>\n";
+    html += "                            </div>\n";
+    html += "                        </div>\n";
+    html += "                        <input type=\"hidden\" id=\"selectedTheme\" value=\"0\">\n";
+    html += "                    </div>\n";
+    html += "                    \n";
+    html += "                    <!-- 主题保存按钮 -->\n";
+    html += "                    <div class=\"settings-actions\">\n";
+    html += "                        <button onclick=\"saveThemeSettings()\" class=\"save-btn primary-btn\">\n";
+    html += "                            <span class=\"btn-text\">应用主题</span>\n";
+    html += "                            <div class=\"btn-loading hidden\">\n";
+    html += "                                <div class=\"spinner-sm\"></div>\n";
+    html += "                                <span>应用中...</span>\n";
+    html += "                            </div>\n";
     html += "                        </button>\n";
     html += "                    </div>\n";
     html += "                </div>\n";
@@ -294,6 +334,129 @@ String WebServerManager::getScreenSettingsCSS() {
         .mode-settings:hover {
             transform: translateY(-2px);
             box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+        }
+        
+        /* 主题配置区域样式 */
+        .theme-config {
+            background: linear-gradient(145deg, #ffffff, #f8fafc);
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+            animation: fadeInUp 0.6s ease-out forwards;
+            opacity: 0;
+            animation-delay: 0.2s;
+        }
+        
+        .theme-config:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+        }
+        
+        .theme-selector h3 {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        /* 主题滑块样式 */
+        .theme-slider-container {
+            margin-bottom: 32px;
+        }
+        
+        .theme-slider {
+            position: relative;
+            background: #f1f5f9;
+            border-radius: 20px;
+            padding: 8px;
+            margin-bottom: 16px;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .theme-slider .slider-track {
+            position: relative;
+            height: 60px;
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        
+        .theme-slider .slider-indicator {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 50%;
+            height: 100%;
+            background: linear-gradient(135deg, #a855f7 0%, #8b5cf6 100%);
+            border-radius: 16px;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 12px rgba(168, 85, 247, 0.4);
+            z-index: 2;
+        }
+        
+        .theme-slider .slider-options {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            right: 8px;
+            bottom: 8px;
+            display: flex;
+            z-index: 3;
+        }
+        
+        .theme-slider .slider-option {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-radius: 12px;
+            position: relative;
+            user-select: none;
+        }
+        
+        .theme-slider .slider-option:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .theme-slider .slider-option.active {
+            color: white;
+        }
+        
+        .theme-slider .option-label {
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .theme-slider .slider-option.active .option-label {
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+        }
+        
+        /* 主题描述 */
+        .theme-description {
+            text-align: center;
+            padding: 16px 20px;
+            background: #f8fafc;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            min-height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .theme-description .description-text {
+            color: #374151;
+            font-size: 1rem;
+            font-weight: 500;
+            line-height: 1.4;
+            transition: all 0.3s ease;
         }
         
         .mode-settings h3 {
@@ -767,7 +930,20 @@ String WebServerManager::getScreenSettingsJavaScript() {
     js += "    sliderOptions.forEach(option => {\n";
     js += "        option.addEventListener('click', function() {\n";
     js += "            const mode = parseInt(this.getAttribute('data-mode'));\n";
-    js += "            selectMode(mode);\n";
+    js += "            if (mode !== undefined) {\n";
+    js += "                selectMode(mode);\n";
+    js += "            }\n";
+    js += "        });\n";
+    js += "    });\n\n";
+    
+    js += "    // 主题切换事件监听器\n";
+    js += "    const themeSliderOptions = document.querySelectorAll('#themeSlider .slider-option');\n";
+    js += "    themeSliderOptions.forEach(option => {\n";
+    js += "        option.addEventListener('click', function() {\n";
+    js += "            const theme = parseInt(this.getAttribute('data-theme'));\n";
+    js += "            if (theme !== undefined) {\n";
+    js += "                selectTheme(theme);\n";
+    js += "            }\n";
     js += "        });\n";
     js += "    });\n\n";
     
@@ -820,15 +996,31 @@ String WebServerManager::getScreenSettingsJavaScript() {
     js += "    if (selectedModeInput) selectedModeInput.value = mode;\n";
     js += "    const sliderIndicator = document.getElementById('sliderIndicator');\n";
     js += "    if (sliderIndicator) sliderIndicator.style.left = (mode * 25) + '%';\n";
-    js += "    const allOptions = document.querySelectorAll('.slider-option');\n";
+    js += "    const allOptions = document.querySelectorAll('#modeSlider .slider-option');\n";
     js += "    allOptions.forEach((option, index) => {\n";
     js += "        if (index === mode) option.classList.add('active');\n";
     js += "        else option.classList.remove('active');\n";
     js += "    });\n";
     js += "    const descriptions = ['始终保持屏幕点亮', '指定时间段内点亮屏幕', '无操作后延时熄灭屏幕', '始终关闭屏幕'];\n";
-    js += "    const descriptionElement = document.querySelector('.description-text');\n";
+    js += "    const descriptionElement = document.querySelector('#modeDescription .description-text');\n";
     js += "    if (descriptionElement && descriptions[mode]) descriptionElement.textContent = descriptions[mode];\n";
     js += "    handleModeChange(mode.toString());\n";
+    js += "}\n\n";
+    
+    js += "function selectTheme(theme) {\n";
+    js += "    const selectedThemeInput = document.getElementById('selectedTheme');\n";
+    js += "    if (selectedThemeInput) selectedThemeInput.value = theme;\n";
+    js += "    const themeSliderIndicator = document.getElementById('themeSliderIndicator');\n";
+    js += "    if (themeSliderIndicator) themeSliderIndicator.style.left = (theme * 50) + '%';\n";
+    js += "    const allThemeOptions = document.querySelectorAll('#themeSlider .slider-option');\n";
+    js += "    allThemeOptions.forEach((option, index) => {\n";
+    js += "        if (index === theme) option.classList.add('active');\n";
+    js += "        else option.classList.remove('active');\n";
+    js += "    });\n";
+    js += "    const themeDescriptions = ['经典UI界面风格', '现代简约界面风格'];\n";
+    js += "    const themeDescriptionElement = document.querySelector('#themeDescription .description-text');\n";
+    js += "    if (themeDescriptionElement && themeDescriptions[theme]) themeDescriptionElement.textContent = themeDescriptions[theme];\n";
+    js += "    console.log('选择主题:', theme);\n";
     js += "}\n\n";
     
     js += "function handleModeChange(mode) {\n";
@@ -955,7 +1147,327 @@ String WebServerManager::getScreenSettingsJavaScript() {
     js += "        if (timeoutSettings) timeoutSettings.style.display = 'none';\n";
     js += "        showToast('已重置为默认设置', 'info');\n";
     js += "    }\n";
+    js += "}\n\n";
+    
+    js += "function saveThemeSettings() {\n";
+    js += "    const saveBtn = document.querySelector('.theme-config .save-btn');\n";
+    js += "    const btnText = saveBtn.querySelector('.btn-text');\n";
+    js += "    const btnLoading = saveBtn.querySelector('.btn-loading');\n";
+    js += "    if (btnText && btnLoading) {\n";
+    js += "        btnText.style.display = 'none';\n";
+    js += "        btnLoading.style.display = 'flex';\n";
+    js += "        saveBtn.disabled = true;\n";
+    js += "    }\n";
+    js += "    const selectedThemeInput = document.getElementById('selectedTheme');\n";
+    js += "    if (!selectedThemeInput) {\n";
+    js += "        showToast('请选择主题', 'error');\n";
+    js += "        resetThemeSaveButton();\n";
+    js += "        return;\n";
+    js += "    }\n";
+    js += "    const theme = parseInt(selectedThemeInput.value);\n";
+    js += "    const formData = new FormData();\n";
+    js += "    formData.append('theme', theme.toString());\n";
+    js += "    fetch('/api/theme/settings', { method: 'POST', body: formData })\n";
+    js += "        .then(response => response.json())\n";
+    js += "        .then(data => {\n";
+    js += "            if (data.success) {\n";
+    js += "                if (data.needRestart) {\n";
+    js += "                    showRestartNotification(data.message, data.restartDelay || 3000);\n";
+    js += "                } else {\n";
+    js += "                    showToast(data.message, 'info');\n";
+    js += "                    resetThemeSaveButton();\n";
+    js += "                }\n";
+    js += "            } else {\n";
+    js += "                showToast('主题切换失败: ' + data.message, 'error');\n";
+    js += "                resetThemeSaveButton();\n";
+    js += "            }\n";
+    js += "        })\n";
+    js += "        .catch(error => {\n";
+    js += "            showToast('主题切换出错', 'error');\n";
+    js += "            resetThemeSaveButton();\n";
+    js += "        });\n";
+    js += "}\n\n";
+    
+    js += "function resetThemeSaveButton() {\n";
+    js += "    const saveBtn = document.querySelector('.theme-config .save-btn');\n";
+    js += "    const btnText = saveBtn.querySelector('.btn-text');\n";
+    js += "    const btnLoading = saveBtn.querySelector('.btn-loading');\n";
+    js += "    if (btnText && btnLoading) {\n";
+    js += "        btnText.style.display = 'inline';\n";
+    js += "        btnLoading.style.display = 'none';\n";
+    js += "        saveBtn.disabled = false;\n";
+    js += "    }\n";
+    js += "}\n\n";
+    
+    js += "function showRestartNotification(message, delay) {\n";
+    js += "    // 创建重启通知弹窗\n";
+    js += "    const overlay = document.createElement('div');\n";
+    js += "    overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; display: flex; align-items: center; justify-content: center;';\n";
+    js += "    \n";
+    js += "    const modal = document.createElement('div');\n";
+    js += "    modal.style.cssText = 'background: white; border-radius: 16px; padding: 40px; max-width: 400px; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.3);';\n";
+    js += "    \n";
+    js += "    const icon = document.createElement('div');\n";
+    js += "    icon.style.cssText = 'font-size: 48px; margin-bottom: 20px;';\n";
+    js += "    icon.innerHTML = '🔄';\n";
+    js += "    \n";
+    js += "    const title = document.createElement('h3');\n";
+    js += "    title.style.cssText = 'margin-bottom: 16px; color: #1f2937; font-size: 1.5rem;';\n";
+    js += "    title.textContent = '主题切换中';\n";
+    js += "    \n";
+    js += "    const messageEl = document.createElement('p');\n";
+    js += "    messageEl.style.cssText = 'margin-bottom: 24px; color: #6b7280; line-height: 1.5;';\n";
+    js += "    messageEl.textContent = message;\n";
+    js += "    \n";
+    js += "    const countdown = document.createElement('div');\n";
+    js += "    countdown.style.cssText = 'font-size: 2rem; font-weight: bold; color: #3b82f6; margin-bottom: 20px;';\n";
+    js += "    \n";
+    js += "    const progress = document.createElement('div');\n";
+    js += "    progress.style.cssText = 'width: 100%; height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden;';\n";
+    js += "    \n";
+    js += "    const progressBar = document.createElement('div');\n";
+    js += "    progressBar.style.cssText = 'height: 100%; background: linear-gradient(90deg, #3b82f6, #1d4ed8); width: 100%; transform: translateX(-100%); transition: transform linear;';\n";
+    js += "    progressBar.style.transitionDuration = (delay / 1000) + 's';\n";
+    js += "    \n";
+    js += "    progress.appendChild(progressBar);\n";
+    js += "    modal.appendChild(icon);\n";
+    js += "    modal.appendChild(title);\n";
+    js += "    modal.appendChild(messageEl);\n";
+    js += "    modal.appendChild(countdown);\n";
+    js += "    modal.appendChild(progress);\n";
+    js += "    overlay.appendChild(modal);\n";
+    js += "    document.body.appendChild(overlay);\n";
+    js += "    \n";
+    js += "    // 启动进度条动画\n";
+    js += "    setTimeout(() => { progressBar.style.transform = 'translateX(0%)'; }, 100);\n";
+    js += "    \n";
+    js += "    // 倒计时\n";
+    js += "    let timeLeft = Math.ceil(delay / 1000);\n";
+    js += "    countdown.textContent = timeLeft;\n";
+    js += "    \n";
+    js += "    const timer = setInterval(() => {\n";
+    js += "        timeLeft--;\n";
+    js += "        countdown.textContent = timeLeft;\n";
+    js += "        if (timeLeft <= 0) {\n";
+    js += "            clearInterval(timer);\n";
+    js += "            countdown.textContent = '重启中...';\n";
+    js += "        }\n";
+    js += "    }, 1000);\n";
+    js += "    \n";
+    js += "    // 禁用页面交互\n";
+    js += "    document.body.style.overflow = 'hidden';\n";
     js += "}\n";
     
     return js;
+} 
+
+String WebServerManager::getBaseCSS() {
+    return R"(
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin: 0;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .back-home-btn {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            white-space: nowrap;
+            z-index: 10;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+        }
+        
+        .back-home-btn:hover {
+            background: linear-gradient(135deg, #2563eb, #1e40af);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4);
+        }
+        
+        .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .card {
+            position: relative;
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            padding-top: 70px;
+            margin-bottom: 24px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+        }
+        
+        .primary-btn {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+            text-decoration: none;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .primary-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.5);
+        }
+        
+        .primary-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .warning-btn {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+            text-decoration: none;
+        }
+        
+        .warning-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(245, 158, 11, 0.5);
+        }
+        
+        .spinner-sm {
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top: 2px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        .btn-loading {
+            display: none;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #10b981;
+            color: white;
+            padding: 16px 24px;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+            z-index: 1000;
+            transform: translateX(400px);
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+        
+        .toast.show {
+            transform: translateX(0);
+        }
+        
+        .toast.error {
+            background: #ef4444;
+        }
+        
+        .toast.info {
+            background: #3b82f6;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        @keyframes fadeInUp {
+            from { 
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to { 
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes slideIn {
+            from { 
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to { 
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+    )";
 } 

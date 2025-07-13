@@ -128,13 +128,6 @@ String WebServerManager::getWeatherSettingsHTML() {
     html += "                                <label for=\"updateInterval\">更新间隔 (分钟):</label>\n";
     html += "                                <input type=\"number\" id=\"updateInterval\" class=\"setting-input\" min=\"5\" max=\"1440\" value=\"30\">\n";
     html += "                            </div>\n";
-    html += "                            <div class=\"form-group\">\n";
-    html += "                                <label class=\"switch-label\">\n";
-    html += "                                    <input type=\"checkbox\" id=\"enableForecast\" class=\"switch-input\">\n";
-    html += "                                    <span class=\"switch-slider\"></span>\n";
-    html += "                                    启用天气预报\n";
-    html += "                                </label>\n";
-    html += "                            </div>\n";
     html += "                            <button onclick=\"saveUpdateConfig()\" class=\"setting-btn warning-btn\">\n";
     html += "                                保存更新设置\n";
     html += "                            </button>\n";
@@ -564,7 +557,7 @@ function updateConfigDisplay(config) {
     document.getElementById('apiKey').value = config.apiKey || '';
     document.getElementById('autoUpdate').checked = config.autoUpdate || false;
     document.getElementById('updateInterval').value = config.updateInterval || 30;
-    document.getElementById('enableForecast').checked = config.enableForecast || false;
+    // enableForecast 开关已从界面移除，但保留配置处理以兼容后端
     
     // 更新城市信息 - 尝试根据城市代码匹配级联选择器
     if (config.cityCode) {
@@ -768,7 +761,6 @@ async function saveCityConfig() {
 async function saveUpdateConfig() {
     const autoUpdate = document.getElementById('autoUpdate').checked;
     const updateInterval = parseInt(document.getElementById('updateInterval').value);
-    const enableForecast = document.getElementById('enableForecast').checked;
     
     if (updateInterval < 5 || updateInterval > 1440) {
         showToast('更新间隔必须在5-1440分钟之间', 'warning');
@@ -779,7 +771,7 @@ async function saveUpdateConfig() {
         const formData = new FormData();
         formData.append('autoUpdate', autoUpdate);
         formData.append('updateInterval', updateInterval);
-        formData.append('enableForecast', enableForecast);
+        formData.append('enableForecast', false); // 默认关闭天气预报
         
         const response = await fetch('/api/weather/update-config', {
             method: 'POST',

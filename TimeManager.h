@@ -135,7 +135,7 @@ private:
     // 任务配置
     static const uint32_t TASK_STACK_SIZE = 4096;    // 任务栈大小
     static const UBaseType_t TASK_PRIORITY = 2;      // 任务优先级
-    static const BaseType_t TASK_CORE = 1;           // 运行在核心1
+    static const BaseType_t TASK_CORE = 0;           // 运行在核心0
     
     // 内部方法
     static void timeTaskEntry(void* parameter);      // 任务入口函数

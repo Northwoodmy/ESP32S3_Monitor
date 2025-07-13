@@ -28,7 +28,7 @@
 #include <cstdio>
 #include <time.h>
 
-// 外部声明新UI系统的屏幕对象
+// 外部声明UI1系统的屏幕对象
 extern lv_obj_t * ui_standbySCREEN;
 extern lv_obj_t * ui_totalpowerSCREEN;
 extern lv_obj_t * ui_prot1SCREEN;
@@ -40,7 +40,15 @@ extern lv_obj_t * ui_port2SCREEN22;
 extern lv_obj_t * ui_port3SCREEN32;
 extern lv_obj_t * ui_port4SCREEN42;
 
-// 外部声明新UI系统的标签对象
+// 外部声明UI2系统的屏幕对象
+extern lv_obj_t * ui2_standbySCREEN;
+extern lv_obj_t * ui2_totalpowerSCREEN;
+extern lv_obj_t * ui2_port1SCREEN;
+extern lv_obj_t * ui2_port2SCREEN;
+extern lv_obj_t * ui2_port3SCREEN;
+extern lv_obj_t * ui2_port4SCREEN;
+
+// 外部声明UI1系统的标签对象
 extern lv_obj_t * ui_timeLabel;
 extern lv_obj_t * ui_dataLabel;
 extern lv_obj_t * ui_weekLabel;
@@ -54,9 +62,31 @@ extern lv_obj_t * ui_port2powerbar;
 extern lv_obj_t * ui_port3powerbar;
 extern lv_obj_t * ui_port4powerbar;
 
-// 外部声明天气相关组件
+// 外部声明UI2系统的标签对象
+extern lv_obj_t * ui2_timeLabel;
+extern lv_obj_t * ui2_dataLabel;
+extern lv_obj_t * ui2_weekLabel;
+extern lv_obj_t * ui2_totalpowerlabel;
+extern lv_obj_t * ui2_port1power;
+extern lv_obj_t * ui2_port2power;
+extern lv_obj_t * ui2_port3power;
+extern lv_obj_t * ui2_port4power;
+extern lv_obj_t * ui2_port1voltage;
+extern lv_obj_t * ui2_port2voltage;
+extern lv_obj_t * ui2_port3voltage;
+extern lv_obj_t * ui2_port4voltage;
+extern lv_obj_t * ui2_port1current;
+extern lv_obj_t * ui2_port2current;
+extern lv_obj_t * ui2_port3current;
+extern lv_obj_t * ui2_port4current;
+
+// 外部声明UI1系统天气相关组件
 extern lv_obj_t * ui_temperatureLabel;
 extern lv_obj_t * ui_weatherLabel;
+
+// 外部声明UI2系统天气相关组件
+extern lv_obj_t * ui2_temperatureLabel;
+extern lv_obj_t * ui2_weatherLabel;
 
 // 外部声明端口功率页面标签
 extern lv_obj_t * ui_port1powerlabel;
@@ -72,7 +102,7 @@ extern lv_obj_t * ui_port4powerlabel;
 extern lv_obj_t * ui_port4voltage;
 extern lv_obj_t * ui_port4current;
 
-// 外部声明端口详细信息组件
+// 外部声明UI1系统端口详细信息组件
 // 端口1详细信息
 extern lv_obj_t * ui_port1state;
 extern lv_obj_t * ui_port1protocol;
@@ -105,6 +135,43 @@ extern lv_obj_t * ui_port4cablevid;
 extern lv_obj_t * ui_port4maxvbusvoltage;
 extern lv_obj_t * ui_port4maxvbuscurrent;
 
+// 外部声明UI2系统端口详细信息组件
+// 端口1详细信息
+extern lv_obj_t * ui2_port1state;
+extern lv_obj_t * ui2_port1protocol;
+extern lv_obj_t * ui2_port1manufactuervid;
+extern lv_obj_t * ui2_port1cablevid;
+extern lv_obj_t * ui2_port1maxvbusvoltage;
+extern lv_obj_t * ui2_port1maxvbuscurrent;
+extern lv_obj_t * ui2_port1powerlabel;
+
+// 端口2详细信息
+extern lv_obj_t * ui2_port2state;
+extern lv_obj_t * ui2_port2protocol;
+extern lv_obj_t * ui2_port2manufactuervid;
+extern lv_obj_t * ui2_port2cablevid;
+extern lv_obj_t * ui2_port2maxvbusvoltage;
+extern lv_obj_t * ui2_port2maxvbuscurrent;
+extern lv_obj_t * ui2_port2powerlabel;
+
+// 端口3详细信息
+extern lv_obj_t * ui2_port3state;
+extern lv_obj_t * ui2_port3protocol;
+extern lv_obj_t * ui2_port3manufactuervid;
+extern lv_obj_t * ui2_port3cablevid;
+extern lv_obj_t * ui2_port3maxvbusvoltage;
+extern lv_obj_t * ui2_port3maxvbuscurrent;
+extern lv_obj_t * ui2_port3powerlabel;
+
+// 端口4详细信息
+extern lv_obj_t * ui2_port4state;
+extern lv_obj_t * ui2_port4protocol;
+extern lv_obj_t * ui2_port4manufactuervid;
+extern lv_obj_t * ui2_port4cablevid;
+extern lv_obj_t * ui2_port4maxvbusvoltage;
+extern lv_obj_t * ui2_port4maxvbuscurrent;
+extern lv_obj_t * ui2_port4powerlabel;
+
 /**
  * @brief 构造函数
  */
@@ -119,8 +186,9 @@ DisplayManager::DisplayManager()
     , m_psramManager(nullptr)
     , m_weatherManager(nullptr)
     , m_currentPage(PAGE_HOME)
-    , m_currentTheme(THEME_LIGHT)
+    , m_currentTheme(THEME_UI1)
     , m_brightness(80)
+    , m_uiSystemActive(false)
     , m_screen(nullptr)
     , m_pageContainer(nullptr)
     , m_navigationBar(nullptr)
@@ -219,23 +287,66 @@ bool DisplayManager::init(LVGLDriver* lvgl_driver, WiFiManager* wifi_manager, Co
         return false;
     }
     
-    // 获取LVGL锁并初始化新的UI系统
-    if (m_lvglDriver->lock(5000)) {
-        // 初始化新的UI系统
-        ui_init();
-        
-        // 获取主屏幕
-        m_screen = lv_scr_act();
-        if (!m_screen) {
-            printf("[DisplayManager] 错误：获取主屏幕失败\n");
-            m_lvglDriver->unlock();
-            return false;
+    // 首先检查要加载的主题
+    DisplayTheme targetTheme = THEME_UI1; // 默认主题
+    
+    // 加载主题配置
+    if (m_configStorage->hasThemeConfigAsync(3000)) {
+        int savedTheme = m_configStorage->loadThemeConfigAsync(3000);
+        if (savedTheme >= 0 && savedTheme <= 2) {
+            targetTheme = (DisplayTheme)savedTheme;
+            printf("[DisplayManager] 加载保存的主题: %d\n", targetTheme);
+        } else {
+            printf("[DisplayManager] 警告：保存的主题值无效(%d)，使用默认主题\n", savedTheme);
         }
-        
-        // 显示默认页面（待机屏幕）
-        if (ui_standbySCREEN) {
-            lv_scr_load(ui_standbySCREEN);
-            printf("[DisplayManager] 显示默认页面：待机屏幕\n");
+    } else {
+        printf("[DisplayManager] 使用默认主题: UI1\n");
+    }
+    
+    // 获取LVGL锁并初始化对应的UI系统
+    if (m_lvglDriver->lock(5000)) {
+        // 根据目标主题初始化相应的UI系统
+        if (targetTheme == THEME_UI1) {
+            // 初始化UI1系统
+            ui_init();
+            
+            // 获取主屏幕
+            m_screen = lv_scr_act();
+            if (!m_screen) {
+                printf("[DisplayManager] 错误：获取主屏幕失败\n");
+                m_lvglDriver->unlock();
+                return false;
+            }
+            
+            // 显示默认页面（待机屏幕）
+            if (ui_standbySCREEN) {
+                lv_scr_load(ui_standbySCREEN);
+                printf("[DisplayManager] 显示UI1默认页面：待机屏幕\n");
+            }
+            
+            m_currentTheme = THEME_UI1;
+            printf("[DisplayManager] UI1系统初始化完成\n");
+            
+        } else if (targetTheme == THEME_UI2) {
+            // 直接初始化UI2系统
+            ui2_init();
+            
+            // 获取主屏幕
+            m_screen = lv_scr_act();
+            if (!m_screen) {
+                printf("[DisplayManager] 错误：获取主屏幕失败\n");
+                m_lvglDriver->unlock();
+                return false;
+            }
+            
+            // 显示默认页面（待机屏幕）
+            if (ui2_standbySCREEN) {
+                lv_scr_load(ui2_standbySCREEN);
+                printf("[DisplayManager] 显示UI2默认页面：待机屏幕\n");
+            }
+            
+            m_currentTheme = THEME_UI2;
+            printf("[DisplayManager] UI2系统初始化完成\n");
         }
         
         // 初始化时间和日期显示
@@ -243,7 +354,7 @@ bool DisplayManager::init(LVGLDriver* lvgl_driver, WiFiManager* wifi_manager, Co
         
         m_lvglDriver->unlock();
         
-        printf("[DisplayManager] 新UI系统初始化完成\n");
+        printf("[DisplayManager] UI系统初始化完成\n");
     } else {
         printf("[DisplayManager] 错误：获取LVGL锁超时\n");
         return false;
@@ -428,15 +539,15 @@ void DisplayManager::processMessage(const DisplayMessage& msg) {
             
         case DisplayMessage::MSG_UPDATE_POWER_DATA:
             // 功率数据已在updatePowerData中直接更新
-            printf("[DisplayManager] 功率数据已更新：总功率=%d mW\n", m_powerData.total_power);
+            //printf("[DisplayManager] 功率数据已更新：总功率=%d mW\n", m_powerData.total_power);
             break;
             
         case DisplayMessage::MSG_UPDATE_WEATHER_DATA:
             // 更新天气数据显示
             if (msg.data.weather_data.valid) {
-                printf("[DisplayManager] 天气数据已更新：温度=%s，天气=%s\n", 
-                       msg.data.weather_data.temperature, 
-                       msg.data.weather_data.weather);
+                //printf("[DisplayManager] 天气数据已更新：温度=%s，天气=%s\n", 
+                //       msg.data.weather_data.temperature, 
+                //       msg.data.weather_data.weather);
             } else {
                 printf("[DisplayManager] 天气数据无效\n");
             }
@@ -484,10 +595,8 @@ void DisplayManager::processMessage(const DisplayMessage& msg) {
             break;
             
         case DisplayMessage::MSG_SET_THEME:
-            // 设置主题
-            m_currentTheme = msg.data.theme.theme;
-            applyTheme();
-            printf("[DisplayManager] 设置主题：%d\n", m_currentTheme);
+            // 主题切换改为重启系统的方式，此消息类型保留为兼容性
+            printf("[DisplayManager] 主题切换消息（将通过系统重启应用）：%d\n", msg.data.theme.theme);
             break;
             
         case DisplayMessage::MSG_SHOW_NOTIFICATION:
@@ -752,13 +861,13 @@ void DisplayManager::applyTheme() {
     lv_color_t primary_color, bg_color, text_color;
     
     switch (m_currentTheme) {
-        case THEME_LIGHT:
+        case THEME_UI1:
             primary_color = lv_color_hex(0x2196F3);
             bg_color = lv_color_white();
             text_color = lv_color_black();
             break;
             
-        case THEME_DARK:
+        case THEME_UI2:
             primary_color = lv_color_hex(0x1976D2);
             bg_color = lv_color_hex(0x303030);
             text_color = lv_color_white();
@@ -766,7 +875,7 @@ void DisplayManager::applyTheme() {
             
         case THEME_AUTO:
         default:
-            // 简化实现：默认使用浅色主题
+            // 简化实现：默认使用UI1主题
             primary_color = lv_color_hex(0x2196F3);
             bg_color = lv_color_white();
             text_color = lv_color_black();
@@ -896,12 +1005,138 @@ void DisplayManager::setBrightness(uint8_t brightness) {
 }
 
 void DisplayManager::setTheme(DisplayTheme theme) {
-    DisplayMessage msg;
-    msg.type = DisplayMessage::MSG_SET_THEME;
-    msg.data.theme.theme = theme;
+    // 主题切换改为重启系统的方式，此函数保留为兼容性接口
+    // 实际的主题切换现在通过WebServerManager保存配置后重启系统完成
+    printf("[DisplayManager] 主题切换请求：%d（将通过系统重启应用）\n", theme);
+}
+
+void DisplayManager::switchUISystem(DisplayTheme theme) {
+    printf("[DisplayManager] 初始化UI系统到主题: %d\n", theme);
     
-    if (m_messageQueue) {
-        xQueueSend(m_messageQueue, &msg, pdMS_TO_TICKS(100));
+    // 获取LVGL锁
+    if (!m_lvglDriver->lock(5000)) {
+        printf("[DisplayManager] 错误：获取LVGL锁超时\n");
+        return;
+    }
+    
+    // 创建一个临时的空白屏幕作为活动屏幕，避免删除活动屏幕的错误
+    lv_obj_t* temp_screen = lv_obj_create(NULL);
+    if (temp_screen) {
+        lv_scr_load(temp_screen);
+        printf("[DisplayManager] 创建临时屏幕作为活动屏幕\n");
+        
+        // 短暂延迟，确保屏幕切换完成
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
+    
+    // 销毁当前UI系统
+    if (m_currentTheme == THEME_UI1) {
+        destroyUI1System();
+    } else if (m_currentTheme == THEME_UI2) {
+        destroyUI2System();
+    }
+    
+    // 初始化新的UI系统
+    if (theme == THEME_UI1) {
+        initUI1System();
+    } else if (theme == THEME_UI2) {
+        initUI2System();
+    }
+    
+    // 删除临时屏幕（如果成功创建的话）
+    if (temp_screen) {
+        lv_obj_del(temp_screen);
+        printf("[DisplayManager] 删除临时屏幕\n");
+    }
+    
+    // 更新当前主题
+    m_currentTheme = theme;
+    m_uiSystemActive = true;
+    
+    // 注意：不在此处保存配置，主题配置的保存由WebServerManager负责
+    // 这个函数现在主要用于系统初始化时根据保存的配置加载对应的UI系统
+    
+    // 更新显示
+    updateTimeDisplay();
+    updatePowerDataDisplay();
+    updateWeatherDisplay();
+    
+    m_lvglDriver->unlock();
+    
+    printf("[DisplayManager] UI系统初始化完成\n");
+}
+
+void DisplayManager::initUI1System() {
+    printf("[DisplayManager] 初始化UI1系统\n");
+    
+    try {
+        // 初始化UI1系统
+        ui_init();
+        
+        // 短暂延迟，确保UI系统初始化完成
+        vTaskDelay(pdMS_TO_TICKS(50));
+        
+        // 显示默认页面
+        if (ui_standbySCREEN) {
+            lv_scr_load(ui_standbySCREEN);
+            printf("[DisplayManager] UI1待机屏幕已加载\n");
+        } else {
+            printf("[DisplayManager] 警告：UI1待机屏幕未创建\n");
+        }
+        
+        printf("[DisplayManager] UI1系统初始化完成\n");
+    } catch (...) {
+        printf("[DisplayManager] 错误：UI1系统初始化失败\n");
+    }
+}
+
+void DisplayManager::initUI2System() {
+    printf("[DisplayManager] 初始化UI2系统\n");
+    
+    try {
+        // 初始化UI2系统
+        ui2_init();
+        
+        // 短暂延迟，确保UI系统初始化完成
+        vTaskDelay(pdMS_TO_TICKS(50));
+        
+        // 显示默认页面
+        if (ui2_standbySCREEN) {
+            lv_scr_load(ui2_standbySCREEN);
+            printf("[DisplayManager] UI2待机屏幕已加载\n");
+        } else {
+            printf("[DisplayManager] 警告：UI2待机屏幕未创建\n");
+        }
+        
+        printf("[DisplayManager] UI2系统初始化完成\n");
+    } catch (...) {
+        printf("[DisplayManager] 错误：UI2系统初始化失败\n");
+    }
+}
+
+void DisplayManager::destroyUI1System() {
+    printf("[DisplayManager] 销毁UI1系统\n");
+    
+    // 检查UI1系统是否存在
+    if (ui_standbySCREEN != NULL) {
+        // 销毁UI1系统
+        ui_destroy();
+        printf("[DisplayManager] UI1系统销毁完成\n");
+    } else {
+        printf("[DisplayManager] UI1系统未初始化，跳过销毁\n");
+    }
+}
+
+void DisplayManager::destroyUI2System() {
+    printf("[DisplayManager] 销毁UI2系统\n");
+    
+    // 检查UI2系统是否存在
+    if (ui2_standbySCREEN != NULL) {
+        // 销毁UI2系统
+        ui2_destroy();
+        printf("[DisplayManager] UI2系统销毁完成\n");
+    } else {
+        printf("[DisplayManager] UI2系统未初始化，跳过销毁\n");
     }
 }
 
@@ -1414,24 +1649,43 @@ void DisplayManager::updateTimeDisplay() {
     time_t now = time(nullptr);
     struct tm* timeinfo = localtime(&now);
     
-    // 更新时间标签
-    if (ui_timeLabel) {
-        char time_str[16];
-        strftime(time_str, sizeof(time_str), "%H:%M:%S", timeinfo);
-        lv_label_set_text(ui_timeLabel, time_str);
-    }
-    
-    // 更新日期标签
-    if (ui_dataLabel) {
-        char date_str[16];
-        strftime(date_str, sizeof(date_str), "%m-%d", timeinfo);
-        lv_label_set_text(ui_dataLabel, date_str);
-    }
-    
-    // 更新星期标签
-    if (ui_weekLabel) {
-        const char* weekdays[] = {"星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"};
-        lv_label_set_text(ui_weekLabel, weekdays[timeinfo->tm_wday]);
+    // 根据当前主题更新相应的时间标签
+    if (m_currentTheme == THEME_UI1) {
+        // UI1系统的时间标签
+        if (ui_timeLabel) {
+            char time_str[16];
+            strftime(time_str, sizeof(time_str), "%H:%M:%S", timeinfo);
+            lv_label_set_text(ui_timeLabel, time_str);
+        }
+        
+        if (ui_dataLabel) {
+            char date_str[16];
+            strftime(date_str, sizeof(date_str), "%m-%d", timeinfo);
+            lv_label_set_text(ui_dataLabel, date_str);
+        }
+        
+        if (ui_weekLabel) {
+            const char* weekdays[] = {"星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"};
+            lv_label_set_text(ui_weekLabel, weekdays[timeinfo->tm_wday]);
+        }
+    } else if (m_currentTheme == THEME_UI2) {
+        // UI2系统的时间标签
+        if (ui2_timeLabel) {
+            char time_str[16];
+            strftime(time_str, sizeof(time_str), "%H:%M:%S", timeinfo);
+            lv_label_set_text(ui2_timeLabel, time_str);
+        }
+        
+        if (ui2_dataLabel) {
+            char date_str[16];
+            strftime(date_str, sizeof(date_str), "%m-%d", timeinfo);
+            lv_label_set_text(ui2_dataLabel, date_str);
+        }
+        
+        if (ui2_weekLabel) {
+            const char* weekdays[] = {"星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"};
+            lv_label_set_text(ui2_weekLabel, weekdays[timeinfo->tm_wday]);
+        }
     }
     
     m_lvglDriver->unlock();
@@ -1445,45 +1699,130 @@ void DisplayManager::updatePowerDataDisplay() {
         return;
     }
     
-    // 更新总功率显示
-    if (ui_totalpowerlabel && m_powerData.valid) {
-        char total_power_str[16];
-        snprintf(total_power_str, sizeof(total_power_str), "%.1fW", m_powerData.total_power / 1000.0f);
-        lv_label_set_text(ui_totalpowerlabel, total_power_str);
-    }
-    
-    // 更新各端口功率显示
-    if (m_powerData.valid) {
-        // 端口1
-        if (ui_port1power && m_powerData.ports[0].valid) {
-            char port1_str[16];
-            snprintf(port1_str, sizeof(port1_str), "%.2fW", m_powerData.ports[0].power / 1000.0f);
-            lv_label_set_text(ui_port1power, port1_str);
+    // 根据当前主题更新相应的功率显示
+    if (m_currentTheme == THEME_UI1) {
+        // UI1系统的功率显示
+        if (ui_totalpowerlabel && m_powerData.valid) {
+            char total_power_str[16];
+            snprintf(total_power_str, sizeof(total_power_str), "%.1fW", m_powerData.total_power / 1000.0f);
+            lv_label_set_text(ui_totalpowerlabel, total_power_str);
         }
         
-        // 端口2
-        if (ui_port2power && m_powerData.ports[1].valid) {
-            char port2_str[16];
-            snprintf(port2_str, sizeof(port2_str), "%.2fW", m_powerData.ports[1].power / 1000.0f);
-            lv_label_set_text(ui_port2power, port2_str);
+        if (m_powerData.valid) {
+            // 端口1
+            if (ui_port1power && m_powerData.ports[0].valid) {
+                char port1_str[16];
+                snprintf(port1_str, sizeof(port1_str), "%.2fW", m_powerData.ports[0].power / 1000.0f);
+                lv_label_set_text(ui_port1power, port1_str);
+            }
+            
+            // 端口2
+            if (ui_port2power && m_powerData.ports[1].valid) {
+                char port2_str[16];
+                snprintf(port2_str, sizeof(port2_str), "%.2fW", m_powerData.ports[1].power / 1000.0f);
+                lv_label_set_text(ui_port2power, port2_str);
+            }
+            
+            // 端口3
+            if (ui_port3power && m_powerData.ports[2].valid) {
+                char port3_str[16];
+                snprintf(port3_str, sizeof(port3_str), "%.2fW", m_powerData.ports[2].power / 1000.0f);
+                lv_label_set_text(ui_port3power, port3_str);
+            }
+            
+            // 端口4
+            if (ui_port4power && m_powerData.ports[3].valid) {
+                char port4_str[16];
+                snprintf(port4_str, sizeof(port4_str), "%.2fW", m_powerData.ports[3].power / 1000.0f);
+                lv_label_set_text(ui_port4power, port4_str);
+            }
+            
+            // 更新功率条显示
+            updatePowerBars();
+        }
+    } else if (m_currentTheme == THEME_UI2) {
+        // UI2系统的功率显示
+        if (ui2_totalpowerlabel && m_powerData.valid) {
+            char total_power_str[16];
+            snprintf(total_power_str, sizeof(total_power_str), "%.1fW", m_powerData.total_power / 1000.0f);
+            lv_label_set_text(ui2_totalpowerlabel, total_power_str);
         }
         
-        // 端口3
-        if (ui_port3power && m_powerData.ports[2].valid) {
-            char port3_str[16];
-            snprintf(port3_str, sizeof(port3_str), "%.2fW", m_powerData.ports[2].power / 1000.0f);
-            lv_label_set_text(ui_port3power, port3_str);
+        if (m_powerData.valid) {
+            // UI2系统的端口功率显示
+            if (ui2_port1power && m_powerData.ports[0].valid) {
+                char port1_str[16];
+                snprintf(port1_str, sizeof(port1_str), "%.2fW", m_powerData.ports[0].power / 1000.0f);
+                lv_label_set_text(ui2_port1power, port1_str);
+            }
+            
+            if (ui2_port2power && m_powerData.ports[1].valid) {
+                char port2_str[16];
+                snprintf(port2_str, sizeof(port2_str), "%.2fW", m_powerData.ports[1].power / 1000.0f);
+                lv_label_set_text(ui2_port2power, port2_str);
+            }
+            
+            if (ui2_port3power && m_powerData.ports[2].valid) {
+                char port3_str[16];
+                snprintf(port3_str, sizeof(port3_str), "%.2fW", m_powerData.ports[2].power / 1000.0f);
+                lv_label_set_text(ui2_port3power, port3_str);
+            }
+            
+            if (ui2_port4power && m_powerData.ports[3].valid) {
+                char port4_str[16];
+                snprintf(port4_str, sizeof(port4_str), "%.2fW", m_powerData.ports[3].power / 1000.0f);
+                lv_label_set_text(ui2_port4power, port4_str);
+            }
+            
+            // UI2系统的电压和电流显示
+            if (ui2_port1voltage && m_powerData.ports[0].valid) {
+                char voltage_str[16];
+                snprintf(voltage_str, sizeof(voltage_str), "%.2fV", m_powerData.ports[0].voltage / 1000.0f);
+                lv_label_set_text(ui2_port1voltage, voltage_str);
+            }
+            
+            if (ui2_port1current && m_powerData.ports[0].valid) {
+                char current_str[16];
+                snprintf(current_str, sizeof(current_str), "%.2fA", m_powerData.ports[0].current / 1000.0f);
+                lv_label_set_text(ui2_port1current, current_str);
+            }
+            
+            if (ui2_port2voltage && m_powerData.ports[1].valid) {
+                char voltage_str[16];
+                snprintf(voltage_str, sizeof(voltage_str), "%.2fV", m_powerData.ports[1].voltage / 1000.0f);
+                lv_label_set_text(ui2_port2voltage, voltage_str);
+            }
+            
+            if (ui2_port2current && m_powerData.ports[1].valid) {
+                char current_str[16];
+                snprintf(current_str, sizeof(current_str), "%.2fA", m_powerData.ports[1].current / 1000.0f);
+                lv_label_set_text(ui2_port2current, current_str);
+            }
+            
+            if (ui2_port3voltage && m_powerData.ports[2].valid) {
+                char voltage_str[16];
+                snprintf(voltage_str, sizeof(voltage_str), "%.2fV", m_powerData.ports[2].voltage / 1000.0f);
+                lv_label_set_text(ui2_port3voltage, voltage_str);
+            }
+            
+            if (ui2_port3current && m_powerData.ports[2].valid) {
+                char current_str[16];
+                snprintf(current_str, sizeof(current_str), "%.2fA", m_powerData.ports[2].current / 1000.0f);
+                lv_label_set_text(ui2_port3current, current_str);
+            }
+            
+            if (ui2_port4voltage && m_powerData.ports[3].valid) {
+                char voltage_str[16];
+                snprintf(voltage_str, sizeof(voltage_str), "%.2fV", m_powerData.ports[3].voltage / 1000.0f);
+                lv_label_set_text(ui2_port4voltage, voltage_str);
+            }
+            
+            if (ui2_port4current && m_powerData.ports[3].valid) {
+                char current_str[16];
+                snprintf(current_str, sizeof(current_str), "%.2fA", m_powerData.ports[3].current / 1000.0f);
+                lv_label_set_text(ui2_port4current, current_str);
+            }
         }
-        
-        // 端口4
-        if (ui_port4power && m_powerData.ports[3].valid) {
-            char port4_str[16];
-            snprintf(port4_str, sizeof(port4_str), "%.2fW", m_powerData.ports[3].power / 1000.0f);
-            lv_label_set_text(ui_port4power, port4_str);
-        }
-        
-        // 更新功率条显示
-        updatePowerBars();
     }
     
     // 更新端口功率页面的详细信息
@@ -1732,21 +2071,34 @@ void DisplayManager::updateWeatherDisplay() {
     auto currentWeather = m_weatherManager->getCurrentWeather();
     
     if (currentWeather.isValid) {
-        // 更新温度显示
-        if (ui_temperatureLabel) {
-            char temp_str[16];
-            snprintf(temp_str, sizeof(temp_str), "%s度", currentWeather.temperature.c_str());
-            lv_label_set_text(ui_temperatureLabel, temp_str);
+        // 根据当前主题更新相应的天气显示
+        if (m_currentTheme == THEME_UI1) {
+            // UI1系统的天气显示
+            if (ui_temperatureLabel) {
+                char temp_str[16];
+                snprintf(temp_str, sizeof(temp_str), "%s度", currentWeather.temperature.c_str());
+                lv_label_set_text(ui_temperatureLabel, temp_str);
+            }
+            
+            if (ui_weatherLabel) {
+                lv_label_set_text(ui_weatherLabel, currentWeather.weather.c_str());
+            }
+        } else if (m_currentTheme == THEME_UI2) {
+            // UI2系统的天气显示
+            if (ui2_temperatureLabel) {
+                char temp_str[16];
+                snprintf(temp_str, sizeof(temp_str), "%s度", currentWeather.temperature.c_str());
+                lv_label_set_text(ui2_temperatureLabel, temp_str);
+            }
+            
+            if (ui2_weatherLabel) {
+                lv_label_set_text(ui2_weatherLabel, currentWeather.weather.c_str());
+            }
         }
         
-        // 更新天气状况显示
-        if (ui_weatherLabel) {
-            lv_label_set_text(ui_weatherLabel, currentWeather.weather.c_str());
-        }
-        
-        printf("[DisplayManager] 天气显示已更新：%s度 %s\n", 
-               currentWeather.temperature.c_str(), 
-               currentWeather.weather.c_str());
+        //printf("[DisplayManager] 天气显示已更新：%s度 %s\n", 
+        //       currentWeather.temperature.c_str(), 
+        //       currentWeather.weather.c_str());
     } else {
         // 天气数据无效时显示默认值
         if (ui_temperatureLabel) {

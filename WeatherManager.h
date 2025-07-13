@@ -74,11 +74,20 @@ typedef enum {
 
 // 天气统计信息
 typedef struct {
-    unsigned long totalRequests;    // 总请求次数
-    unsigned long successRequests;  // 成功请求次数
-    unsigned long failedRequests;   // 失败请求次数
-    unsigned long lastUpdateTime;   // 上次更新时间
-    unsigned long nextUpdateTime;   // 下次更新时间
+    unsigned long totalRequests;        // 总请求次数
+    unsigned long successRequests;      // 成功请求次数
+    unsigned long failedRequests;       // 失败请求次数
+    unsigned long lastUpdateTime;       // 上次更新时间
+    unsigned long nextUpdateTime;       // 下次更新时间
+    // 新增内存使用统计
+    size_t totalMemoryUsed;             // 总内存使用量
+    size_t psramMemoryUsed;             // PSRAM内存使用量
+    size_t internalMemoryUsed;          // 内部RAM使用量
+    size_t forecastDataSize;            // 预报数据大小
+    size_t jsonBufferSize;              // JSON缓冲区大小
+    size_t httpBufferSize;              // HTTP缓冲区大小
+    unsigned long memoryAllocations;    // 内存分配次数
+    unsigned long memoryDeallocations;  // 内存释放次数
 } WeatherStatistics;
 
 // 天气配置信息
@@ -131,6 +140,9 @@ public:
     void printForecastData() const;
     void printStatistics() const;
     void printConfig() const;
+    void printMemoryUsage() const;         // 新增：打印内存使用情况
+    String getMemoryUsageJSON() const;     // 新增：获取内存使用JSON
+    void resetMemoryStatistics();          // 新增：重置内存统计
     
     // 静态任务函数
     static void weatherUpdateTask(void* parameter);
@@ -155,6 +167,11 @@ private:
     bool _isInitialized;
     bool _isRunning;
     bool _debugMode;
+    
+    // 内存使用监控
+    size_t _currentMemoryUsage;            // 当前内存使用量
+    size_t _peakMemoryUsage;               // 峰值内存使用量
+    bool _memoryStatsEnabled;              // 内存统计开关
     
     // 私有方法
     void weatherUpdateLoop();
@@ -182,6 +199,9 @@ private:
     void* allocateMemory(size_t size);
     void freeMemory(void* ptr);
     void cleanupForecastData();
+    void updateMemoryStatistics(size_t allocated, bool isPSRAM);  // 新增：更新内存统计
+    void trackMemoryAllocation(size_t size, bool isPSRAM);        // 新增：跟踪内存分配
+    void trackMemoryDeallocation(size_t size, bool isPSRAM);      // 新增：跟踪内存释放
     
     // 任务控制
     bool createWeatherTask();

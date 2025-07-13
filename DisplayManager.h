@@ -33,6 +33,7 @@
 
 // 新的UI系统头文件
 #include "ui.h"
+#include "ui2.h"
 
 // 前向声明
 class WiFiManager;
@@ -61,8 +62,8 @@ enum DisplayPage {
  * @brief 显示主题枚举
  */
 enum DisplayTheme {
-    THEME_LIGHT = 0,    ///< 浅色主题
-    THEME_DARK,         ///< 深色主题
+    THEME_UI1 = 0,      ///< UI1主题（原UI系统）
+    THEME_UI2,          ///< UI2主题（新UI系统）
     THEME_AUTO          ///< 自动主题
 };
 
@@ -492,6 +493,33 @@ private:
     void applyTheme();
     
     /**
+     * @brief 切换UI系统
+     * 
+     * @param theme UI主题类型
+     */
+    void switchUISystem(DisplayTheme theme);
+    
+    /**
+     * @brief 初始化UI1系统
+     */
+    void initUI1System();
+    
+    /**
+     * @brief 初始化UI2系统
+     */
+    void initUI2System();
+    
+    /**
+     * @brief 销毁UI1系统
+     */
+    void destroyUI1System();
+    
+    /**
+     * @brief 销毁UI2系统
+     */
+    void destroyUI2System();
+    
+    /**
      * @brief 初始化页面容器
      */
     void initPageContainers();
@@ -553,6 +581,7 @@ private:
     DisplayPage m_currentPage;          ///< 当前页面
     DisplayTheme m_currentTheme;        ///< 当前主题
     uint8_t m_brightness;               ///< 当前亮度
+    bool m_uiSystemActive;              ///< UI系统是否已激活
     
     // LVGL对象
     lv_obj_t* m_screen;                 ///< 主屏幕对象

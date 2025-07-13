@@ -25,6 +25,8 @@ const char* ConfigStorage::REFRESH_RATE_KEY = "refresh_rate";
 
 const char* ConfigStorage::BRIGHTNESS_KEY = "brightness";
 
+const char* ConfigStorage::THEME_KEY = "theme";
+
 const char* ConfigStorage::TIME_PRIMARY_SERVER_KEY = "time_primary";
 const char* ConfigStorage::TIME_SECONDARY_SERVER_KEY = "time_secondary";
 const char* ConfigStorage::TIME_TIMEZONE_KEY = "time_timezone";
@@ -304,6 +306,32 @@ void ConfigStorage::processConfigRequest(ConfigRequest* request) {
             bool* result = static_cast<bool*>(request->result);
             if (result != nullptr) {
                 *result = hasBrightnessConfig();
+                request->success = true;
+            }
+            break;
+        }
+        
+        case CONFIG_OP_SAVE_THEME_CONFIG: {
+            ThemeConfigData* data = static_cast<ThemeConfigData*>(request->data);
+            if (data != nullptr) {
+                request->success = saveThemeConfig(data->theme);
+            }
+            break;
+        }
+        
+        case CONFIG_OP_LOAD_THEME_CONFIG: {
+            ThemeConfigData* result = static_cast<ThemeConfigData*>(request->result);
+            if (result != nullptr) {
+                result->theme = loadThemeConfig();
+                request->success = true;
+            }
+            break;
+        }
+        
+        case CONFIG_OP_HAS_THEME_CONFIG: {
+            bool* result = static_cast<bool*>(request->result);
+            if (result != nullptr) {
+                *result = hasThemeConfig();
                 request->success = true;
             }
             break;
@@ -670,7 +698,35 @@ bool ConfigStorage::hasBrightnessConfigAsync(uint32_t timeoutMs) {
     return success && result;
 }
 
-// 异步配置重置操作接口实现
+// 异步主题配置操作接口实现
+
+bool ConfigStorage::saveThemeConfigAsync(int theme, uint32_t timeoutMs) {
+    ThemeConfigData data(theme);
+    ConfigRequest request;
+    request.operation = CONFIG_OP_SAVE_THEME_CONFIG;
+    request.data = &data;
+    
+    return sendRequestAndWait(&request, timeoutMs);
+}
+
+int ConfigStorage::loadThemeConfigAsync(uint32_t timeoutMs) {
+    ThemeConfigData result;
+    ConfigRequest request;
+    request.operation = CONFIG_OP_LOAD_THEME_CONFIG;
+    request.result = &result;
+    
+    return sendRequestAndWait(&request, timeoutMs) ? result.theme : 0;
+}
+
+bool ConfigStorage::hasThemeConfigAsync(uint32_t timeoutMs) {
+    bool result = false;
+    ConfigRequest request;
+    request.operation = CONFIG_OP_HAS_THEME_CONFIG;
+    request.result = &result;
+    
+    bool success = sendRequestAndWait(&request, timeoutMs);
+    return success && result;
+}
 
 // 异步时间配置操作接口实现
 
@@ -1436,6 +1492,60 @@ bool ConfigStorage::hasBrightnessConfig() {
     preferences.end();
     
     printf("🔍 [ConfigStorage] 检查亮度配置存在性: %s\n", exists ? "存在" : "不存在");
+    return exists;
+}
+
+// 主题配置方法实现
+
+bool ConfigStorage::saveThemeConfig(int theme) {
+    printf("💾 [ConfigStorage] 保存主题配置: %d\n", theme);
+    
+    if (!preferences.begin(SYSTEM_NAMESPACE, false)) {
+        printf("❌ [ConfigStorage] 打开系统配置命名空间失败\n");
+        return false;
+    }
+    
+    // 保存主题值
+    size_t result = preferences.putInt(THEME_KEY, theme);
+    preferences.end();
+    
+    if (result == 0) {
+        printf("❌ [ConfigStorage] 主题配置保存失败\n");
+        return false;
+    }
+    
+    printf("✅ [ConfigStorage] 主题配置保存成功: %d\n", theme);
+    return true;
+}
+
+int ConfigStorage::loadThemeConfig() {
+    if (!preferences.begin(SYSTEM_NAMESPACE, true)) {
+        printf("⚠️ [ConfigStorage] 打开系统配置命名空间失败，使用默认主题\n");
+        return 0; // 默认主题UI1
+    }
+    
+    int theme = preferences.getInt(THEME_KEY, 0); // 默认值为UI1主题
+    preferences.end();
+    
+    // 验证主题值范围
+    if (theme < 0 || theme > 2) {
+        printf("⚠️ [ConfigStorage] 加载的主题值超出范围(%d)，使用默认值UI1\n", theme);
+        theme = 0;
+    }
+    
+    printf("📖 [ConfigStorage] 加载主题配置: %d\n", theme);
+    return theme;
+}
+
+bool ConfigStorage::hasThemeConfig() {
+    if (!preferences.begin(SYSTEM_NAMESPACE, true)) {
+        return false;
+    }
+    
+    bool exists = preferences.isKey(THEME_KEY);
+    preferences.end();
+    
+    printf("🔍 [ConfigStorage] 检查主题配置存在性: %s\n", exists ? "存在" : "不存在");
     return exists;
 }
 

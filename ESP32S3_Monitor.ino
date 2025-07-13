@@ -178,7 +178,7 @@ void setup() {
   }, &displayManager);
   
   printf("显示管理器初始化完成\n");
-  
+  /*
   // 初始化音频管理器
   printf("开始初始化音频管理器...\n");
   if (audioManager.init(&psramManager, &fileManager)) {
@@ -222,7 +222,7 @@ void setup() {
     printf("❌ 音频管理器初始化失败\n");
   }
   printf("音频管理器初始化完成\n");
-  
+  */
   // 创建Web服务器管理器实例
   webServerManager = new WebServerManager(&wifiManager, &configStorage, &otaManager, &fileManager);
   

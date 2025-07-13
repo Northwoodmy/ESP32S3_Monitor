@@ -1,0 +1,17 @@
+SET(SOURCES ui2_standbySCREEN.c
+    ui2_totalpowerSCREEN.c
+    ui2_port1SCREEN.c
+    ui2_port2SCREEN.c
+    ui2_port3SCREEN.c
+    ui2_port4SCREEN.c
+    ui2.c
+    ui2_comp_hook.c
+    ui2_helpers.c
+    ui2_img_1985331572.c
+    ui2_font_ShuHei14.c
+    ui2_font_ShuHei26.c
+    ui2_font_ShuHei30.c
+    ui2_font_ShuHei36.c
+    ui2_font_ShuHei72.c)
+
+add_library(ui2 ${SOURCES})

@@ -249,7 +249,7 @@ esp_err_t I2CBus_WriteRead(uint8_t device_addr, const uint8_t *write_data, size_
     I2CBus_Unlock();
     
     if (ret != ESP_OK) {
-        printf("[I2CBusManager] 警告：I2C写-读操作失败，设备地址: 0x%02X, 错误: %s\n", device_addr, esp_err_to_name(ret));
+        //printf("[I2CBusManager] 警告：I2C写-读操作失败，设备地址: 0x%02X, 错误: %s\n", device_addr, esp_err_to_name(ret));
     }
     
     return ret;

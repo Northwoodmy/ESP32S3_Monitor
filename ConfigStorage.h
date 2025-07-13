@@ -51,6 +51,9 @@ enum ConfigOperation {
     CONFIG_OP_SAVE_BRIGHTNESS,
     CONFIG_OP_LOAD_BRIGHTNESS,
     CONFIG_OP_HAS_BRIGHTNESS,
+    CONFIG_OP_SAVE_THEME_CONFIG,
+    CONFIG_OP_LOAD_THEME_CONFIG,
+    CONFIG_OP_HAS_THEME_CONFIG,
     CONFIG_OP_SAVE_TIME_CONFIG,
     CONFIG_OP_LOAD_TIME_CONFIG,
     CONFIG_OP_SAVE_SCREEN_CONFIG,
@@ -128,6 +131,14 @@ struct BrightnessConfigData {
     
     BrightnessConfigData() : brightness(80) {}
     BrightnessConfigData(uint8_t b) : brightness(b) {}
+};
+
+// 主题配置请求数据结构
+struct ThemeConfigData {
+    int theme;  // 使用int类型避免头文件循环依赖
+    
+    ThemeConfigData() : theme(0) {}  // 默认为UI1主题
+    ThemeConfigData(int t) : theme(t) {}
 };
 
 // 时间配置请求数据结构
@@ -234,6 +245,11 @@ public:
     uint8_t loadBrightnessAsync(uint32_t timeoutMs = 5000);
     bool hasBrightnessConfigAsync(uint32_t timeoutMs = 5000);
     
+    // 异步主题配置操作接口
+    bool saveThemeConfigAsync(int theme, uint32_t timeoutMs = 5000);
+    int loadThemeConfigAsync(uint32_t timeoutMs = 5000);
+    bool hasThemeConfigAsync(uint32_t timeoutMs = 5000);
+    
     // 异步时间配置操作接口
     bool saveTimeConfigAsync(const String& primaryServer, const String& secondaryServer, 
                             const String& timezone, int syncInterval, uint32_t timeoutMs = 5000);
@@ -306,6 +322,9 @@ private:
     // 屏幕亮度配置键名
     static const char* BRIGHTNESS_KEY;
     
+    // 主题配置键名
+    static const char* THEME_KEY;
+    
     // 时间配置键名
     static const char* TIME_PRIMARY_SERVER_KEY;
     static const char* TIME_SECONDARY_SERVER_KEY;
@@ -354,6 +373,10 @@ private:
     bool saveBrightness(uint8_t brightness);
     uint8_t loadBrightness();
     bool hasBrightnessConfig();
+    
+    bool saveThemeConfig(int theme);
+    int loadThemeConfig();
+    bool hasThemeConfig();
     
     bool saveTimeConfig(const String& primaryServer, const String& secondaryServer, 
                        const String& timezone, int syncInterval);

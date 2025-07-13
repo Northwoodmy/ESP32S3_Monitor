@@ -114,6 +114,10 @@ void WebServerManager::init() {
     server->on("/api/screen/settings", HTTP_GET, [this]() { handleGetScreenSettings(); });
     server->on("/api/screen/settings", HTTP_POST, [this]() { handleSetScreenSettings(); });
     
+    // 主题设置路由
+    server->on("/api/theme/settings", HTTP_GET, [this]() { handleGetThemeSettings(); });
+    server->on("/api/theme/settings", HTTP_POST, [this]() { handleSetThemeSettings(); });
+    
     // 服务器设置路由
     server->on("/server-settings", [this]() { handleServerSettingsPage(); });
     server->on("/api/server/config", HTTP_GET, [this]() { handleGetServerConfig(); });
@@ -2195,6 +2199,130 @@ void WebServerManager::handleSetScreenSettings() {
     String response;
     serializeJson(doc, response);
     server->send(200, "application/json", response);
+}
+
+void WebServerManager::handleGetThemeSettings() {
+    printf("处理获取主题设置请求\n");
+    
+    DynamicJsonDocument doc(256);
+    
+    if (!configStorage) {
+        doc["success"] = false;
+        doc["message"] = "配置存储未初始化";
+        printf("配置存储未初始化\n");
+        String response;
+        serializeJson(doc, response);
+        server->send(400, "application/json", response);
+        return;
+    }
+    
+    // 获取当前主题设置
+    if (configStorage->hasThemeConfigAsync(3000)) {
+        int theme = configStorage->loadThemeConfigAsync(3000);
+        doc["success"] = true;
+        doc["theme"] = theme;
+        doc["message"] = "主题配置获取成功";
+        printf("主题配置获取成功: %d\n", theme);
+    } else {
+        doc["success"] = true;
+        doc["theme"] = 0; // 默认UI1主题
+        doc["message"] = "使用默认主题配置";
+        printf("使用默认主题配置\n");
+    }
+    
+    String response;
+    serializeJson(doc, response);
+    server->send(200, "application/json", response);
+}
+
+void WebServerManager::handleSetThemeSettings() {
+    printf("处理设置主题配置请求\n");
+    
+    DynamicJsonDocument doc(256);
+    
+    if (!configStorage) {
+        doc["success"] = false;
+        doc["message"] = "配置存储未初始化";
+        printf("配置存储未初始化\n");
+        String response;
+        serializeJson(doc, response);
+        server->send(400, "application/json", response);
+        return;
+    }
+    
+    // 检查必要参数
+    if (!server->hasArg("theme")) {
+        doc["success"] = false;
+        doc["message"] = "缺少theme参数";
+        printf("缺少theme参数\n");
+        String response;
+        serializeJson(doc, response);
+        server->send(400, "application/json", response);
+        return;
+    }
+    
+    int theme = server->arg("theme").toInt();
+    
+    printf("接收到主题切换请求：主题=%d\n", theme);
+    
+    // 参数验证
+    if (theme < 0 || theme > 2) {
+        doc["success"] = false;
+        doc["message"] = "无效的主题值";
+        printf("无效的主题值: %d\n", theme);
+        String response;
+        serializeJson(doc, response);
+        server->send(400, "application/json", response);
+        return;
+    }
+    
+    // 检查是否是当前主题
+    if (configStorage->hasThemeConfigAsync(3000)) {
+        int currentTheme = configStorage->loadThemeConfigAsync(3000);
+        if (currentTheme == theme) {
+            doc["success"] = true;
+            doc["message"] = "当前已是选定的主题";
+            doc["theme"] = theme;
+            doc["needRestart"] = false;
+            printf("当前已是选定的主题: %d\n", theme);
+            String response;
+            serializeJson(doc, response);
+            server->send(200, "application/json", response);
+            return;
+        }
+    }
+    
+    // 保存主题配置到NVS
+    printf("保存主题配置到NVS: %d\n", theme);
+    bool saveSuccess = configStorage->saveThemeConfigAsync(theme, 3000);
+    
+    if (saveSuccess) {
+        doc["success"] = true;
+        doc["message"] = "主题配置已保存，系统将在3秒后重启以应用新主题";
+        doc["theme"] = theme;
+        doc["needRestart"] = true;
+        doc["restartDelay"] = 3000; // 3秒延迟
+        printf("主题配置保存成功，准备重启系统\n");
+        
+        String response;
+        serializeJson(doc, response);
+        server->send(200, "application/json", response);
+        
+        // 延时3秒后重启设备以应用新主题
+        vTaskDelay(pdMS_TO_TICKS(3000));
+        printf("重启系统以应用新主题...\n");
+        ESP.restart();
+    } else {
+        doc["success"] = false;
+        doc["message"] = "主题配置保存失败";
+        doc["theme"] = theme;
+        doc["needRestart"] = false;
+        printf("主题配置保存失败\n");
+        
+        String response;
+        serializeJson(doc, response);
+        server->send(500, "application/json", response);
+    }
 }
 
 void WebServerManager::handleSystemSettings() {

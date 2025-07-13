@@ -141,6 +141,10 @@ private:
     void handleGetScreenSettings();
     void handleSetScreenSettings();
     
+    // 主题设置相关API
+    void handleGetThemeSettings();
+    void handleSetThemeSettings();
+    
     // 获取主页HTML
     String getIndexHTML();
     
@@ -161,6 +165,9 @@ private:
     
     // 获取CSS样式
     String getCSS();
+    
+    // 获取基础CSS样式
+    String getBaseCSS();
     
     // 获取JavaScript代码
     String getJavaScript();
