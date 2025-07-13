@@ -87,7 +87,7 @@ void ui2_port4SCREEN_screen_init(void)
     lv_obj_set_height(ui2_Container68, lv_pct(100));
     lv_obj_set_align(ui2_Container68, LV_ALIGN_CENTER);
     lv_obj_set_flex_flow(ui2_Container68, LV_FLEX_FLOW_ROW_WRAP);
-    lv_obj_set_flex_align(ui2_Container68, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_flex_align(ui2_Container68, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_clear_flag(ui2_Container68, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);      /// Flags
 
     ui2_Panel52 = lv_obj_create(ui2_Container68);
