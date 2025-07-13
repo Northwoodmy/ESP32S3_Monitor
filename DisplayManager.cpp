@@ -144,6 +144,9 @@ extern lv_obj_t * ui2_port1cablevid;
 extern lv_obj_t * ui2_port1maxvbusvoltage;
 extern lv_obj_t * ui2_port1maxvbuscurrent;
 extern lv_obj_t * ui2_port1powerlabel;
+extern lv_obj_t * ui2_port1active;
+extern lv_obj_t * ui2_port1voltage1;
+extern lv_obj_t * ui2_port1current1;
 
 // 端口2详细信息
 extern lv_obj_t * ui2_port2state;
@@ -153,6 +156,9 @@ extern lv_obj_t * ui2_port2cablevid;
 extern lv_obj_t * ui2_port2maxvbusvoltage;
 extern lv_obj_t * ui2_port2maxvbuscurrent;
 extern lv_obj_t * ui2_port2powerlabel;
+extern lv_obj_t * ui2_port2powerlabel1;
+extern lv_obj_t * ui2_port2voltage1;
+extern lv_obj_t * ui2_port2current1;
 
 // 端口3详细信息
 extern lv_obj_t * ui2_port3state;
@@ -162,6 +168,9 @@ extern lv_obj_t * ui2_port3cablevid;
 extern lv_obj_t * ui2_port3maxvbusvoltage;
 extern lv_obj_t * ui2_port3maxvbuscurrent;
 extern lv_obj_t * ui2_port3powerlabel;
+extern lv_obj_t * ui2_port3powerlabel1;
+extern lv_obj_t * ui2_port3voltage1;
+extern lv_obj_t * ui2_port3current1;
 
 // 端口4详细信息
 extern lv_obj_t * ui2_port4state;
@@ -171,6 +180,9 @@ extern lv_obj_t * ui2_port4cablevid;
 extern lv_obj_t * ui2_port4maxvbusvoltage;
 extern lv_obj_t * ui2_port4maxvbuscurrent;
 extern lv_obj_t * ui2_port4powerlabel;
+extern lv_obj_t * ui2_port4powerlabel1;
+extern lv_obj_t * ui2_port4voltage1;
+extern lv_obj_t * ui2_port4current1;
 
 /**
  * @brief 构造函数
@@ -1822,6 +1834,9 @@ void DisplayManager::updatePowerDataDisplay() {
                 snprintf(current_str, sizeof(current_str), "%.2fA", m_powerData.ports[3].current / 1000.0f);
                 lv_label_set_text(ui2_port4current, current_str);
             }
+            
+            // UI2系统端口详细页面的数据更新
+            updateUI2PortDetailPages();
         }
     }
     
@@ -2360,4 +2375,345 @@ void DisplayManager::performScreenOff() {
  */
 void DisplayManager::resetTimeoutTimer() {
     m_lastTouchTime = xTaskGetTickCount() * portTICK_PERIOD_MS;
+}
+
+/**
+ * @brief 更新UI2系统端口详细页面数据
+ */
+void DisplayManager::updateUI2PortDetailPages() {
+    if (m_currentTheme != THEME_UI2 || !m_powerData.valid) {
+        return;
+    }
+    
+    // 更新端口1详细页面
+    if (m_powerData.ports[0].valid) {
+        // 电压显示
+        if (ui2_port1voltage1) {
+            char voltage_str[16];
+            snprintf(voltage_str, sizeof(voltage_str), "%.3fV", m_powerData.ports[0].voltage / 1000.0f);
+            lv_label_set_text(ui2_port1voltage1, voltage_str);
+        }
+        
+        // 电流显示
+        if (ui2_port1current1) {
+            char current_str[16];
+            snprintf(current_str, sizeof(current_str), "%.3fA", m_powerData.ports[0].current / 1000.0f);
+            lv_label_set_text(ui2_port1current1, current_str);
+        }
+        
+        // 功率显示
+        if (ui2_port1powerlabel) {
+            char power_str[16];
+            snprintf(power_str, sizeof(power_str), "%.3fW", m_powerData.ports[0].power / 1000.0f);
+            lv_label_set_text(ui2_port1powerlabel, power_str);
+        }
+        
+        // 活动状态显示
+        if (ui2_port1active) {
+            lv_label_set_text(ui2_port1active, m_powerData.ports[0].state ? "已开启" : "未开启");
+        }
+        
+        // 连接状态显示
+        if (ui2_port1state) {
+            lv_label_set_text(ui2_port1state, m_powerData.ports[0].state ? "已连接" : "未连接");
+        }
+        
+        // 协议显示
+        if (ui2_port1protocol) {
+            lv_label_set_text(ui2_port1protocol, strlen(m_powerData.ports[0].protocol_name) > 0 ? m_powerData.ports[0].protocol_name : "未知");
+        }
+        
+        // 制造商VID
+        if (ui2_port1manufactuervid) {
+            if (m_powerData.ports[0].manufacturer_vid > 0) {
+                char vid_str[16];
+                snprintf(vid_str, sizeof(vid_str), "0x%04X", m_powerData.ports[0].manufacturer_vid);
+                lv_label_set_text(ui2_port1manufactuervid, vid_str);
+            } else {
+                lv_label_set_text(ui2_port1manufactuervid, "未知");
+            }
+        }
+        
+        // 线缆VID
+        if (ui2_port1cablevid) {
+            if (m_powerData.ports[0].cable_vid > 0) {
+                char vid_str[16];
+                snprintf(vid_str, sizeof(vid_str), "0x%04X", m_powerData.ports[0].cable_vid);
+                lv_label_set_text(ui2_port1cablevid, vid_str);
+            } else {
+                lv_label_set_text(ui2_port1cablevid, "未知");
+            }
+        }
+        
+        // 最大电压
+        if (ui2_port1maxvbusvoltage) {
+            if (m_powerData.ports[0].cable_max_vbus_voltage > 0) {
+                char voltage_str[16];
+                snprintf(voltage_str, sizeof(voltage_str), "%.1fV", m_powerData.ports[0].cable_max_vbus_voltage / 1000.0f);
+                lv_label_set_text(ui2_port1maxvbusvoltage, voltage_str);
+            } else {
+                lv_label_set_text(ui2_port1maxvbusvoltage, "未知");
+            }
+        }
+        
+        // 最大电流
+        if (ui2_port1maxvbuscurrent) {
+            if (m_powerData.ports[0].cable_max_vbus_current > 0) {
+                char current_str[16];
+                snprintf(current_str, sizeof(current_str), "%.2fA", m_powerData.ports[0].cable_max_vbus_current / 1000.0f);
+                lv_label_set_text(ui2_port1maxvbuscurrent, current_str);
+            } else {
+                lv_label_set_text(ui2_port1maxvbuscurrent, "未知");
+            }
+        }
+    }
+    
+    // 更新端口2详细页面
+    if (m_powerData.ports[1].valid) {
+        // 电压显示
+        if (ui2_port2voltage1) {
+            char voltage_str[16];
+            snprintf(voltage_str, sizeof(voltage_str), "%.3fV", m_powerData.ports[1].voltage / 1000.0f);
+            lv_label_set_text(ui2_port2voltage1, voltage_str);
+        }
+        
+        // 电流显示
+        if (ui2_port2current1) {
+            char current_str[16];
+            snprintf(current_str, sizeof(current_str), "%.3fA", m_powerData.ports[1].current / 1000.0f);
+            lv_label_set_text(ui2_port2current1, current_str);
+        }
+        
+        // 活动状态显示（powerlabel实际上是状态标签）
+        if (ui2_port2powerlabel) {
+            lv_label_set_text(ui2_port2powerlabel, m_powerData.ports[1].state ? "已开启" : "未开启");
+        }
+        
+        // 功率显示（powerlabel1才是真正的功率标签）
+        if (ui2_port2powerlabel1) {
+            char power_str[16];
+            snprintf(power_str, sizeof(power_str), "%.3fW", m_powerData.ports[1].power / 1000.0f);
+            lv_label_set_text(ui2_port2powerlabel1, power_str);
+        }
+        
+        // 状态显示
+        if (ui2_port2state) {
+            lv_label_set_text(ui2_port2state, m_powerData.ports[1].state ? "已连接" : "未连接");
+        }
+        
+        // 协议显示
+        if (ui2_port2protocol) {
+            lv_label_set_text(ui2_port2protocol, strlen(m_powerData.ports[1].protocol_name) > 0 ? m_powerData.ports[1].protocol_name : "未知");
+        }
+        
+        // 制造商VID
+        if (ui2_port2manufactuervid) {
+            if (m_powerData.ports[1].manufacturer_vid > 0) {
+                char vid_str[16];
+                snprintf(vid_str, sizeof(vid_str), "0x%04X", m_powerData.ports[1].manufacturer_vid);
+                lv_label_set_text(ui2_port2manufactuervid, vid_str);
+            } else {
+                lv_label_set_text(ui2_port2manufactuervid, "未知");
+            }
+        }
+        
+        // 线缆VID
+        if (ui2_port2cablevid) {
+            if (m_powerData.ports[1].cable_vid > 0) {
+                char vid_str[16];
+                snprintf(vid_str, sizeof(vid_str), "0x%04X", m_powerData.ports[1].cable_vid);
+                lv_label_set_text(ui2_port2cablevid, vid_str);
+            } else {
+                lv_label_set_text(ui2_port2cablevid, "未知");
+            }
+        }
+        
+        // 最大电压
+        if (ui2_port2maxvbusvoltage) {
+            if (m_powerData.ports[1].cable_max_vbus_voltage > 0) {
+                char voltage_str[16];
+                snprintf(voltage_str, sizeof(voltage_str), "%.1fV", m_powerData.ports[1].cable_max_vbus_voltage / 1000.0f);
+                lv_label_set_text(ui2_port2maxvbusvoltage, voltage_str);
+            } else {
+                lv_label_set_text(ui2_port2maxvbusvoltage, "未知");
+            }
+        }
+        
+        // 最大电流
+        if (ui2_port2maxvbuscurrent) {
+            if (m_powerData.ports[1].cable_max_vbus_current > 0) {
+                char current_str[16];
+                snprintf(current_str, sizeof(current_str), "%.2fA", m_powerData.ports[1].cable_max_vbus_current / 1000.0f);
+                lv_label_set_text(ui2_port2maxvbuscurrent, current_str);
+            } else {
+                lv_label_set_text(ui2_port2maxvbuscurrent, "未知");
+            }
+        }
+    }
+    
+    // 更新端口3详细页面
+    if (m_powerData.ports[2].valid) {
+        // 电压显示
+        if (ui2_port3voltage1) {
+            char voltage_str[16];
+            snprintf(voltage_str, sizeof(voltage_str), "%.3fV", m_powerData.ports[2].voltage / 1000.0f);
+            lv_label_set_text(ui2_port3voltage1, voltage_str);
+        }
+        
+        // 电流显示
+        if (ui2_port3current1) {
+            char current_str[16];
+            snprintf(current_str, sizeof(current_str), "%.3fA", m_powerData.ports[2].current / 1000.0f);
+            lv_label_set_text(ui2_port3current1, current_str);
+        }
+        
+        // 活动状态显示（powerlabel实际上是状态标签）
+        if (ui2_port3powerlabel) {
+            lv_label_set_text(ui2_port3powerlabel, m_powerData.ports[2].state ? "已开启" : "未开启");
+        }
+        
+        // 功率显示（powerlabel1才是真正的功率标签）
+        if (ui2_port3powerlabel1) {
+            char power_str[16];
+            snprintf(power_str, sizeof(power_str), "%.3fW", m_powerData.ports[2].power / 1000.0f);
+            lv_label_set_text(ui2_port3powerlabel1, power_str);
+        }
+        
+        // 状态显示
+        if (ui2_port3state) {
+            lv_label_set_text(ui2_port3state, m_powerData.ports[2].state ? "已连接" : "未连接");
+        }
+        
+        // 协议显示
+        if (ui2_port3protocol) {
+            lv_label_set_text(ui2_port3protocol, strlen(m_powerData.ports[2].protocol_name) > 0 ? m_powerData.ports[2].protocol_name : "未知");
+        }
+        
+        // 制造商VID
+        if (ui2_port3manufactuervid) {
+            if (m_powerData.ports[2].manufacturer_vid > 0) {
+                char vid_str[16];
+                snprintf(vid_str, sizeof(vid_str), "0x%04X", m_powerData.ports[2].manufacturer_vid);
+                lv_label_set_text(ui2_port3manufactuervid, vid_str);
+            } else {
+                lv_label_set_text(ui2_port3manufactuervid, "未知");
+            }
+        }
+        
+        // 线缆VID
+        if (ui2_port3cablevid) {
+            if (m_powerData.ports[2].cable_vid > 0) {
+                char vid_str[16];
+                snprintf(vid_str, sizeof(vid_str), "0x%04X", m_powerData.ports[2].cable_vid);
+                lv_label_set_text(ui2_port3cablevid, vid_str);
+            } else {
+                lv_label_set_text(ui2_port3cablevid, "未知");
+            }
+        }
+        
+        // 最大电压
+        if (ui2_port3maxvbusvoltage) {
+            if (m_powerData.ports[2].cable_max_vbus_voltage > 0) {
+                char voltage_str[16];
+                snprintf(voltage_str, sizeof(voltage_str), "%.1fV", m_powerData.ports[2].cable_max_vbus_voltage / 1000.0f);
+                lv_label_set_text(ui2_port3maxvbusvoltage, voltage_str);
+            } else {
+                lv_label_set_text(ui2_port3maxvbusvoltage, "未知");
+            }
+        }
+        
+        // 最大电流
+        if (ui2_port3maxvbuscurrent) {
+            if (m_powerData.ports[2].cable_max_vbus_current > 0) {
+                char current_str[16];
+                snprintf(current_str, sizeof(current_str), "%.2fA", m_powerData.ports[2].cable_max_vbus_current / 1000.0f);
+                lv_label_set_text(ui2_port3maxvbuscurrent, current_str);
+            } else {
+                lv_label_set_text(ui2_port3maxvbuscurrent, "未知");
+            }
+        }
+    }
+    
+    // 更新端口4详细页面
+    if (m_powerData.ports[3].valid) {
+        // 电压显示
+        if (ui2_port4voltage1) {
+            char voltage_str[16];
+            snprintf(voltage_str, sizeof(voltage_str), "%.3fV", m_powerData.ports[3].voltage / 1000.0f);
+            lv_label_set_text(ui2_port4voltage1, voltage_str);
+        }
+        
+        // 电流显示
+        if (ui2_port4current1) {
+            char current_str[16];
+            snprintf(current_str, sizeof(current_str), "%.3fA", m_powerData.ports[3].current / 1000.0f);
+            lv_label_set_text(ui2_port4current1, current_str);
+        }
+        
+        // 活动状态显示（powerlabel实际上是状态标签）
+        if (ui2_port4powerlabel) {
+            lv_label_set_text(ui2_port4powerlabel, m_powerData.ports[3].state ? "已开启" : "未开启");
+        }
+        
+        // 功率显示（powerlabel1才是真正的功率标签）
+        if (ui2_port4powerlabel1) {
+            char power_str[16];
+            snprintf(power_str, sizeof(power_str), "%.3fW", m_powerData.ports[3].power / 1000.0f);
+            lv_label_set_text(ui2_port4powerlabel1, power_str);
+        }
+        
+        // 状态显示
+        if (ui2_port4state) {
+            lv_label_set_text(ui2_port4state, m_powerData.ports[3].state ? "已连接" : "未连接");
+        }
+        
+        // 协议显示
+        if (ui2_port4protocol) {
+            lv_label_set_text(ui2_port4protocol, strlen(m_powerData.ports[3].protocol_name) > 0 ? m_powerData.ports[3].protocol_name : "未知");
+        }
+        
+        // 制造商VID
+        if (ui2_port4manufactuervid) {
+            if (m_powerData.ports[3].manufacturer_vid > 0) {
+                char vid_str[16];
+                snprintf(vid_str, sizeof(vid_str), "0x%04X", m_powerData.ports[3].manufacturer_vid);
+                lv_label_set_text(ui2_port4manufactuervid, vid_str);
+            } else {
+                lv_label_set_text(ui2_port4manufactuervid, "未知");
+            }
+        }
+        
+        // 线缆VID
+        if (ui2_port4cablevid) {
+            if (m_powerData.ports[3].cable_vid > 0) {
+                char vid_str[16];
+                snprintf(vid_str, sizeof(vid_str), "0x%04X", m_powerData.ports[3].cable_vid);
+                lv_label_set_text(ui2_port4cablevid, vid_str);
+            } else {
+                lv_label_set_text(ui2_port4cablevid, "未知");
+            }
+        }
+        
+        // 最大电压
+        if (ui2_port4maxvbusvoltage) {
+            if (m_powerData.ports[3].cable_max_vbus_voltage > 0) {
+                char voltage_str[16];
+                snprintf(voltage_str, sizeof(voltage_str), "%.1fV", m_powerData.ports[3].cable_max_vbus_voltage / 1000.0f);
+                lv_label_set_text(ui2_port4maxvbusvoltage, voltage_str);
+            } else {
+                lv_label_set_text(ui2_port4maxvbusvoltage, "未知");
+            }
+        }
+        
+        // 最大电流
+        if (ui2_port4maxvbuscurrent) {
+            if (m_powerData.ports[3].cable_max_vbus_current > 0) {
+                char current_str[16];
+                snprintf(current_str, sizeof(current_str), "%.2fA", m_powerData.ports[3].cable_max_vbus_current / 1000.0f);
+                lv_label_set_text(ui2_port4maxvbuscurrent, current_str);
+            } else {
+                lv_label_set_text(ui2_port4maxvbuscurrent, "未知");
+            }
+        }
+    }
 }

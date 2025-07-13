@@ -322,6 +322,11 @@ public:
      */
     void updateWeatherDisplay();
     
+    /**
+     * @brief 更新UI2系统端口详细页面数据
+     */
+    void updateUI2PortDetailPages();
+    
     // === 屏幕模式管理功能 ===
     
     /**
