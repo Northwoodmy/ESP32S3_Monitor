@@ -8,6 +8,7 @@
 lv_obj_t * ui2_standbySCREEN = NULL;
 lv_obj_t * ui2_Container2 = NULL;
 lv_obj_t * ui2_Container3 = NULL;
+lv_obj_t * ui2_Container85 = NULL;
 lv_obj_t * ui2_timeLabel = NULL;
 lv_obj_t * ui2_Container4 = NULL;
 lv_obj_t * ui2_dataLabel = NULL;
@@ -26,7 +27,7 @@ void ui2_event_standbySCREEN(lv_event_t * e)
 
     if(event_code == LV_EVENT_GESTURE &&  lv_indev_get_gesture_dir(lv_indev_get_act()) == LV_DIR_TOP) {
         lv_indev_wait_release(lv_indev_get_act());
-        _ui2_screen_change(&ui2_totalpowerSCREEN, LV_SCR_LOAD_ANIM_OVER_TOP, 500, 0, &ui2_totalpowerSCREEN_screen_init);
+        _ui2_screen_change(&ui2_totalpowerSCREEN, LV_SCR_LOAD_ANIM_MOVE_TOP, 500, 0, &ui2_totalpowerSCREEN_screen_init);
     }
 }
 
@@ -42,21 +43,30 @@ void ui2_standbySCREEN_screen_init(void)
     lv_obj_set_width(ui2_Container2, lv_pct(100));
     lv_obj_set_height(ui2_Container2, lv_pct(100));
     lv_obj_set_align(ui2_Container2, LV_ALIGN_CENTER);
-    lv_obj_set_flex_flow(ui2_Container2, LV_FLEX_FLOW_COLUMN_WRAP);
-    lv_obj_set_flex_align(ui2_Container2, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START);
+    lv_obj_set_flex_flow(ui2_Container2, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(ui2_Container2, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_clear_flag(ui2_Container2, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);      /// Flags
     lv_obj_set_style_bg_img_src(ui2_Container2, &ui2_img_1985331572, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui2_Container3 = lv_obj_create(ui2_Container2);
     lv_obj_remove_style_all(ui2_Container3);
-    lv_obj_set_width(ui2_Container3, 257);
-    lv_obj_set_height(ui2_Container3, 29);
+    lv_obj_set_width(ui2_Container3, lv_pct(100));
+    lv_obj_set_height(ui2_Container3, lv_pct(6));
     lv_obj_set_x(ui2_Container3, -90);
     lv_obj_set_y(ui2_Container3, -106);
     lv_obj_set_align(ui2_Container3, LV_ALIGN_CENTER);
     lv_obj_clear_flag(ui2_Container3, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);      /// Flags
 
-    ui2_timeLabel = lv_label_create(ui2_Container2);
+    ui2_Container85 = lv_obj_create(ui2_Container2);
+    lv_obj_remove_style_all(ui2_Container85);
+    lv_obj_set_width(ui2_Container85, lv_pct(100));
+    lv_obj_set_height(ui2_Container85, 67);
+    lv_obj_set_align(ui2_Container85, LV_ALIGN_CENTER);
+    lv_obj_set_flex_flow(ui2_Container85, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(ui2_Container85, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_clear_flag(ui2_Container85, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);      /// Flags
+
+    ui2_timeLabel = lv_label_create(ui2_Container85);
     lv_obj_set_width(ui2_timeLabel, LV_SIZE_CONTENT);   /// 1
     lv_obj_set_height(ui2_timeLabel, LV_SIZE_CONTENT);    /// 1
     lv_obj_set_x(ui2_timeLabel, -2);

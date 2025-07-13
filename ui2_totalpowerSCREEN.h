@@ -17,6 +17,8 @@ extern void ui2_totalpowerSCREEN_screen_relocalize(void);
 extern void ui2_event_totalpowerSCREEN(lv_event_t * e);
 extern lv_obj_t * ui2_totalpowerSCREEN;
 extern lv_obj_t * ui2_Container1;
+extern lv_obj_t * ui2_Container86;
+extern lv_obj_t * ui2_totalpowerlabel;
 extern lv_obj_t * ui2_Panel6;
 extern void ui2_event_Panel1(lv_event_t * e);
 extern lv_obj_t * ui2_Panel1;
@@ -74,7 +76,6 @@ extern lv_obj_t * ui2_Panel21;
 extern lv_obj_t * ui2_Label30;
 extern lv_obj_t * ui2_port4current;
 extern lv_obj_t * ui2_Container17;
-extern lv_obj_t * ui2_totalpowerlabel;
 // CUSTOM VARIABLES
 
 #ifdef __cplusplus

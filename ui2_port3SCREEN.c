@@ -93,6 +93,8 @@ void ui2_port3SCREEN_screen_init(void)
     lv_obj_set_flex_flow(ui2_Container51, LV_FLEX_FLOW_ROW_WRAP);
     lv_obj_set_flex_align(ui2_Container51, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_clear_flag(ui2_Container51, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);      /// Flags
+    lv_obj_set_style_bg_color(ui2_Container51, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui2_Container51, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui2_Panel42 = lv_obj_create(ui2_Container51);
     lv_obj_set_width(ui2_Panel42, 368);

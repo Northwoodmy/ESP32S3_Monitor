@@ -18,6 +18,7 @@ extern void ui2_event_standbySCREEN(lv_event_t * e);
 extern lv_obj_t * ui2_standbySCREEN;
 extern lv_obj_t * ui2_Container2;
 extern lv_obj_t * ui2_Container3;
+extern lv_obj_t * ui2_Container85;
 extern lv_obj_t * ui2_timeLabel;
 extern lv_obj_t * ui2_Container4;
 extern lv_obj_t * ui2_dataLabel;
