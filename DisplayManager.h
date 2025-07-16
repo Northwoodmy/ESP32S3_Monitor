@@ -363,6 +363,33 @@ public:
      */
     bool shouldScreenBeOn() const;
     
+    // === 功率控制屏幕功能 ===
+    
+    /**
+     * @brief 设置功率控制阈值
+     * 
+     * 注意：功率控制仅在延时模式(SCREEN_MODE_TIMEOUT)下生效，不影响其他屏幕模式
+     * 
+     * @param enablePowerControl 是否启用功率控制
+     * @param powerOffThreshold 功率关闭阈值（mW，小于此值延时关闭屏幕）
+     * @param powerOnThreshold 功率开启阈值（mW，大于此值立即开启屏幕）
+     */
+    void setPowerControlThresholds(bool enablePowerControl, int powerOffThreshold = 1000, int powerOnThreshold = 2000);
+    
+    /**
+     * @brief 获取功率控制启用状态
+     * 
+     * @return true 功率控制已启用，false 功率控制未启用
+     */
+    bool isPowerControlEnabled() const;
+    
+    /**
+     * @brief 获取当前功率状态
+     * 
+     * @return 当前总功率（mW）
+     */
+    int getCurrentPower() const;
+    
     /**
      * @brief 强制开启屏幕
      */
@@ -550,6 +577,10 @@ private:
     
     /**
      * @brief 检查延时模式是否应该关闭屏幕
+     * 
+     * 延时模式下需要同时满足两个条件才会熄屏：
+     * 1. 延时时间到达
+     * 2. 总功率小于1W
      */
     bool isTimeoutExpired() const;
     
@@ -567,6 +598,30 @@ private:
      * @brief 重置延时计时器
      */
     void resetTimeoutTimer();
+    
+    /**
+     * @brief 处理基于功率的延时逻辑
+     * 
+     * 在延时模式下，当功率小于1W时开始计算延时；
+     * 当功率超过1W时重置延时计时器。
+     */
+    void processPowerBasedTimeoutLogic();
+    
+    // === 功率控制屏幕私有方法 ===
+    
+    /**
+     * @brief 检查功率状态并管理屏幕
+     * 
+     * 仅在延时模式(SCREEN_MODE_TIMEOUT)下生效
+     */
+    void processPowerControlLogic();
+    
+    /**
+     * @brief 检查是否应该基于功率开启屏幕
+     * 
+     * @return true 应该开启，false 应该关闭或保持当前状态
+     */
+    bool shouldScreenBeOnBasedOnPower() const;
 
 private:
     // 成员变量
@@ -625,6 +680,13 @@ private:
     bool m_screenOn;                    ///< 屏幕开启状态
     uint32_t m_lastTouchTime;           ///< 最后触摸时间
     uint32_t m_lastScreenModeCheck;     ///< 最后屏幕模式检查时间
+    
+    // === 功率控制屏幕成员变量 ===
+    bool m_powerControlEnabled;         ///< 是否启用功率控制
+    int m_powerOffThreshold;            ///< 功率关闭阈值（mW）
+    int m_powerOnThreshold;             ///< 功率开启阈值（mW）
+    uint32_t m_lowPowerStartTime;       ///< 低功率开始时间
+    bool m_isInLowPowerMode;            ///< 是否处于低功率模式
     
     // 任务配置
     static const uint32_t TASK_STACK_SIZE = 8 * 1024;    ///< 任务栈大小

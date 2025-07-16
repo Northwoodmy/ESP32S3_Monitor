@@ -221,6 +221,11 @@ DisplayManager::DisplayManager()
     , m_screenOn(true)
     , m_lastTouchTime(0)
     , m_lastScreenModeCheck(0)
+    , m_powerControlEnabled(false)
+    , m_powerOffThreshold(1000)
+    , m_powerOnThreshold(2000)
+    , m_lowPowerStartTime(0)
+    , m_isInLowPowerMode(false)
 {
     // 初始化页面对象数组
     for (int i = 0; i < PAGE_COUNT; i++) {
@@ -1198,6 +1203,11 @@ void DisplayManager::updatePowerData(const PowerMonitorData& power_data) {
     // 更新所有端口的详细信息显示
     for (int i = 0; i < 4; i++) {
         updatePortDetailDisplay(i);
+    }
+    
+    // 如果启用了功率控制且当前为延时模式，立即检查屏幕状态
+    if (m_powerControlEnabled && m_powerData.valid && m_screenMode == SCREEN_MODE_TIMEOUT) {
+        processPowerControlLogic();
     }
     
     // 同时发送消息到队列进行后续处理
@@ -2271,13 +2281,21 @@ void DisplayManager::processScreenModeLogic() {
     
     m_lastScreenModeCheck = currentTime;
     
-    // 根据屏幕模式决定屏幕状态
-    bool shouldBeOn = shouldScreenBeOn();
-    
-    if (shouldBeOn && !m_screenOn) {
-        performScreenOn();
-    } else if (!shouldBeOn && m_screenOn) {
-        performScreenOff();
+    // 如果启用了功率控制且当前为延时模式，优先处理功率控制逻辑
+    if (m_powerControlEnabled && m_screenMode == SCREEN_MODE_TIMEOUT) {
+        processPowerControlLogic();
+    } else if (m_screenMode == SCREEN_MODE_TIMEOUT) {
+        // 延时模式下处理基于功率的延时逻辑
+        processPowerBasedTimeoutLogic();
+    } else {
+        // 根据屏幕模式决定屏幕状态
+        bool shouldBeOn = shouldScreenBeOn();
+        
+        if (shouldBeOn && !m_screenOn) {
+            performScreenOn();
+        } else if (!shouldBeOn && m_screenOn) {
+            performScreenOff();
+        }
     }
 }
 
@@ -2312,10 +2330,36 @@ bool DisplayManager::isInScheduledTime() const {
  * @brief 检查延时模式是否应该关闭屏幕
  */
 bool DisplayManager::isTimeoutExpired() const {
+    // 如果没有有效的功率数据，使用传统的触摸延时逻辑
+    if (!m_powerData.valid) {
+        uint32_t currentTime = xTaskGetTickCount() * portTICK_PERIOD_MS;
+        uint32_t timeoutMs = m_screenTimeoutMinutes * 60 * 1000;
+        return (currentTime - m_lastTouchTime) > timeoutMs;
+    }
+    
     uint32_t currentTime = xTaskGetTickCount() * portTICK_PERIOD_MS;
     uint32_t timeoutMs = m_screenTimeoutMinutes * 60 * 1000; // 转换为毫秒
+    int currentPower = m_powerData.total_power;
     
-    return (currentTime - m_lastTouchTime) > timeoutMs;
+    // 新的延时逻辑：只有当功率小于1W时才开始计算延时
+    if (currentPower < 1000) { // 1W = 1000mW
+        // 功率小于1W，检查是否已经开始计算延时
+        if (m_isInLowPowerMode && m_lowPowerStartTime > 0) {
+            // 已经在低功率模式，检查延时时间是否到达
+            bool timeExpired = (currentTime - m_lowPowerStartTime) > timeoutMs;
+            if (timeExpired) {
+                printf("[DisplayManager] 延时模式：低功率%.1fW持续%.1f分钟，延时时间已到\n", 
+                       currentPower / 1000.0f, (currentTime - m_lowPowerStartTime) / 60000.0f);
+            }
+            return timeExpired;
+        } else {
+            // 还没有开始计算延时，不应该熄屏
+            return false;
+        }
+    } else {
+        // 功率大于等于1W，不应该熄屏
+        return false;
+    }
 }
 
 /**
@@ -2375,6 +2419,47 @@ void DisplayManager::performScreenOff() {
  */
 void DisplayManager::resetTimeoutTimer() {
     m_lastTouchTime = xTaskGetTickCount() * portTICK_PERIOD_MS;
+}
+
+// === 功率控制屏幕功能实现 ===
+
+/**
+ * @brief 设置功率控制阈值
+ */
+void DisplayManager::setPowerControlThresholds(bool enablePowerControl, int powerOffThreshold, int powerOnThreshold) {
+    m_powerControlEnabled = enablePowerControl;
+    m_powerOffThreshold = powerOffThreshold;
+    m_powerOnThreshold = powerOnThreshold;
+    
+    // 重置低功率状态
+    m_isInLowPowerMode = false;
+    m_lowPowerStartTime = 0;
+    
+    printf("[DisplayManager] 功率控制已%s：关闭阈值=%.1fW，开启阈值=%.1fW\n", 
+           enablePowerControl ? "启用" : "禁用",
+           powerOffThreshold / 1000.0f, 
+           powerOnThreshold / 1000.0f);
+    
+    if (enablePowerControl) {
+        printf("[DisplayManager] 注意：功率控制仅在延时模式(SCREEN_MODE_TIMEOUT)下生效\n");
+    }
+}
+
+/**
+ * @brief 获取功率控制启用状态
+ */
+bool DisplayManager::isPowerControlEnabled() const {
+    return m_powerControlEnabled;
+}
+
+/**
+ * @brief 获取当前功率状态
+ */
+int DisplayManager::getCurrentPower() const {
+    if (m_powerData.valid) {
+        return m_powerData.total_power;
+    }
+    return 0;
 }
 
 /**
@@ -2715,5 +2800,174 @@ void DisplayManager::updateUI2PortDetailPages() {
                 lv_label_set_text(ui2_port4maxvbuscurrent, "未知");
             }
         }
+    }
+}
+
+/**
+ * @brief 检查功率状态并管理屏幕
+ */
+void DisplayManager::processPowerControlLogic() {
+    if (!m_powerData.valid) {
+        return;
+    }
+    
+    // 功率控制只在延时模式下生效
+    if (m_screenMode != SCREEN_MODE_TIMEOUT) {
+        return;
+    }
+    
+    uint32_t currentTime = xTaskGetTickCount() * portTICK_PERIOD_MS;
+    int currentPower = m_powerData.total_power;
+    
+    // 检查是否应该立即开启屏幕（功率大于开启阈值）
+    if (currentPower > m_powerOnThreshold) {
+        if (!m_screenOn) {
+            printf("[DisplayManager] 功率控制：检测到高功率 %.1fW > %.1fW，立即开启屏幕\n", 
+                   currentPower / 1000.0f, m_powerOnThreshold / 1000.0f);
+            performScreenOn();
+        }
+        
+        // 重置低功率状态
+        m_isInLowPowerMode = false;
+        m_lowPowerStartTime = 0;
+        
+        // 同时重置触摸延时计时器，保持屏幕活跃
+        m_lastTouchTime = currentTime;
+        return;
+    }
+    
+    // 检查是否应该延时关闭屏幕（功率小于关闭阈值）
+    if (currentPower < m_powerOffThreshold) {
+        if (!m_isInLowPowerMode) {
+            // 刚进入低功率模式，开始计时
+            m_isInLowPowerMode = true;
+            m_lowPowerStartTime = currentTime;
+            printf("[DisplayManager] 功率控制：检测到低功率 %.1fW < %.1fW，开始延时关闭计时\n", 
+                   currentPower / 1000.0f, m_powerOffThreshold / 1000.0f);
+        } else {
+            // 已经在低功率模式，检查是否到达延时时间
+            uint32_t lowPowerDuration = currentTime - m_lowPowerStartTime;
+            uint32_t timeoutMs = m_screenTimeoutMinutes * 60 * 1000;
+            
+            if (lowPowerDuration >= timeoutMs && m_screenOn) {
+                printf("[DisplayManager] 功率控制：低功率持续 %.1f分钟，延时关闭屏幕\n", 
+                       lowPowerDuration / 60000.0f);
+                performScreenOff();
+            }
+        }
+    } else {
+        // 功率在阈值之间，保持当前状态但重置低功率计时器
+        if (m_isInLowPowerMode) {
+            m_isInLowPowerMode = false;
+            m_lowPowerStartTime = 0;
+            printf("[DisplayManager] 功率控制：功率恢复到 %.1fW，取消延时关闭\n", 
+                   currentPower / 1000.0f);
+        }
+    }
+    
+    // 如果不在低功率模式，继续检查正常的屏幕模式逻辑
+    if (!m_isInLowPowerMode) {
+        bool shouldBeOn = shouldScreenBeOn();
+        
+        if (shouldBeOn && !m_screenOn) {
+            performScreenOn();
+        } else if (!shouldBeOn && m_screenOn) {
+            performScreenOff();
+        }
+    }
+}
+
+/**
+ * @brief 检查是否应该基于功率开启屏幕
+ */
+bool DisplayManager::shouldScreenBeOnBasedOnPower() const {
+    if (!m_powerData.valid) {
+        return true; // 没有功率数据时默认开启
+    }
+    
+    // 功率控制只在延时模式下生效
+    if (m_screenMode != SCREEN_MODE_TIMEOUT) {
+        return shouldScreenBeOn(); // 非延时模式时使用正常逻辑
+    }
+    
+    int currentPower = m_powerData.total_power;
+    
+    // 高功率时立即开启
+    if (currentPower > m_powerOnThreshold) {
+        return true;
+    }
+    
+    // 低功率时检查是否在延时时间内
+    if (currentPower < m_powerOffThreshold && m_isInLowPowerMode) {
+        uint32_t currentTime = xTaskGetTickCount() * portTICK_PERIOD_MS;
+        uint32_t lowPowerDuration = currentTime - m_lowPowerStartTime;
+        uint32_t timeoutMs = m_screenTimeoutMinutes * 60 * 1000;
+        
+        // 在延时时间内保持开启
+        return lowPowerDuration < timeoutMs;
+    }
+    
+    // 其他情况根据正常模式决定
+    return shouldScreenBeOn();
+}
+
+/**
+ * @brief 处理基于功率的延时逻辑
+ */
+void DisplayManager::processPowerBasedTimeoutLogic() {
+    if (!m_powerData.valid) {
+        // 没有功率数据时，使用传统的触摸延时逻辑
+        bool shouldBeOn = shouldScreenBeOn();
+        
+        if (shouldBeOn && !m_screenOn) {
+            performScreenOn();
+        } else if (!shouldBeOn && m_screenOn) {
+            performScreenOff();
+        }
+        return;
+    }
+    
+    uint32_t currentTime = xTaskGetTickCount() * portTICK_PERIOD_MS;
+    int currentPower = m_powerData.total_power;
+    
+    // 检查功率状态并管理延时计算
+    if (currentPower < 1000) { // 1W = 1000mW
+        // 功率小于1W，检查是否需要开始延时计算
+        if (!m_isInLowPowerMode) {
+            // 开始低功率延时计算
+            m_isInLowPowerMode = true;
+            m_lowPowerStartTime = currentTime;
+            printf("[DisplayManager] 延时模式：检测到低功率 %.1fW < 1.0W，开始延时计算\n", 
+                   currentPower / 1000.0f);
+        }
+        
+        // 检查延时时间是否到达
+        uint32_t timeoutMs = m_screenTimeoutMinutes * 60 * 1000;
+        uint32_t lowPowerDuration = currentTime - m_lowPowerStartTime;
+        
+        if (lowPowerDuration >= timeoutMs && m_screenOn) {
+            printf("[DisplayManager] 延时模式：低功率 %.1fW 持续 %.1f分钟，关闭屏幕\n", 
+                   currentPower / 1000.0f, lowPowerDuration / 60000.0f);
+            performScreenOff();
+        } else if (!m_screenOn && lowPowerDuration < timeoutMs) {
+            // 如果屏幕关闭但延时时间未到，重新开启（可能是由于其他原因关闭的）
+            performScreenOn();
+        }
+    } else {
+        // 功率大于等于1W，重置延时计算
+        if (m_isInLowPowerMode) {
+            m_isInLowPowerMode = false;
+            m_lowPowerStartTime = 0;
+            printf("[DisplayManager] 延时模式：功率恢复到 %.1fW >= 1.0W，重置延时计算\n", 
+                   currentPower / 1000.0f);
+        }
+        
+        // 功率充足时确保屏幕开启
+        if (!m_screenOn) {
+            performScreenOn();
+        }
+        
+        // 重置触摸延时计时器，保持屏幕活跃
+        m_lastTouchTime = currentTime;
     }
 }
