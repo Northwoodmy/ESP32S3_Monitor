@@ -54,6 +54,12 @@ void _ui2_screen_change(lv_obj_t ** target, lv_scr_load_anim_t fademode, int spd
     if(*target == NULL)
         target_init();
     lv_scr_load_anim(*target, fademode, spd, delay, false);
+    
+    // 通知DisplayManager更新当前页面状态
+    extern void updateDisplayManagerCurrentPage(void* screen);
+    if (updateDisplayManagerCurrentPage) {
+        updateDisplayManagerCurrentPage(*target);
+    }
 }
 
 void _ui2_screen_delete(lv_obj_t ** target)

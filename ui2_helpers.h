@@ -3,8 +3,8 @@
 // LVGL version: 8.3.11
 // Project name: SquareLine_Project
 
-#ifndef _SQUARELINE_PROJECT_UI_HELPERS_H
-#define _SQUARELINE_PROJECT_UI_HELPERS_H
+#ifndef _SQUARELINE_PROJECT_UI2_HELPERS_H
+#define _SQUARELINE_PROJECT_UI2_HELPERS_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -145,4 +145,4 @@ void _ui2_switch_theme(int val)
 } /*extern "C"*/
 #endif
 
-#endif
+#endif // _SQUARELINE_PROJECT_UI2_HELPERS_H

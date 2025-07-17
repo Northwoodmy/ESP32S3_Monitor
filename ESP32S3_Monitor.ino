@@ -66,6 +66,9 @@ TimeManager timeManager;
 AudioManager audioManager;
 WeatherManager weatherManager;
 
+// 全局DisplayManager指针，供UI系统回调使用
+DisplayManager* globalDisplayManager = &displayManager;
+
 // 传感器数据已集成到LVGL驱动中，无需独立任务
 
 // 功率数据回调函数
@@ -167,6 +170,9 @@ void setup() {
   // 启动显示管理器任务
   printf("启动显示管理器任务...\n");
   displayManager.start();
+  
+  // 设置全局DisplayManager指针，供UI系统回调使用
+  globalDisplayManager = &displayManager;
   
   // 设置触摸活动回调，将触摸事件传递给DisplayManager
   printf("设置触摸活动回调...\n");

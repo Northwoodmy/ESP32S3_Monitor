@@ -83,7 +83,8 @@ struct DisplayMessage {
         MSG_SCREEN_MODE_CHANGED,    ///< 屏幕模式改变
         MSG_TOUCH_ACTIVITY,         ///< 触摸活动
         MSG_SCREEN_ON,              ///< 屏幕开启
-        MSG_SCREEN_OFF              ///< 屏幕关闭
+        MSG_SCREEN_OFF,             ///< 屏幕关闭
+        MSG_AUTO_SWITCH_PORT        ///< 自动切换到端口屏幕
     } type;
     
     union {
@@ -135,6 +136,11 @@ struct DisplayMessage {
             int endMinute;
             int timeoutMinutes;
         } screen_mode;
+        
+        struct {
+            int port_index;         ///< 端口索引（0-3）
+            uint32_t duration_ms;   ///< 显示时长（毫秒）
+        } auto_switch_port;
     } data;
 };
 
@@ -391,6 +397,20 @@ public:
     int getCurrentPower() const;
     
     /**
+     * @brief 启用或禁用自动切换端口功能
+     * 
+     * @param enabled true启用，false禁用
+     */
+    void setAutoSwitchEnabled(bool enabled);
+    
+    /**
+     * @brief 获取自动切换端口功能状态
+     * 
+     * @return true已启用，false已禁用
+     */
+    bool isAutoSwitchEnabled() const;
+    
+    /**
      * @brief 强制开启屏幕
      */
     void forceScreenOn();
@@ -413,6 +433,31 @@ public:
      * @return true 屏幕开启，false 屏幕关闭
      */
     bool isScreenOn() const;
+    
+    /**
+     * @brief 根据当前主题切换到对应的端口屏幕
+     */
+    void switchToPortScreen(int port_index);
+    
+    /**
+     * @brief 设置全局实例指针（供UI系统回调使用）
+     */
+    static void setInstance(DisplayManager* instance);
+    
+    /**
+     * @brief 获取全局实例指针
+     */
+    static DisplayManager* getInstance();
+    
+    /**
+     * @brief 更新当前页面状态（供UI系统回调使用）
+     */
+    void updateCurrentPage(DisplayPage page);
+    
+    /**
+     * @brief 根据屏幕对象更新当前页面状态
+     */
+    void updateCurrentPageByScreen(lv_obj_t* screen);
 
 private:
     /**
@@ -622,13 +667,41 @@ private:
      * @return true 应该开启，false 应该关闭或保持当前状态
      */
     bool shouldScreenBeOnBasedOnPower() const;
-
+    
+    // === 自动切换端口私有方法 ===
+    
+    /**
+     * @brief 检查端口功率变化并触发自动切换
+     */
+    void checkPortPowerChange();
+    
+    /**
+     * @brief 执行自动切换到端口屏幕
+     * 
+     * @param port_index 端口索引（0-3）
+     * @param duration_ms 显示时长（毫秒）
+     */
+    void performAutoSwitchToPort(int port_index, uint32_t duration_ms);
+    
+    /**
+     * @brief 检查自动切换是否应该结束
+     */
+    void checkAutoSwitchTimeout();
+    
+    /**
+     * @brief 恢复到切换前的页面
+     */
+    void restorePreviousPage();
+    
 private:
     // 成员变量
     bool m_initialized;                 ///< 初始化状态
     bool m_running;                     ///< 运行状态
     TaskHandle_t m_taskHandle;          ///< 任务句柄
     QueueHandle_t m_messageQueue;       ///< 消息队列
+    
+    // 静态全局实例指针，用于UI系统回调
+    static DisplayManager* s_instance;
     
     // 外部依赖
     LVGLDriver* m_lvglDriver;           ///< LVGL驱动指针
@@ -687,6 +760,17 @@ private:
     int m_powerOnThreshold;             ///< 功率开启阈值（mW）
     uint32_t m_lowPowerStartTime;       ///< 低功率开始时间
     bool m_isInLowPowerMode;            ///< 是否处于低功率模式
+    
+    // === 自动切换端口成员变量 ===
+    bool m_autoSwitchEnabled;           ///< 是否启用自动切换端口功能
+    int m_previousPortPower[4];         ///< 上一次端口功率值（mW）
+    bool m_previousPortState[4];        ///< 上一次端口状态
+    DisplayPage m_previousPage;         ///< 切换前的页面
+    uint32_t m_autoSwitchStartTime;     ///< 自动切换开始时间
+    uint32_t m_autoSwitchDuration;      ///< 自动切换持续时间
+    bool m_isInAutoSwitchMode;          ///< 是否处于自动切换模式
+    int m_currentAutoSwitchPort;        ///< 当前自动切换的端口索引
+    uint32_t m_lastAutoSwitchTime[4];   ///< 每个端口最后一次自动切换的时间
     
     // 任务配置
     static const uint32_t TASK_STACK_SIZE = 8 * 1024;    ///< 任务栈大小
