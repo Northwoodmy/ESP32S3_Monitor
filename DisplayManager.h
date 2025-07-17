@@ -411,6 +411,30 @@ public:
     bool isAutoSwitchEnabled() const;
     
     /**
+     * @brief 设置基于总功率的自动页面切换功能
+     * 
+     * @param enabled 是否启用
+     * @param lowPowerThreshold 低功率阈值（mW），小于此值显示待机页面
+     * @param highPowerThreshold 高功率阈值（mW），大于此值显示总功率页面
+     * @param checkInterval 功率检查间隔（毫秒）
+     */
+    void setPowerBasedAutoSwitch(bool enabled, int lowPowerThreshold = 1000, int highPowerThreshold = 2000, uint32_t checkInterval = 2000);
+    
+    /**
+     * @brief 获取基于总功率的自动页面切换功能状态
+     * 
+     * @return true 已启用，false 未启用
+     */
+    bool isPowerBasedAutoSwitchEnabled() const;
+    
+    /**
+     * @brief 手动切换页面（会标记为手动切换）
+     * 
+     * @param page 目标页面
+     */
+    void manualSwitchPage(DisplayPage page);
+    
+    /**
      * @brief 强制开启屏幕
      */
     void forceScreenOn();
@@ -595,6 +619,35 @@ private:
      */
     void restorePreviousPage();
     
+    // === 基于总功率的自动页面切换私有方法 ===
+    
+    /**
+     * @brief 检查总功率变化并执行自动页面切换
+     */
+    void checkPowerBasedPageSwitch();
+    
+    /**
+     * @brief 根据总功率决定应该显示的页面
+     * 
+     * @return 应该显示的页面
+     */
+    DisplayPage getTargetPageByPower() const;
+    
+    /**
+     * @brief 检查是否为端口页面
+     * 
+     * @param page 页面类型
+     * @return true 是端口页面，false 不是端口页面
+     */
+    bool isPortPage(DisplayPage page) const;
+    
+    /**
+     * @brief 检查是否应该执行自动切换
+     * 
+     * @return true 应该执行自动切换，false 不应该执行
+     */
+    bool shouldExecuteAutoSwitch() const;
+    
 private:
     // 成员变量
     bool m_initialized;                 ///< 初始化状态
@@ -673,6 +726,16 @@ private:
     bool m_isInAutoSwitchMode;          ///< 是否处于自动切换模式
     int m_currentAutoSwitchPort;        ///< 当前自动切换的端口索引
     uint32_t m_lastAutoSwitchTime[4];   ///< 每个端口最后一次自动切换的时间
+    
+    // === 基于总功率的自动页面切换成员变量 ===
+    bool m_powerBasedAutoSwitchEnabled; ///< 是否启用基于总功率的自动页面切换
+    int m_lowPowerThreshold;            ///< 低功率阈值（mW），小于此值显示待机页面
+    int m_highPowerThreshold;           ///< 高功率阈值（mW），大于此值显示总功率页面
+    bool m_isManualSwitch;              ///< 是否为手动切换
+    DisplayPage m_lastManualPage;       ///< 最后一次手动切换的页面
+    uint32_t m_lastPowerCheckTime;      ///< 最后一次功率检查时间
+    uint32_t m_powerCheckInterval;      ///< 功率检查间隔（毫秒）
+    int m_lastTotalPower;               ///< 上一次总功率值（mW）
     
     // 任务配置
     static const uint32_t TASK_STACK_SIZE = 8 * 1024;    ///< 任务栈大小

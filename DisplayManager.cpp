@@ -239,6 +239,14 @@ DisplayManager::DisplayManager()
     , m_autoSwitchDuration(10000)
     , m_isInAutoSwitchMode(false)
     , m_currentAutoSwitchPort(-1)
+    , m_powerBasedAutoSwitchEnabled(true)
+    , m_lowPowerThreshold(1000)
+    , m_highPowerThreshold(2000)
+    , m_isManualSwitch(false)
+    , m_lastManualPage(PAGE_HOME)
+    , m_lastPowerCheckTime(0)
+    , m_powerCheckInterval(2000)
+    , m_lastTotalPower(0)
 {
     // 设置全局实例指针
     s_instance = this;
@@ -546,6 +554,9 @@ void DisplayManager::displayTask() {
             // 检查自动切换超时
             checkAutoSwitchTimeout();
             
+            // 检查基于总功率的页面切换
+            checkPowerBasedPageSwitch();
+            
             lastUpdateTime = currentTime;
         }
         
@@ -601,18 +612,116 @@ void DisplayManager::processMessage(const DisplayMessage& msg) {
             if (msg.data.page_switch.page < PAGE_COUNT) {
                 DisplayPage newPage = msg.data.page_switch.page;
                 
-                // 隐藏当前页面
-                if (m_pages[m_currentPage] != nullptr) {
-                    lv_obj_add_flag(m_pages[m_currentPage], LV_OBJ_FLAG_HIDDEN);
+                // 根据当前主题和页面类型执行实际的屏幕切换
+                bool switchSuccess = false;
+                
+                if (m_currentTheme == THEME_UI1) {
+                    // UI1系统的页面切换
+                    switch (newPage) {
+                        case PAGE_HOME:
+                            if (ui_standbySCREEN) {
+                                _ui_screen_change(&ui_standbySCREEN, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 500, 0, &ui_standbySCREEN_screen_init);
+                                m_currentPage = newPage;
+                                switchSuccess = true;
+                            }
+                            break;
+                        case PAGE_POWER_TOTAL:
+                            if (ui_totalpowerSCREEN) {
+                                _ui_screen_change(&ui_totalpowerSCREEN, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 500, 0, &ui_totalpowerSCREEN_screen_init);
+                                m_currentPage = newPage;
+                                switchSuccess = true;
+                            }
+                            break;
+                        case PAGE_POWER_PORT1:
+                            if (ui_prot1SCREEN) {
+                                _ui_screen_change(&ui_prot1SCREEN, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 500, 0, &ui_prot1SCREEN_screen_init);
+                                m_currentPage = newPage;
+                                switchSuccess = true;
+                            }
+                            break;
+                        case PAGE_POWER_PORT2:
+                            if (ui_prot2SCREEN) {
+                                _ui_screen_change(&ui_prot2SCREEN, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 500, 0, &ui_prot2SCREEN_screen_init);
+                                m_currentPage = newPage;
+                                switchSuccess = true;
+                            }
+                            break;
+                        case PAGE_POWER_PORT3:
+                            if (ui_prot3SCREEN) {
+                                _ui_screen_change(&ui_prot3SCREEN, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 500, 0, &ui_prot3SCREEN_screen_init);
+                                m_currentPage = newPage;
+                                switchSuccess = true;
+                            }
+                            break;
+                        case PAGE_POWER_PORT4:
+                            if (ui_prot4SCREEN) {
+                                _ui_screen_change(&ui_prot4SCREEN, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 500, 0, &ui_prot4SCREEN_screen_init);
+                                m_currentPage = newPage;
+                                switchSuccess = true;
+                            }
+                            break;
+                    }
+                } else if (m_currentTheme == THEME_UI2) {
+                    // UI2系统的页面切换
+                    switch (newPage) {
+                        case PAGE_HOME:
+                            if (ui2_standbySCREEN) {
+                                _ui2_screen_change(&ui2_standbySCREEN, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 500, 0, &ui2_standbySCREEN_screen_init);
+                                m_currentPage = newPage;
+                                switchSuccess = true;
+                            }
+                            break;
+                        case PAGE_POWER_TOTAL:
+                            if (ui2_totalpowerSCREEN) {
+                                _ui2_screen_change(&ui2_totalpowerSCREEN, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 500, 0, &ui2_totalpowerSCREEN_screen_init);
+                                m_currentPage = newPage;
+                                switchSuccess = true;
+                            }
+                            break;
+                        case PAGE_POWER_PORT1:
+                            if (ui2_port1SCREEN) {
+                                _ui2_screen_change(&ui2_port1SCREEN, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 500, 0, &ui2_port1SCREEN_screen_init);
+                                m_currentPage = newPage;
+                                switchSuccess = true;
+                            }
+                            break;
+                        case PAGE_POWER_PORT2:
+                            if (ui2_port2SCREEN) {
+                                _ui2_screen_change(&ui2_port2SCREEN, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 500, 0, &ui2_port2SCREEN_screen_init);
+                                m_currentPage = newPage;
+                                switchSuccess = true;
+                            }
+                            break;
+                        case PAGE_POWER_PORT3:
+                            if (ui2_port3SCREEN) {
+                                _ui2_screen_change(&ui2_port3SCREEN, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 500, 0, &ui2_port3SCREEN_screen_init);
+                                m_currentPage = newPage;
+                                switchSuccess = true;
+                            }
+                            break;
+                        case PAGE_POWER_PORT4:
+                            if (ui2_port4SCREEN) {
+                                _ui2_screen_change(&ui2_port4SCREEN, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 500, 0, &ui2_port4SCREEN_screen_init);
+                                m_currentPage = newPage;
+                                switchSuccess = true;
+                            }
+                            break;
+                    }
                 }
                 
-                // 显示新页面
-                if (m_pages[newPage] != nullptr) {
-                    lv_obj_clear_flag(m_pages[newPage], LV_OBJ_FLAG_HIDDEN);
-                    m_currentPage = newPage;
-                    printf("[DisplayManager] 切换到页面：%d\n", m_currentPage);
+                if (switchSuccess) {
+                    // 如果是手动切换到端口页面，保持手动切换标志
+                    if (m_isManualSwitch && isPortPage(newPage)) {
+                        printf("[DisplayManager] 手动切换到端口页面：%d\n", m_currentPage);
+                    } else if (m_isManualSwitch && !isPortPage(newPage)) {
+                        // 手动切换到非端口页面，重置手动切换标志
+                        m_isManualSwitch = false;
+                        printf("[DisplayManager] 手动切换到非端口页面：%d，重置手动切换标志\n", m_currentPage);
+                    } else {
+                        printf("[DisplayManager] 切换到页面：%d\n", m_currentPage);
+                    }
                 } else {
-                    printf("[DisplayManager] 警告：页面%d未创建\n", newPage);
+                    printf("[DisplayManager] 警告：页面%d切换失败\n", newPage);
                 }
             }
             break;
@@ -710,6 +819,11 @@ void DisplayManager::processMessage(const DisplayMessage& msg) {
 
 // 公共接口实现
 void DisplayManager::switchPage(DisplayPage page) {
+    // 如果不是手动切换，则标记为自动切换
+    if (!m_isManualSwitch) {
+        printf("[DisplayManager] 自动切换到页面：%d\n", page);
+    }
+    
     DisplayMessage msg;
     msg.type = DisplayMessage::MSG_SWITCH_PAGE;
     msg.data.page_switch.page = page;
@@ -954,6 +1068,12 @@ void DisplayManager::updatePowerData(const PowerMonitorData& power_data) {
         checkPortPowerChange();
     }
     
+    // 检查基于总功率的页面切换
+    if (m_powerBasedAutoSwitchEnabled && m_powerData.valid) {
+        // 更新总功率值
+        m_lastTotalPower = m_powerData.total_power;
+    }
+    
     // 如果启用了功率控制且当前为延时模式，立即检查屏幕状态
     if (m_powerControlEnabled && m_powerData.valid && m_screenMode == SCREEN_MODE_TIMEOUT) {
         processPowerControlLogic();
@@ -997,7 +1117,7 @@ void DisplayManager::updateWeatherData(const char* temperature, const char* weat
 void DisplayManager::switchToPowerPage(int port_index) {
     if (port_index >= 0 && port_index <= 4) {
         DisplayPage target_page = (DisplayPage)(PAGE_POWER_TOTAL + port_index);
-        switchPage(target_page);
+        manualSwitchPage(target_page);
     }
 }
 
@@ -2444,104 +2564,10 @@ void DisplayManager::restorePreviousPage() {
     m_isInAutoSwitchMode = false;
     m_currentAutoSwitchPort = -1;
     
-    // 根据当前主题恢复到之前的页面
-    if (m_currentTheme == THEME_UI1) {
-        // UI1系统的页面恢复
-        switch (m_previousPage) {
-            case PAGE_HOME:
-                if (ui_standbySCREEN) {
-                    _ui_screen_change(&ui_standbySCREEN, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 500, 0, &ui_standbySCREEN_screen_init);
-                    m_currentPage = PAGE_HOME;
-                }
-                break;
-            case PAGE_POWER_TOTAL:
-                if (ui_totalpowerSCREEN) {
-                    _ui_screen_change(&ui_totalpowerSCREEN, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 500, 0, &ui_totalpowerSCREEN_screen_init);
-                    m_currentPage = PAGE_POWER_TOTAL;
-                }
-                break;
-            case PAGE_POWER_PORT1:
-                if (ui_prot1SCREEN) {
-                    _ui_screen_change(&ui_prot1SCREEN, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 500, 0, &ui_prot1SCREEN_screen_init);
-                    m_currentPage = PAGE_POWER_PORT1;
-                }
-                break;
-            case PAGE_POWER_PORT2:
-                if (ui_prot2SCREEN) {
-                    _ui_screen_change(&ui_prot2SCREEN, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 500, 0, &ui_prot2SCREEN_screen_init);
-                    m_currentPage = PAGE_POWER_PORT2;
-                }
-                break;
-            case PAGE_POWER_PORT3:
-                if (ui_prot3SCREEN) {
-                    _ui_screen_change(&ui_prot3SCREEN, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 500, 0, &ui_prot3SCREEN_screen_init);
-                    m_currentPage = PAGE_POWER_PORT3;
-                }
-                break;
-            case PAGE_POWER_PORT4:
-                if (ui_prot4SCREEN) {
-                    _ui_screen_change(&ui_prot4SCREEN, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 500, 0, &ui_prot4SCREEN_screen_init);
-                    m_currentPage = PAGE_POWER_PORT4;
-                }
-                break;
-            default:
-                // 默认恢复到待机屏幕
-                if (ui_standbySCREEN) {
-                    _ui_screen_change(&ui_standbySCREEN, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 500, 0, &ui_standbySCREEN_screen_init);
-                    m_currentPage = PAGE_HOME;
-                }
-                break;
-        }
-    } else if (m_currentTheme == THEME_UI2) {
-        // UI2系统的页面恢复
-        switch (m_previousPage) {
-            case PAGE_HOME:
-                if (ui2_standbySCREEN) {
-                    _ui2_screen_change(&ui2_standbySCREEN, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 500, 0, &ui2_standbySCREEN_screen_init);
-                    m_currentPage = PAGE_HOME;
-                }
-                break;
-            case PAGE_POWER_TOTAL:
-                if (ui2_totalpowerSCREEN) {
-                    _ui2_screen_change(&ui2_totalpowerSCREEN, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 500, 0, &ui2_totalpowerSCREEN_screen_init);
-                    m_currentPage = PAGE_POWER_TOTAL;
-                }
-                break;
-            case PAGE_POWER_PORT1:
-                if (ui2_port1SCREEN) {
-                    _ui2_screen_change(&ui2_port1SCREEN, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 500, 0, &ui2_port1SCREEN_screen_init);
-                    m_currentPage = PAGE_POWER_PORT1;
-                }
-                break;
-            case PAGE_POWER_PORT2:
-                if (ui2_port2SCREEN) {
-                    _ui2_screen_change(&ui2_port2SCREEN, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 500, 0, &ui2_port2SCREEN_screen_init);
-                    m_currentPage = PAGE_POWER_PORT2;
-                }
-                break;
-            case PAGE_POWER_PORT3:
-                if (ui2_port3SCREEN) {
-                    _ui2_screen_change(&ui2_port3SCREEN, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 500, 0, &ui2_port3SCREEN_screen_init);
-                    m_currentPage = PAGE_POWER_PORT3;
-                }
-                break;
-            case PAGE_POWER_PORT4:
-                if (ui2_port4SCREEN) {
-                    _ui2_screen_change(&ui2_port4SCREEN, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 500, 0, &ui2_port4SCREEN_screen_init);
-                    m_currentPage = PAGE_POWER_PORT4;
-                }
-                break;
-            default:
-                // 默认恢复到待机屏幕
-                if (ui2_standbySCREEN) {
-                    _ui2_screen_change(&ui2_standbySCREEN, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 500, 0, &ui2_standbySCREEN_screen_init);
-                    m_currentPage = PAGE_HOME;
-                }
-                break;
-        }
-    }
+    // 使用switchPage方法恢复到之前的页面
+    switchPage(m_previousPage);
     
-    printf("[DisplayManager] 已恢复到页面%d\n", m_currentPage);
+    printf("[DisplayManager] 已请求恢复到页面%d\n", m_previousPage);
 }
 
 /**
@@ -2552,65 +2578,11 @@ void DisplayManager::switchToPortScreen(int port_index) {
         return;
     }
     
-    if (m_currentTheme == THEME_UI1) {
-        // UI1系统的端口屏幕切换
-        switch (port_index) {
-            case 0:
-                if (ui_prot1SCREEN) {
-                    _ui_screen_change(&ui_prot1SCREEN, LV_SCR_LOAD_ANIM_MOVE_LEFT, 500, 0, &ui_prot1SCREEN_screen_init);
-                    m_currentPage = PAGE_POWER_PORT1;
-                }
-                break;
-            case 1:
-                if (ui_prot2SCREEN) {
-                    _ui_screen_change(&ui_prot2SCREEN, LV_SCR_LOAD_ANIM_MOVE_LEFT, 500, 0, &ui_prot2SCREEN_screen_init);
-                    m_currentPage = PAGE_POWER_PORT2;
-                }
-                break;
-            case 2:
-                if (ui_prot3SCREEN) {
-                    _ui_screen_change(&ui_prot3SCREEN, LV_SCR_LOAD_ANIM_MOVE_LEFT, 500, 0, &ui_prot3SCREEN_screen_init);
-                    m_currentPage = PAGE_POWER_PORT3;
-                }
-                break;
-            case 3:
-                if (ui_prot4SCREEN) {
-                    _ui_screen_change(&ui_prot4SCREEN, LV_SCR_LOAD_ANIM_MOVE_LEFT, 500, 0, &ui_prot4SCREEN_screen_init);
-                    m_currentPage = PAGE_POWER_PORT4;
-                }
-                break;
-        }
-    } else if (m_currentTheme == THEME_UI2) {
-        // UI2系统的端口屏幕切换
-        switch (port_index) {
-            case 0:
-                if (ui2_port1SCREEN) {
-                    _ui2_screen_change(&ui2_port1SCREEN, LV_SCR_LOAD_ANIM_MOVE_LEFT, 500, 0, &ui2_port1SCREEN_screen_init);
-                    m_currentPage = PAGE_POWER_PORT1;
-                }
-                break;
-            case 1:
-                if (ui2_port2SCREEN) {
-                    _ui2_screen_change(&ui2_port2SCREEN, LV_SCR_LOAD_ANIM_MOVE_LEFT, 500, 0, &ui2_port2SCREEN_screen_init);
-                    m_currentPage = PAGE_POWER_PORT2;
-                }
-                break;
-            case 2:
-                if (ui2_port3SCREEN) {
-                    _ui2_screen_change(&ui2_port3SCREEN, LV_SCR_LOAD_ANIM_MOVE_LEFT, 500, 0, &ui2_port3SCREEN_screen_init);
-                    m_currentPage = PAGE_POWER_PORT3;
-                }
-                break;
-            case 3:
-                if (ui2_port4SCREEN) {
-                    _ui2_screen_change(&ui2_port4SCREEN, LV_SCR_LOAD_ANIM_MOVE_LEFT, 500, 0, &ui2_port4SCREEN_screen_init);
-                    m_currentPage = PAGE_POWER_PORT4;
-                }
-                break;
-        }
-    }
+    // 使用手动切换方法，这会通过消息队列处理实际的屏幕切换
+    DisplayPage targetPage = (DisplayPage)(PAGE_POWER_PORT1 + port_index);
+    manualSwitchPage(targetPage);
     
-    printf("[DisplayManager] 已切换到端口%d屏幕\n", port_index + 1);
+    printf("[DisplayManager] 请求切换到端口%d屏幕\n", port_index + 1);
 }
 
 /**
@@ -2681,4 +2653,154 @@ extern "C" void updateDisplayManagerCurrentPage(void* screen) {
     if (instance) {
         instance->updateCurrentPageByScreen((lv_obj_t*)screen);
     }
+}
+
+// === 基于总功率的自动页面切换功能实现 ===
+
+/**
+ * @brief 设置基于总功率的自动页面切换功能
+ */
+void DisplayManager::setPowerBasedAutoSwitch(bool enabled, int lowPowerThreshold, int highPowerThreshold, uint32_t checkInterval) {
+    m_powerBasedAutoSwitchEnabled = enabled;
+    m_lowPowerThreshold = lowPowerThreshold;
+    m_highPowerThreshold = highPowerThreshold;
+    m_powerCheckInterval = checkInterval;
+    
+    printf("[DisplayManager] 基于总功率的自动页面切换已%s：低功率阈值=%.1fW，高功率阈值=%.1fW，检查间隔=%d毫秒\n", 
+           enabled ? "启用" : "禁用",
+           lowPowerThreshold / 1000.0f, 
+           highPowerThreshold / 1000.0f,
+           checkInterval);
+}
+
+/**
+ * @brief 获取基于总功率的自动页面切换功能状态
+ */
+bool DisplayManager::isPowerBasedAutoSwitchEnabled() const {
+    return m_powerBasedAutoSwitchEnabled;
+}
+
+/**
+ * @brief 手动切换页面（会标记为手动切换）
+ */
+void DisplayManager::manualSwitchPage(DisplayPage page) {
+    printf("[DisplayManager] 手动切换到页面：%d\n", page);
+    
+    // 标记为手动切换
+    m_isManualSwitch = true;
+    m_lastManualPage = page;
+    
+    // 执行页面切换
+    switchPage(page);
+}
+
+/**
+ * @brief 检查总功率变化并执行自动页面切换
+ */
+void DisplayManager::checkPowerBasedPageSwitch() {
+    if (!m_powerBasedAutoSwitchEnabled || !m_powerData.valid) {
+        return;
+    }
+    
+    uint32_t currentTime = xTaskGetTickCount() * portTICK_PERIOD_MS;
+    
+    // 检查是否到了检查时间
+    if (currentTime - m_lastPowerCheckTime < m_powerCheckInterval) {
+        return;
+    }
+    
+    m_lastPowerCheckTime = currentTime;
+    
+    // 如果当前是手动切换且是端口页面，不执行自动切换
+    if (m_isManualSwitch && isPortPage(m_currentPage)) {
+        printf("[DisplayManager] 当前为手动切换的端口页面，跳过自动切换\n");
+        return;
+    }
+    
+    // 如果当前是手动切换且不是端口页面，重置手动切换标志
+    if (m_isManualSwitch && !isPortPage(m_currentPage)) {
+        printf("[DisplayManager] 手动切换到非端口页面，重置手动切换标志\n");
+        m_isManualSwitch = false;
+    }
+    
+    // 如果当前是端口页面（无论是手动还是自动切换的），不执行基于功率的自动切换
+    if (isPortPage(m_currentPage)) {
+        printf("[DisplayManager] 当前为端口页面，跳过基于功率的自动切换\n");
+        return;
+    }
+    
+    // 检查是否应该执行自动切换
+    if (!shouldExecuteAutoSwitch()) {
+        return;
+    }
+    
+    // 根据总功率决定目标页面
+    DisplayPage targetPage = getTargetPageByPower();
+    
+    // 如果目标页面与当前页面不同，执行切换
+    if (targetPage != m_currentPage) {
+        printf("[DisplayManager] 基于总功率%.1fW自动切换页面：%d -> %d\n", 
+               m_powerData.total_power / 1000.0f, m_currentPage, targetPage);
+        
+        switchPage(targetPage);
+    }
+}
+
+/**
+ * @brief 根据总功率决定应该显示的页面
+ */
+DisplayPage DisplayManager::getTargetPageByPower() const {
+    if (!m_powerData.valid) {
+        return PAGE_HOME; // 没有功率数据时显示待机页面
+    }
+    
+    int totalPower = m_powerData.total_power;
+    
+    if (totalPower < m_lowPowerThreshold) {
+        // 总功率小于低功率阈值，显示待机页面
+        return PAGE_HOME;
+    } else if (totalPower > m_highPowerThreshold) {
+        // 总功率大于高功率阈值，显示总功率页面
+        return PAGE_POWER_TOTAL;
+    } else {
+        // 功率在阈值之间，保持当前页面
+        return m_currentPage;
+    }
+}
+
+/**
+ * @brief 检查是否为端口页面
+ */
+bool DisplayManager::isPortPage(DisplayPage page) const {
+    return (page == PAGE_POWER_PORT1 || 
+            page == PAGE_POWER_PORT2 || 
+            page == PAGE_POWER_PORT3 || 
+            page == PAGE_POWER_PORT4);
+}
+
+/**
+ * @brief 检查是否应该执行自动切换
+ */
+bool DisplayManager::shouldExecuteAutoSwitch() const {
+    // 如果当前在自动切换端口模式中，不执行基于功率的自动切换
+    if (m_isInAutoSwitchMode) {
+        return false;
+    }
+    
+    // 如果当前是手动切换的端口页面，不执行自动切换
+    if (m_isManualSwitch && isPortPage(m_currentPage)) {
+        return false;
+    }
+    
+    // 如果当前是端口页面（无论是手动还是自动切换的），不执行基于功率的自动切换
+    if (isPortPage(m_currentPage)) {
+        return false;
+    }
+    
+    // 如果功率数据无效，不执行自动切换
+    if (!m_powerData.valid) {
+        return false;
+    }
+    
+    return true;
 }
