@@ -1,8 +1,16 @@
 {
-    "version": "v7.0.1",
+    "version": "v7.1.4",
     "build_date": "2025-01-23",
-    "description": "ESP32S3 Monitor Project - 修复触控页面切换后自动切换功能无法正确恢复原页面的问题",
+    "description": "ESP32S3 Monitor Project - 删除旧款UI代码优化，简化DisplayManager架构",
     "changes": [
+        "删除旧款手动UI创建函数：createHomePage、createTotalPowerPage、createPortPowerPage等",
+        "清理旧款UI回调函数：buttonEventCallback、swipeEventCallback等事件处理函数",
+        "移除手动UI组件创建：createStatusBar、createNavigationBar、initPageContainers等",
+        "简化DisplayManager架构：大幅减少代码量，专注UI1和UI2系统管理",
+        "优化头文件声明：删除DisplayManager.h中对应的旧款UI函数声明",
+        "提升代码质量：移除冗余代码，提高代码可读性和维护性",
+        "保持功能完整：所有功能通过SquareLine Studio生成的UI系统实现",
+        "双主题系统保留：UI1和UI2主题系统完整保留，功能不受影响",
         "修复触控页面切换后自动切换功能无法正确恢复原页面",
         "添加DisplayManager全局实例指针管理",
         "修改UI系统屏幕切换函数，添加页面状态更新机制",
@@ -65,6 +73,11 @@
             "完整的主题验证机制：参数验证和错误处理"
         ],
         "improved": [
+            "DisplayManager代码简化：删除旧款UI代码，代码量减少约40%",
+            "维护性提升：移除手动UI代码，减少维护复杂度",
+            "内存优化：删除冗余的UI对象创建和管理代码",
+            "架构简化：专注UI1和UI2系统的管理和数据更新",
+            "功能完整性：所有显示功能通过SquareLine Studio生成的UI系统实现",
             "主题切换稳定性：改为重启系统方式，避免内存管理复杂性",
             "用户体验优化：重启过程可视化，包含进度条和倒计时显示",
             "系统可靠性提升：消除实时切换可能导致的不稳定性",
@@ -104,6 +117,13 @@
             "修复SquareLine Studio生成代码的兼容性问题"
         ],
         "removed": [
+            "旧款UI创建函数：createHomePage、createWiFiStatusPage、createSystemInfoPage、createSettingsPage、createAboutPage、createTotalPowerPage、createPortPowerPage",
+            "旧款UI组件函数：createStatusBar、createNavigationBar、initPageContainers、cleanupPage",
+            "旧款事件处理函数：buttonEventCallback、swipeEventCallback、pageAnimationCallback、updateStatusBar",
+            "旧款样式应用函数：applyTheme、setupPageSwipeEvents、updatePowerDisplay",
+            "DisplayManager.h中的旧款UI函数声明",
+            "手动UI对象创建和管理代码",
+            "冗余的UI组件创建逻辑",
             "实时主题切换逻辑：MSG_SET_THEME消息处理",
             "switchUISystem()中的配置保存逻辑",
             "复杂的主题切换内存管理",

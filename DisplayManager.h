@@ -479,95 +479,7 @@ private:
      */
     void processMessage(const DisplayMessage& msg);
     
-    /**
-     * @brief 创建主页面UI
-     */
-    void createHomePage();
-    
-    /**
-     * @brief 创建WiFi状态页面UI
-     */
-    void createWiFiStatusPage();
-    
-    /**
-     * @brief 创建系统信息页面UI
-     */
-    void createSystemInfoPage();
-    
-    /**
-     * @brief 创建设置页面UI
-     */
-    void createSettingsPage();
-    
-    /**
-     * @brief 创建关于页面UI
-     */
-    void createAboutPage();
-    
-    /**
-     * @brief 创建总功率页面UI
-     */
-    void createTotalPowerPage();
-    
-    /**
-     * @brief 创建端口功率页面UI
-     * 
-     * @param port_index 端口索引（1-4）
-     */
-    void createPortPowerPage(int port_index);
-    
-    /**
-     * @brief 更新功率显示
-     */
-    void updatePowerDisplay();
-    
-    /**
-     * @brief 设置页面滑动事件
-     * 
-     * @param page 页面对象
-     */
-    void setupPageSwipeEvents(lv_obj_t* page);
-    
-    /**
-     * @brief 滑动事件回调
-     * 
-     * @param event 事件对象
-     */
-    static void swipeEventCallback(lv_event_t* event);
-    
-    /**
-     * @brief 创建导航栏
-     */
-    void createNavigationBar();
-    
-    /**
-     * @brief 创建状态栏
-     */
-    void createStatusBar();
-    
-    /**
-     * @brief 更新状态栏信息
-     */
-    void updateStatusBar();
-    
-    /**
-     * @brief 按钮事件回调函数
-     * 
-     * @param event 事件对象
-     */
-    static void buttonEventCallback(lv_event_t* event);
-    
-    /**
-     * @brief 页面切换动画回调
-     * 
-     * @param animation 动画对象
-     */
-    static void pageAnimationCallback(lv_anim_t* animation);
-    
-    /**
-     * @brief 应用主题样式
-     */
-    void applyTheme();
+    // 旧款手动UI创建和回调函数已删除 - 现在使用SquareLine Studio生成的UI1和UI2系统
     
     /**
      * @brief 切换UI系统
@@ -596,17 +508,7 @@ private:
      */
     void destroyUI2System();
     
-    /**
-     * @brief 初始化页面容器
-     */
-    void initPageContainers();
-    
-    /**
-     * @brief 清理页面资源
-     * 
-     * @param page 要清理的页面
-     */
-    void cleanupPage(DisplayPage page);
+    // 旧款手动UI管理函数已删除 - 现在使用SquareLine Studio生成的UI1和UI2系统
     
     // === 屏幕模式管理私有方法 ===
     
