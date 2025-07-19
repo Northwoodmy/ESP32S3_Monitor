@@ -209,16 +209,6 @@ DisplayManager::DisplayManager()
     , m_brightness(80)
     , m_uiSystemActive(false)
     , m_screen(nullptr)
-    , m_pageContainer(nullptr)
-    , m_navigationBar(nullptr)
-    , m_statusBar(nullptr)
-    , m_notificationBar(nullptr)
-    , m_wifiIcon(nullptr)
-    , m_timeLabel(nullptr)
-    , m_batteryIcon(nullptr)
-    , m_notificationLabel(nullptr)
-    , m_notificationTimer(nullptr)
-    , m_currentPortPage(0)
     , m_screenMode(SCREEN_MODE_ALWAYS_ON)
     , m_screenStartHour(8)
     , m_screenStartMinute(0)
@@ -250,24 +240,6 @@ DisplayManager::DisplayManager()
 {
     // 设置全局实例指针
     s_instance = this;
-    
-    // 初始化页面对象数组
-    for (int i = 0; i < PAGE_COUNT; i++) {
-        m_pages[i] = nullptr;
-    }
-    
-    // 初始化功率标签数组
-    for (int i = 0; i < 5; i++) {
-        for (int j = 0; j < 10; j++) {
-            m_powerLabels[i][j] = nullptr;
-        }
-    }
-    
-    // 初始化状态指示器数组
-    for (int i = 0; i < 4; i++) {
-        m_statusIndicators[i] = nullptr;
-        m_portStatusDots[i] = nullptr;
-    }
     
     // 初始化功率数据
     memset(&m_powerData, 0, sizeof(m_powerData));
@@ -752,15 +724,9 @@ void DisplayManager::processMessage(const DisplayMessage& msg) {
             break;
             
         case DisplayMessage::MSG_SHOW_NOTIFICATION:
-            // 显示通知
-            if (m_notificationLabel) {
-                lv_label_set_text(m_notificationLabel, msg.data.notification.text);
-                lv_obj_clear_flag(m_notificationBar, LV_OBJ_FLAG_HIDDEN);
-                printf("[DisplayManager] 显示通知：%s\n", msg.data.notification.text);
-                
-                // 设置通知自动隐藏定时器（简化实现）
-                // 实际项目中可以使用LVGL动画或定时器
-            }
+            // 显示通知（暂时简化为控制台输出，后续可在UI1/UI2系统中重新实现）
+            printf("[DisplayManager] 通知：%s\n", msg.data.notification.text);
+            // TODO: 在UI1和UI2系统中实现通知显示功能
             break;
             
         case DisplayMessage::MSG_SCREEN_MODE_CHANGED:
@@ -811,11 +777,7 @@ void DisplayManager::processMessage(const DisplayMessage& msg) {
     m_lvglDriver->unlock();
 }
 
-// 旧款手动UI创建函数已删除 - 现在使用SquareLine Studio生成的UI1和UI2系统
-
-// 旧款手动UI创建函数已删除 - 现在使用SquareLine Studio生成的UI1和UI2系统
-
-// 旧款手动UI创建和回调函数已删除 - 现在使用SquareLine Studio生成的UI1和UI2系统
+// === 旧款手动UI创建函数已全部删除，现使用SquareLine Studio生成的UI1和UI2系统 ===
 
 // 公共接口实现
 void DisplayManager::switchPage(DisplayPage page) {
@@ -1125,11 +1087,7 @@ const PowerMonitorData& DisplayManager::getCurrentPowerData() const {
     return m_powerData;
 }
 
-// 旧款手动UI创建函数已删除 - 现在使用SquareLine Studio生成的UI1和UI2系统
-
-// 旧款手动UI创建函数已删除 - 现在使用SquareLine Studio生成的UI1和UI2系统
-
-// 旧款手动UI更新和事件处理函数已删除 - 现在使用SquareLine Studio生成的UI1和UI2系统
+// === 旧款手动UI更新和事件处理函数已全部删除，现使用SquareLine Studio生成的UI1和UI2系统 ===
 
 /**
  * @brief 更新时间显示

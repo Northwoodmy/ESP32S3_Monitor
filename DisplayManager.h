@@ -673,29 +673,9 @@ private:
     
     // LVGL对象
     lv_obj_t* m_screen;                 ///< 主屏幕对象
-    lv_obj_t* m_pageContainer;          ///< 页面容器
-    lv_obj_t* m_navigationBar;          ///< 导航栏
-    lv_obj_t* m_statusBar;              ///< 状态栏
-    lv_obj_t* m_notificationBar;        ///< 通知栏
-    
-    // 页面对象数组
-    lv_obj_t* m_pages[PAGE_COUNT];      ///< 页面对象数组
-    
-    // 状态栏组件
-    lv_obj_t* m_wifiIcon;               ///< WiFi图标
-    lv_obj_t* m_timeLabel;              ///< 时间标签
-    lv_obj_t* m_batteryIcon;            ///< 电池图标（预留）
-    
-    // 通知相关
-    lv_obj_t* m_notificationLabel;      ///< 通知标签
-    TaskHandle_t m_notificationTimer;   ///< 通知定时器
     
     // 功率监控相关
     PowerMonitorData m_powerData;       ///< 功率监控数据
-    lv_obj_t* m_powerLabels[5][10];     ///< 功率显示标签[页面][标签]
-    lv_obj_t* m_statusIndicators[4];    ///< 端口状态指示器数组（总功率页面）
-    lv_obj_t* m_portStatusDots[4];      ///< 端口页面状态指示器数组
-    int m_currentPortPage;              ///< 当前端口页面索引
     
     // === 屏幕模式管理成员变量 ===
     ScreenMode m_screenMode;            ///< 当前屏幕模式
