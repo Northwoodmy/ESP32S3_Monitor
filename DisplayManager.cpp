@@ -26,7 +26,12 @@
 #include <WiFi.h>
 #include <cstring>
 #include <cstdio>
+#include <cmath>
 #include <time.h>
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
 // 静态实例指针定义
 DisplayManager* DisplayManager::s_instance = nullptr;
@@ -237,6 +242,13 @@ DisplayManager::DisplayManager()
     , m_lastPowerCheckTime(0)
     , m_powerCheckInterval(2000)
     , m_lastTotalPower(0)
+    , m_fadingEnabled(true)
+    , m_currentFadingBrightness(80)
+    , m_targetFadingBrightness(80)
+    , m_fadeStartTime(0)
+    , m_fadeDuration(1000)
+    , m_isFading(false)
+    , m_fadeDirection(FADE_TO_ON)
 {
     // 设置全局实例指针
     s_instance = this;
@@ -532,8 +544,17 @@ void DisplayManager::displayTask() {
             lastUpdateTime = currentTime;
         }
         
-        // 短暂延迟，避免占用过多CPU
-        vTaskDelay(pdMS_TO_TICKS(50));
+        // 处理亮度渐变（更高频率更新以确保平滑渐变）
+        if (m_isFading && m_fadingEnabled) {
+            processFading();
+        }
+        
+        // 渐变期间使用更短的延迟以获得更平滑的效果
+        if (m_isFading && m_fadingEnabled) {
+            vTaskDelay(pdMS_TO_TICKS(10)); // 渐变时10ms更新间隔
+        } else {
+            vTaskDelay(pdMS_TO_TICKS(50)); // 正常时50ms延迟
+        }
     }
     
     printf("[DisplayManager] 显示管理器任务结束\n");
@@ -1800,26 +1821,25 @@ bool DisplayManager::isTimeoutExpired() const {
  * @brief 执行屏幕开启操作
  */
 void DisplayManager::performScreenOn() {
-    if (m_screenOn) {
-        return; // 已经开启
+    if (m_screenOn && (!m_isFading || m_fadeDirection == FADE_TO_ON)) {
+        return; // 已经开启且不在关闭渐变中
+    }
+    
+    // 如果正在渐变关闭，立即停止并开始开启渐变
+    if (m_isFading && m_fadeDirection == FADE_TO_OFF) {
+        stopFading();
     }
     
     printf("[DisplayManager] 开启屏幕\n");
     
-    // 恢复屏幕亮度
-    if (m_lvglDriver) {
-        m_lvglDriver->setBrightness(m_brightness);
+    // 如果启用了渐变功能，使用渐变开启
+    if (m_fadingEnabled) {
+        printf("[DisplayManager] 使用亮度渐变开启屏幕（目标亮度：%d%%）\n", m_brightness);
+        startFading(m_brightness, FADE_TO_ON);
+    } else {
+        // 不使用渐变，直接开启
+        performScreenOnImmediate();
     }
-    
-    // 显示屏幕内容
-    if (m_lvglDriver && m_lvglDriver->lock(1000)) {
-        // 可以在这里添加屏幕开启时的UI更新逻辑
-        // 例如：显示待机屏幕或恢复上次的屏幕内容
-        m_lvglDriver->unlock();
-    }
-    
-    m_screenOn = true;
-    printf("[DisplayManager] 屏幕已开启，亮度已恢复至 %d%%\n", m_brightness);
 }
 
 /**
@@ -1830,25 +1850,22 @@ void DisplayManager::performScreenOff() {
         return; // 已经关闭
     }
     
+    // 如果已经在渐变关闭过程中，不要重复启动
+    if (m_isFading && m_fadeDirection == FADE_TO_OFF) {
+        return; // 已经在渐变关闭中，避免重复调用
+    }
+    
     printf("[DisplayManager] 关闭屏幕（延时模式生效）\n");
     printf("[DisplayManager] 💡 屏幕已进入省电模式，触摸屏幕可立即唤醒\n");
     
-    // 设置屏幕亮度为0（关闭背光）
-    if (m_lvglDriver) {
-        m_lvglDriver->setBrightness(0);
-    }
-    
-    // 显示屏幕内容保持不变，只是关闭背光
-    // LVGL任务继续运行，触摸检测继续工作
-    if (m_lvglDriver && m_lvglDriver->lock(1000)) {
-        // 不对UI内容进行任何修改，保持当前界面
-        m_lvglDriver->unlock();
+    // 如果启用了渐变功能，使用渐变关闭
+    if (m_fadingEnabled) {
+        printf("[DisplayManager] 使用亮度渐变关闭屏幕\n");
+        startFading(0, FADE_TO_OFF);
     } else {
-        printf("[DisplayManager] 警告：LVGL锁获取失败，可能影响触摸响应\n");
+        // 不使用渐变，直接关闭
+        performScreenOffImmediate();
     }
-    
-    m_screenOn = false;
-    printf("[DisplayManager] 屏幕背光已关闭，触摸系统保持活跃状态\n");
 }
 
 /**
@@ -2665,6 +2682,303 @@ extern "C" void updateDisplayManagerCurrentPage(void* screen) {
     }
 }
 
+// === 亮度渐变功能实现 ===
+
+/**
+ * @brief 启用或禁用亮度渐变功能
+ */
+void DisplayManager::setFadingEnabled(bool enabled, uint32_t fadeDurationMs) {
+    m_fadingEnabled = enabled;
+    m_fadeDuration = fadeDurationMs;
+    
+    // 如果禁用渐变且当前正在渐变，停止渐变
+    if (!enabled && m_isFading) {
+        stopFading();
+    }
+    
+    printf("[DisplayManager] 亮度渐变功能已%s，渐变时长: %d毫秒\n", 
+           enabled ? "启用" : "禁用", fadeDurationMs);
+}
+
+/**
+ * @brief 获取亮度渐变功能状态
+ */
+bool DisplayManager::isFadingEnabled() const {
+    return m_fadingEnabled;
+}
+
+/**
+ * @brief 检查是否正在执行亮度渐变
+ */
+bool DisplayManager::isFading() const {
+    return m_isFading;
+}
+
+/**
+ * @brief 设置渐变持续时间
+ */
+void DisplayManager::setFadeDuration(uint32_t fadeDurationMs) {
+    m_fadeDuration = fadeDurationMs;
+    printf("[DisplayManager] 渐变持续时间已设置为: %d毫秒\n", fadeDurationMs);
+}
+
+/**
+ * @brief 获取当前渐变亮度值
+ */
+uint8_t DisplayManager::getCurrentFadingBrightness() const {
+    return m_currentFadingBrightness;
+}
+
+/**
+ * @brief 启动亮度渐变
+ */
+void DisplayManager::startFading(uint8_t targetBrightness, FadeDirection direction) {
+    // 如果渐变功能未启用，直接设置目标亮度
+    if (!m_fadingEnabled) {
+        if (direction == FADE_TO_ON) {
+            performScreenOnImmediate();
+        } else {
+            performScreenOffImmediate();
+        }
+        return;
+    }
+    
+    // 停止当前渐变（如果正在进行）
+    if (m_isFading) {
+        stopFading();
+    }
+    
+    // 获取当前实际亮度作为起始亮度
+    if (direction == FADE_TO_ON) {
+        // 开启时从0开始渐变
+        m_currentFadingBrightness = 0;
+        if (m_lvglDriver) {
+            m_lvglDriver->setBrightness(0);
+        }
+        // 立即标记屏幕为开启状态，但亮度从0开始
+        m_screenOn = true;
+    } else {
+        // 关闭时从当前亮度开始渐变
+        m_currentFadingBrightness = m_brightness;
+    }
+    
+    // 设置渐变参数
+    m_targetFadingBrightness = targetBrightness;
+    m_fadeDirection = direction;
+    m_fadeStartTime = xTaskGetTickCount() * portTICK_PERIOD_MS;
+    m_isFading = true;
+    
+    printf("[DisplayManager] 开始亮度渐变: %d%% -> %d%%, 方向: %s, 持续时间: %d毫秒\n",
+           m_currentFadingBrightness, 
+           m_targetFadingBrightness,
+           direction == FADE_TO_ON ? "亮起" : "变暗",
+           m_fadeDuration);
+}
+
+/**
+ * @brief 处理亮度渐变逻辑
+ */
+void DisplayManager::processFading() {
+    if (!m_isFading || !m_fadingEnabled) {
+        return;
+    }
+    
+    uint32_t currentTime = xTaskGetTickCount() * portTICK_PERIOD_MS;
+    uint32_t elapsedTime = currentTime - m_fadeStartTime;
+    
+    // 检查渐变是否完成
+    if (elapsedTime >= m_fadeDuration) {
+        // 渐变完成，设置最终亮度
+        m_currentFadingBrightness = m_targetFadingBrightness;
+        
+        if (m_lvglDriver) {
+            m_lvglDriver->setBrightness(m_currentFadingBrightness);
+        }
+        
+        // 更新屏幕状态
+        if (m_fadeDirection == FADE_TO_OFF) {
+            m_screenOn = false;
+            printf("[DisplayManager] 渐变关闭完成，屏幕背光已关闭，触摸系统保持活跃状态\n");
+        } else {
+            m_screenOn = true;
+            printf("[DisplayManager] 渐变开启完成，屏幕亮度已恢复至 %d%%\n", m_currentFadingBrightness);
+        }
+        
+        // 停止渐变
+        m_isFading = false;
+        return;
+    }
+    
+    // 计算渐变进度 (0.0 到 1.0)
+    float linearProgress = (float)elapsedTime / (float)m_fadeDuration;
+    
+    // 使用更平滑的缓动曲线 - 组合多种缓动函数
+    // 1. 三次贝塞尔曲线：3t²-2t³
+    float cubicProgress = linearProgress * linearProgress * (3.0f - 2.0f * linearProgress);
+    
+    // 2. 正弦波缓动：sin(t*π/2) 用于更自然的变化
+    float sineProgress = sin(linearProgress * M_PI * 0.5f);
+    
+    // 3. 组合缓动：前半段使用正弦波，后半段使用三次贝塞尔，过渡更自然
+    float smoothProgress;
+    if (linearProgress < 0.5f) {
+        // 前半段：使用修正的正弦波缓动，起步更平缓
+        float t = linearProgress * 2.0f;
+        smoothProgress = 0.5f * (1.0f - cos(t * M_PI * 0.5f));
+    } else {
+        // 后半段：使用修正的三次贝塞尔曲线，结束更平缓
+        float t = (linearProgress - 0.5f) * 2.0f;
+        float cubicPart = t * t * (3.0f - 2.0f * t);
+        smoothProgress = 0.5f + 0.5f * cubicPart;
+    }
+    
+    // 进一步平滑处理：使用五次多项式进行最终平滑
+    // f(t) = 6t⁵ - 15t⁴ + 10t³ （Ken Perlin's smoothstep的扩展版本）
+    smoothProgress = smoothProgress * smoothProgress * smoothProgress * 
+                    (smoothProgress * (smoothProgress * 6.0f - 15.0f) + 10.0f);
+    
+    uint8_t startBrightness, endBrightness;
+    if (m_fadeDirection == FADE_TO_ON) {
+        startBrightness = 0;
+        endBrightness = m_targetFadingBrightness;
+    } else {
+        startBrightness = m_brightness; // 从设定亮度开始
+        endBrightness = 0;
+    }
+    
+    // 计算亮度范围和总步数
+    int brightnessRange = abs(endBrightness - startBrightness);
+    
+    // 根据亮度范围和渐变时间计算理想步数，确保足够平滑
+    int idealSteps = (brightnessRange * m_fadeDuration) / 100; // 每100ms每1%亮度一步
+    if (idealSteps < brightnessRange * 2) idealSteps = brightnessRange * 2; // 最少每0.5%一步
+    if (idealSteps > brightnessRange * 10) idealSteps = brightnessRange * 10; // 最多每0.1%一步
+    
+    // 使用更精确的浮点计算，支持小数点后一位精度
+    float currentBrightnessFloat = (float)startBrightness + 
+                                  ((float)(endBrightness - startBrightness) * smoothProgress);
+    
+    // 将亮度值精确到0.1%，然后四舍五入到整数
+    float precisionBrightness = roundf(currentBrightnessFloat * 10.0f) / 10.0f;
+    uint8_t newBrightness = (uint8_t)(precisionBrightness + 0.5f);
+    
+    // 确保亮度值在有效范围内
+    if (newBrightness > 100) newBrightness = 100;
+    
+    // 对于平滑渐变，允许每一个亮度单位的变化
+    // 在渐变过程中不设置变化阈值，让每个计算出的值都能更新
+    bool shouldUpdate = false;
+    
+    // 如果亮度值发生任何变化就更新（提高平滑度）
+    if (newBrightness != m_currentFadingBrightness) {
+        shouldUpdate = true;
+    }
+    
+    // 在渐变接近完成时强制更新，确保到达目标值
+    if (elapsedTime >= m_fadeDuration - 50) {
+        shouldUpdate = true;
+    }
+    
+    // 更新硬件亮度
+    if (shouldUpdate) {
+        m_currentFadingBrightness = newBrightness;
+        
+        if (m_lvglDriver) {
+            m_lvglDriver->setBrightness(m_currentFadingBrightness);
+        }
+        
+        // 可选：输出详细渐变进度（调试用，正常使用时可注释掉）
+        // printf("[DisplayManager] 渐变进度: %.1f%%, 平滑进度: %.2f, 当前亮度: %d%%, 精确值: %.1f%%\n", 
+        //        linearProgress * 100, smoothProgress, m_currentFadingBrightness, precisionBrightness);
+    }
+}
+
+/**
+ * @brief 停止当前的亮度渐变
+ */
+void DisplayManager::stopFading() {
+    if (!m_isFading) {
+        return;
+    }
+    
+    printf("[DisplayManager] 停止亮度渐变\n");
+    m_isFading = false;
+    
+    // 设置为目标亮度（完成渐变）
+    m_currentFadingBrightness = m_targetFadingBrightness;
+    
+    if (m_lvglDriver) {
+        m_lvglDriver->setBrightness(m_currentFadingBrightness);
+    }
+    
+    // 更新屏幕状态
+    if (m_fadeDirection == FADE_TO_OFF) {
+        m_screenOn = false;
+    } else {
+        m_screenOn = true;
+    }
+}
+
+/**
+ * @brief 执行即时屏幕开启操作（不使用渐变）
+ */
+void DisplayManager::performScreenOnImmediate() {
+    if (m_screenOn) {
+        return; // 已经开启
+    }
+    
+    printf("[DisplayManager] 即时开启屏幕（无渐变）\n");
+    
+    // 恢复屏幕亮度
+    if (m_lvglDriver) {
+        m_lvglDriver->setBrightness(m_brightness);
+    }
+    
+    // 更新当前渐变亮度值
+    m_currentFadingBrightness = m_brightness;
+    
+    // 显示屏幕内容
+    if (m_lvglDriver && m_lvglDriver->lock(1000)) {
+        // 可以在这里添加屏幕开启时的UI更新逻辑
+        // 例如：显示待机屏幕或恢复上次的屏幕内容
+        m_lvglDriver->unlock();
+    }
+    
+    m_screenOn = true;
+    printf("[DisplayManager] 屏幕已开启，亮度已恢复至 %d%%\n", m_brightness);
+}
+
+/**
+ * @brief 执行即时屏幕关闭操作（不使用渐变）
+ */
+void DisplayManager::performScreenOffImmediate() {
+    if (!m_screenOn) {
+        return; // 已经关闭
+    }
+    
+    printf("[DisplayManager] 即时关闭屏幕（无渐变）\n");
+    
+    // 设置屏幕亮度为0（关闭背光）
+    if (m_lvglDriver) {
+        m_lvglDriver->setBrightness(0);
+    }
+    
+    // 更新当前渐变亮度值
+    m_currentFadingBrightness = 0;
+    
+    // 显示屏幕内容保持不变，只是关闭背光
+    // LVGL任务继续运行，触摸检测继续工作
+    if (m_lvglDriver && m_lvglDriver->lock(1000)) {
+        // 不对UI内容进行任何修改，保持当前界面
+        m_lvglDriver->unlock();
+    } else {
+        printf("[DisplayManager] 警告：LVGL锁获取失败，可能影响触摸响应\n");
+    }
+    
+    m_screenOn = false;
+    printf("[DisplayManager] 屏幕背光已关闭，触摸系统保持活跃状态\n");
+}
+
 // === 基于总功率的自动页面切换功能实现 ===
 
 /**
@@ -2735,7 +3049,7 @@ void DisplayManager::checkPowerBasedPageSwitch() {
     
     // 如果当前是端口页面（无论是手动还是自动切换的），不执行基于功率的自动切换
     if (isPortPage(m_currentPage)) {
-        printf("[DisplayManager] 当前为端口页面，跳过基于功率的自动切换\n");
+        //printf("[DisplayManager] 当前为端口页面，跳过基于功率的自动切换\n");
         return;
     }
     

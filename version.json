@@ -1,7 +1,7 @@
 {
-    "version": "v7.1.8",
+    "version": "v7.1.9",
     "build_date": "2025-01-23",
-    "description": "ESP32S3 Monitor Project - 触摸唤醒功能完善与代码清理",
+    "description": "ESP32S3 Monitor Project - 新增亮度渐变功能",
     "changes": [
         "✅ 触摸唤醒功能修复完成：全链路触摸检测和屏幕唤醒工作正常",
         "修复全局LVGL驱动指针：设置lvglDriver指向实际的驱动实例",

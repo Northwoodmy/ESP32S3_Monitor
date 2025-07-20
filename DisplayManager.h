@@ -158,6 +158,14 @@ struct DisplayMessage {
 class DisplayManager {
 public:
     /**
+     * @brief 亮度渐变方向枚举
+     */
+    enum FadeDirection {
+        FADE_TO_ON = 0,                 ///< 渐变到开启状态（亮起）
+        FADE_TO_OFF                     ///< 渐变到关闭状态（变暗）
+    };
+
+    /**
      * @brief 构造函数
      */
     DisplayManager();
@@ -474,6 +482,44 @@ public:
      */
     void getTouchWakeupStatus(uint32_t& lastTouchTime, uint32_t& timeSinceLastTouch, bool& isInLowPower) const;
     
+    // === 亮度渐变控制功能 ===
+    
+    /**
+     * @brief 启用或禁用亮度渐变功能
+     * 
+     * @param enabled true启用渐变，false禁用渐变
+     * @param fadeDurationMs 渐变持续时间（毫秒），默认1000ms
+     */
+    void setFadingEnabled(bool enabled, uint32_t fadeDurationMs = 1000);
+    
+    /**
+     * @brief 获取亮度渐变功能状态
+     * 
+     * @return true渐变已启用，false渐变未启用
+     */
+    bool isFadingEnabled() const;
+    
+    /**
+     * @brief 检查是否正在执行亮度渐变
+     * 
+     * @return true正在渐变，false未在渐变
+     */
+    bool isFading() const;
+    
+    /**
+     * @brief 设置渐变持续时间
+     * 
+     * @param fadeDurationMs 渐变持续时间（毫秒）
+     */
+    void setFadeDuration(uint32_t fadeDurationMs);
+    
+    /**
+     * @brief 获取当前渐变亮度值
+     * 
+     * @return 当前渐变亮度值（0-100）
+     */
+    uint8_t getCurrentFadingBrightness() const;
+    
     /**
      * @brief 根据当前主题切换到对应的端口屏幕
      */
@@ -664,6 +710,38 @@ private:
      */
     bool shouldExecuteAutoSwitch() const;
     
+    // === 亮度渐变私有方法 ===
+    
+    /**
+     * @brief 启动亮度渐变
+     * 
+     * @param targetBrightness 目标亮度值（0-100）
+     * @param direction 渐变方向
+     */
+    void startFading(uint8_t targetBrightness, FadeDirection direction);
+    
+    /**
+     * @brief 处理亮度渐变逻辑
+     * 
+     * 在主任务循环中定期调用，更新渐变进度
+     */
+    void processFading();
+    
+    /**
+     * @brief 停止当前的亮度渐变
+     */
+    void stopFading();
+    
+    /**
+     * @brief 执行即时屏幕开启操作（不使用渐变）
+     */
+    void performScreenOnImmediate();
+    
+    /**
+     * @brief 执行即时屏幕关闭操作（不使用渐变）
+     */
+    void performScreenOffImmediate();
+    
 private:
     // 成员变量
     bool m_initialized;                 ///< 初始化状态
@@ -732,6 +810,15 @@ private:
     uint32_t m_lastPowerCheckTime;      ///< 最后一次功率检查时间
     uint32_t m_powerCheckInterval;      ///< 功率检查间隔（毫秒）
     int m_lastTotalPower;               ///< 上一次总功率值（mW）
+    
+    // === 亮度渐变成员变量 ===
+    bool m_fadingEnabled;               ///< 是否启用亮度渐变
+    uint8_t m_currentFadingBrightness;  ///< 当前渐变亮度值
+    uint8_t m_targetFadingBrightness;   ///< 目标渐变亮度值
+    uint32_t m_fadeStartTime;           ///< 渐变开始时间
+    uint32_t m_fadeDuration;            ///< 渐变持续时间（毫秒）
+    bool m_isFading;                    ///< 是否正在渐变中
+    FadeDirection m_fadeDirection;      ///< 渐变方向
     
     // 任务配置
     static const uint32_t TASK_STACK_SIZE = 8 * 1024;    ///< 任务栈大小
