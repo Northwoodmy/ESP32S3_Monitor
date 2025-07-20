@@ -749,14 +749,14 @@ void DisplayManager::processMessage(const DisplayMessage& msg) {
         case DisplayMessage::MSG_TOUCH_ACTIVITY:
             // 触摸活动
             m_lastTouchTime = xTaskGetTickCount() * portTICK_PERIOD_MS;
-            printf("[DisplayManager] 触摸活动检测，延时计时器已重置\n");
+            //printf("[DisplayManager] 触摸活动检测，延时计时器已重置\n");
             
             // 如果屏幕当前关闭，触摸活动应立即开启屏幕
             if (!m_screenOn) {
-                printf("[DisplayManager] 触摸唤醒：屏幕已关闭，立即开启屏幕\n");
+                //printf("[DisplayManager] 触摸唤醒：屏幕已关闭，立即开启屏幕\n");
                 performScreenOn();
             } else {
-                printf("[DisplayManager] 触摸活动：屏幕已开启，重置延时计时器\n");
+                //printf("[DisplayManager] 触摸活动：屏幕已开启，重置延时计时器\n");
             }
             
             // 在功率控制模式或基于功率的延时模式下，触摸活动应该重置低功率状态
