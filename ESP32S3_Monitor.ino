@@ -282,6 +282,19 @@ void setup() {
   
   // 传感器数据已集成到LVGL驱动的屏幕自动旋转功能中
   
+  // 设置OTA管理器的任务管理器引用，用于OTA前停止任务释放资源
+  printf("设置OTA管理器任务管理器引用...\n");
+  otaManager.setTaskManagers(
+    &timeManager,        // 时间管理任务
+    &weatherManager,     // 天气管理任务
+    &monitor,           // 监控任务
+    &displayManager,    // 显示管理任务
+    webServerManager,   // Web服务器管理任务
+    &psramManager,      // PSRAM管理任务
+    &configStorage      // 配置存储任务
+  );
+  printf("✅ OTA管理器任务管理器引用设置完成\n");
+  
   printf("=== 系统初始化完成 ===\n");
 }
 

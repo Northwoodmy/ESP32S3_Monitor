@@ -14,6 +14,15 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
+// 前向声明
+class TimeManager;
+class WeatherManager;
+class Monitor;
+class DisplayManager;
+class WebServerManager;
+class PSRAMManager;
+class ConfigStorage;
+
 // OTA升级状态枚举
 enum class OTAStatus {
     IDLE,           // 空闲状态
@@ -37,6 +46,15 @@ public:
     
     // 初始化OTA管理器
     void init();
+    
+    // 设置任务管理器引用（用于OTA前停止任务释放资源）
+    void setTaskManagers(TimeManager* timeManager, 
+                        WeatherManager* weatherManager, 
+                        Monitor* monitor,
+                        DisplayManager* displayManager = nullptr,
+                        WebServerManager* webServerManager = nullptr,
+                        PSRAMManager* psramManager = nullptr,
+                        ConfigStorage* configStorage = nullptr);
     
     // 本地OTA升级相关方法
     // 开始OTA升级
@@ -97,11 +115,36 @@ private:
     HTTPClient httpClient;
     WiFiClientSecure wifiClientSecure;
     
+    // 任务管理器引用（用于OTA前停止任务释放资源）
+    TimeManager* m_timeManager;
+    WeatherManager* m_weatherManager;
+    Monitor* m_monitor;
+    DisplayManager* m_displayManager;
+    WebServerManager* m_webServerManager;
+    PSRAMManager* m_psramManager;
+    ConfigStorage* m_configStorage;
+    
+    // 任务状态记录（用于OTA后恢复）
+    bool m_timeManagerWasRunning;
+    bool m_weatherManagerWasRunning;
+    bool m_monitorWasRunning;
+    bool m_displayManagerWasRunning;
+    bool m_webServerManagerWasRunning;
+    bool m_psramManagerWasRunning;
+    bool m_configStorageWasRunning;
+    
     // 重置状态
     void resetStatus();
     
     // 更新状态
     void updateStatus(OTAStatus newStatus, const String& error = "");
+    
+    // 任务管理方法
+    bool stopTasksForOTA();      // OTA前停止任务
+    void restoreTasksAfterOTA(); // OTA后恢复任务（如果需要）
+    
+    // 屏幕显示更新方法
+    void updateScreenDisplay();  // 更新屏幕OTA进度显示
     
     // 服务器OTA相关私有方法
     // 下载固件数据并写入

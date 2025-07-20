@@ -249,6 +249,14 @@ DisplayManager::DisplayManager()
     , m_fadeDuration(1000)
     , m_isFading(false)
     , m_fadeDirection(FADE_TO_ON)
+    , m_otaScreen(nullptr)
+    , m_otaProgressBar(nullptr)
+    , m_otaStatusLabel(nullptr)
+    , m_otaProgressLabel(nullptr)
+    , m_otaSizeLabel(nullptr)
+    , m_otaErrorLabel(nullptr)
+    , m_otaDisplayActive(false)
+    , m_previousPageForOTA(PAGE_HOME)
 {
     // 设置全局实例指针
     s_instance = this;
@@ -273,6 +281,9 @@ DisplayManager::DisplayManager()
  */
 DisplayManager::~DisplayManager() {
     stop();
+    
+    // 清理OTA页面资源
+    destroyOTAProgressPage();
     
     // 清理消息队列
     if (m_messageQueue) {
@@ -802,6 +813,46 @@ void DisplayManager::processMessage(const DisplayMessage& msg) {
             // 自动切换到端口屏幕
             performAutoSwitchToPort(msg.data.auto_switch_port.port_index, 
                                   msg.data.auto_switch_port.duration_ms);
+            break;
+            
+        case DisplayMessage::MSG_UPDATE_OTA_STATUS:
+            // 更新OTA状态显示
+            if (m_otaDisplayActive) {
+                updateOTAProgressBar(msg.data.ota_status.progress);
+                updateOTAStatusText(msg.data.ota_status.statusText);
+                updateOTASizeInfo(msg.data.ota_status.totalSize, msg.data.ota_status.writtenSize);
+                
+                // 显示错误信息（如果有）
+                if (strlen(msg.data.ota_status.errorMessage) > 0) {
+                    showOTAError(msg.data.ota_status.errorMessage);
+                }
+            }
+            break;
+            
+                 case DisplayMessage::MSG_OTA_START:
+             // 开始OTA升级显示
+             if (!m_otaDisplayActive) {
+                 m_previousPageForOTA = m_currentPage;  // 保存当前页面
+                 createOTAProgressPage();
+                 m_otaDisplayActive = true;
+                 printf("[DisplayManager] OTA upgrade display started\n");
+             }
+             break;
+            
+        case DisplayMessage::MSG_OTA_COMPLETE:
+            // 完成OTA升级显示
+            if (m_otaDisplayActive) {
+                // 显示完成状态3秒后自动恢复到之前页面（如果不是成功需要重启）
+                // 这里简化处理，直接恢复页面
+                                 if (msg.data.ota_status.status != 4) {  // 不是成功状态
+                     vTaskDelay(pdMS_TO_TICKS(3000));  // 等待3秒显示结果
+                     destroyOTAProgressPage();
+                     switchPage(m_previousPageForOTA);  // 恢复到之前页面
+                     m_otaDisplayActive = false;
+                     printf("[DisplayManager] OTA upgrade display completed, restoring previous page\n");
+                 }
+                // 成功状态通常会重启设备，不需要恢复页面
+            }
             break;
     }
     
@@ -3091,6 +3142,287 @@ DisplayPage DisplayManager::getTargetPageByPower() const {
         return m_currentPage;
     }
 }
+
+// === OTA升级进度显示功能实现 ===
+
+/**
+ * @brief 开始OTA升级显示
+ */
+void DisplayManager::startOTADisplay(bool isServerOTA) {
+    DisplayMessage msg;
+    msg.type = DisplayMessage::MSG_OTA_START;
+    msg.data.ota_status.isServerOTA = isServerOTA;
+    
+    if (m_messageQueue && xQueueSend(m_messageQueue, &msg, pdMS_TO_TICKS(100)) != pdTRUE) {
+        printf("[DisplayManager] 警告：发送OTA开始消息失败\n");
+    }
+}
+
+/**
+ * @brief 更新OTA升级状态
+ */
+void DisplayManager::updateOTAStatus(int status, float progress, uint32_t totalSize, uint32_t writtenSize, 
+                                    const char* statusText, const char* errorMessage) {
+    DisplayMessage msg;
+    msg.type = DisplayMessage::MSG_UPDATE_OTA_STATUS;
+    msg.data.ota_status.status = status;
+    msg.data.ota_status.progress = progress;
+    msg.data.ota_status.totalSize = totalSize;
+    msg.data.ota_status.writtenSize = writtenSize;
+    
+    // 复制状态文本（确保不超出缓冲区）
+    strncpy(msg.data.ota_status.statusText, statusText ? statusText : "", sizeof(msg.data.ota_status.statusText) - 1);
+    msg.data.ota_status.statusText[sizeof(msg.data.ota_status.statusText) - 1] = '\0';
+    
+    // 复制错误信息（确保不超出缓冲区）
+    strncpy(msg.data.ota_status.errorMessage, errorMessage ? errorMessage : "", sizeof(msg.data.ota_status.errorMessage) - 1);
+    msg.data.ota_status.errorMessage[sizeof(msg.data.ota_status.errorMessage) - 1] = '\0';
+    
+    if (m_messageQueue && xQueueSend(m_messageQueue, &msg, pdMS_TO_TICKS(100)) != pdTRUE) {
+        printf("[DisplayManager] 警告：发送OTA状态更新消息失败\n");
+    }
+}
+
+/**
+ * @brief 完成OTA升级显示
+ */
+void DisplayManager::completeOTADisplay(bool success, const char* message) {
+    DisplayMessage msg;
+    msg.type = DisplayMessage::MSG_OTA_COMPLETE;
+    msg.data.ota_status.status = success ? 4 : 5;  // 4=success, 5=failed
+    
+    // 复制完成消息
+    strncpy(msg.data.ota_status.statusText, message ? message : "", sizeof(msg.data.ota_status.statusText) - 1);
+    msg.data.ota_status.statusText[sizeof(msg.data.ota_status.statusText) - 1] = '\0';
+    
+    if (m_messageQueue && xQueueSend(m_messageQueue, &msg, pdMS_TO_TICKS(100)) != pdTRUE) {
+        printf("[DisplayManager] 警告：发送OTA完成消息失败\n");
+    }
+}
+
+/**
+ * @brief 创建OTA进度显示页面
+ */
+void DisplayManager::createOTAProgressPage() {
+    if (m_otaScreen) {
+        return;  // 已经创建
+    }
+    
+    // 创建OTA进度屏幕
+    m_otaScreen = lv_obj_create(NULL);
+    lv_obj_set_style_bg_color(m_otaScreen, lv_color_hex(0x000000), LV_PART_MAIN);  // 黑色背景
+    lv_obj_set_style_pad_all(m_otaScreen, 20, LV_PART_MAIN);  // 设置内边距
+    
+    // 创建主容器，使用flex布局
+    lv_obj_t* mainContainer = lv_obj_create(m_otaScreen);
+    lv_obj_set_size(mainContainer, lv_pct(100), lv_pct(100));
+    lv_obj_set_style_bg_opa(mainContainer, LV_OPA_TRANSP, LV_PART_MAIN);
+    lv_obj_set_style_border_width(mainContainer, 0, LV_PART_MAIN);
+    lv_obj_set_style_pad_all(mainContainer, 0, LV_PART_MAIN);
+    lv_obj_set_flex_flow(mainContainer, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(mainContainer, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_center(mainContainer);
+    
+    // 创建主标题
+    lv_obj_t* titleLabel = lv_label_create(mainContainer);
+    lv_label_set_text(titleLabel, "Firmware Update");
+    lv_obj_set_style_text_font(titleLabel, &lv_font_montserrat_24, LV_PART_MAIN);
+    lv_obj_set_style_text_color(titleLabel, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+    lv_obj_set_style_text_align(titleLabel, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    lv_obj_set_style_pad_bottom(titleLabel, 30, LV_PART_MAIN);
+    
+    // 创建状态标签
+    m_otaStatusLabel = lv_label_create(mainContainer);
+    lv_label_set_text(m_otaStatusLabel, "Initializing...");
+    lv_obj_set_style_text_font(m_otaStatusLabel, &lv_font_montserrat_18, LV_PART_MAIN);
+    lv_obj_set_style_text_color(m_otaStatusLabel, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+    lv_obj_set_style_text_align(m_otaStatusLabel, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    lv_obj_set_style_pad_bottom(m_otaStatusLabel, 20, LV_PART_MAIN);
+    
+    // 创建进度条容器
+    lv_obj_t* progressContainer = lv_obj_create(mainContainer);
+    lv_obj_set_size(progressContainer, lv_pct(85), LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_opa(progressContainer, LV_OPA_TRANSP, LV_PART_MAIN);
+    lv_obj_set_style_border_width(progressContainer, 0, LV_PART_MAIN);
+    lv_obj_set_style_pad_all(progressContainer, 10, LV_PART_MAIN);
+    lv_obj_set_flex_flow(progressContainer, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(progressContainer, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_bottom(progressContainer, 20, LV_PART_MAIN);
+    
+    // 创建进度条
+    m_otaProgressBar = lv_bar_create(progressContainer);
+    lv_obj_set_size(m_otaProgressBar, lv_pct(100), LV_SIZE_CONTENT);
+    lv_obj_set_height(m_otaProgressBar, 25);  // 设置固定高度
+    lv_obj_set_style_bg_color(m_otaProgressBar, lv_color_hex(0x333333), LV_PART_MAIN);
+    lv_obj_set_style_bg_color(m_otaProgressBar, lv_color_hex(0x00DD00), LV_PART_INDICATOR);
+    lv_obj_set_style_radius(m_otaProgressBar, 12, LV_PART_MAIN);
+    lv_obj_set_style_radius(m_otaProgressBar, 10, LV_PART_INDICATOR);
+    lv_obj_set_style_pad_bottom(m_otaProgressBar, 15, LV_PART_MAIN);
+    lv_obj_set_style_min_width(m_otaProgressBar, 200, LV_PART_MAIN);  // 设置最小宽度
+    lv_obj_set_style_max_width(m_otaProgressBar, 400, LV_PART_MAIN);  // 设置最大宽度
+    lv_bar_set_range(m_otaProgressBar, 0, 100);
+    lv_bar_set_value(m_otaProgressBar, 0, LV_ANIM_OFF);
+    
+    // 创建进度百分比标签
+    m_otaProgressLabel = lv_label_create(progressContainer);
+    lv_label_set_text(m_otaProgressLabel, "0%");
+    lv_obj_set_style_text_font(m_otaProgressLabel, &lv_font_montserrat_20, LV_PART_MAIN);
+    lv_obj_set_style_text_color(m_otaProgressLabel, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+    lv_obj_set_style_text_align(m_otaProgressLabel, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    lv_obj_set_style_pad_bottom(m_otaProgressLabel, 10, LV_PART_MAIN);
+    
+    // 创建文件大小标签
+    m_otaSizeLabel = lv_label_create(progressContainer);
+    lv_label_set_text(m_otaSizeLabel, "0 / 0 bytes");
+    lv_obj_set_style_text_font(m_otaSizeLabel, &lv_font_montserrat_14, LV_PART_MAIN);
+    lv_obj_set_style_text_color(m_otaSizeLabel, lv_color_hex(0xAAAAAA), LV_PART_MAIN);
+    lv_obj_set_style_text_align(m_otaSizeLabel, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    
+    // 创建错误信息标签（初始隐藏）
+    m_otaErrorLabel = lv_label_create(mainContainer);
+    lv_label_set_text(m_otaErrorLabel, "");
+    lv_obj_set_style_text_font(m_otaErrorLabel, &lv_font_montserrat_14, LV_PART_MAIN);
+    lv_obj_set_style_text_color(m_otaErrorLabel, lv_color_hex(0xFF4444), LV_PART_MAIN);
+    lv_obj_set_style_text_align(m_otaErrorLabel, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    lv_obj_set_width(m_otaErrorLabel, lv_pct(90));
+    lv_label_set_long_mode(m_otaErrorLabel, LV_LABEL_LONG_WRAP);
+    lv_obj_add_flag(m_otaErrorLabel, LV_OBJ_FLAG_HIDDEN);  // 初始隐藏
+    
+    // 切换到OTA进度屏幕
+    lv_scr_load_anim(m_otaScreen, LV_SCR_LOAD_ANIM_MOVE_LEFT, 300, 0, false);
+    
+    printf("[DisplayManager] OTA progress page created with responsive layout\n");
+}
+
+/**
+ * @brief 销毁OTA进度显示页面
+ */
+void DisplayManager::destroyOTAProgressPage() {
+    if (m_otaScreen) {
+        lv_obj_del(m_otaScreen);
+        m_otaScreen = nullptr;
+        m_otaProgressBar = nullptr;
+        m_otaStatusLabel = nullptr;
+        m_otaProgressLabel = nullptr;
+        m_otaSizeLabel = nullptr;
+        m_otaErrorLabel = nullptr;
+        printf("[DisplayManager] OTA progress page destroyed\n");
+    }
+}
+
+/**
+ * @brief 更新OTA进度条显示
+ */
+void DisplayManager::updateOTAProgressBar(float progress) {
+    if (m_otaProgressBar) {
+        // 确保进度在有效范围内
+        int progressInt = (int)progress;
+        if (progressInt < 0) progressInt = 0;
+        if (progressInt > 100) progressInt = 100;
+        
+        lv_bar_set_value(m_otaProgressBar, progressInt, LV_ANIM_ON);
+    }
+    
+    if (m_otaProgressLabel) {
+        char progressText[16];
+        snprintf(progressText, sizeof(progressText), "%.1f%%", progress);
+        lv_label_set_text(m_otaProgressLabel, progressText);
+    }
+}
+
+/**
+ * @brief 更新OTA状态文本显示
+ */
+void DisplayManager::updateOTAStatusText(const char* statusText) {
+    if (m_otaStatusLabel && statusText) {
+        lv_label_set_text(m_otaStatusLabel, statusText);
+    }
+}
+
+/**
+ * @brief 更新OTA大小信息显示
+ */
+void DisplayManager::updateOTASizeInfo(uint32_t totalSize, uint32_t writtenSize) {
+    if (m_otaSizeLabel) {
+        char sizeText[64];
+        
+        if (totalSize > 0) {
+            // 格式化大小信息
+            if (totalSize >= 1024 * 1024) {
+                // MB格式
+                float totalMB = (float)totalSize / (1024.0f * 1024.0f);
+                float writtenMB = (float)writtenSize / (1024.0f * 1024.0f);
+                snprintf(sizeText, sizeof(sizeText), "%.2f / %.2f MB", writtenMB, totalMB);
+            } else if (totalSize >= 1024) {
+                // KB格式
+                float totalKB = (float)totalSize / 1024.0f;
+                float writtenKB = (float)writtenSize / 1024.0f;
+                snprintf(sizeText, sizeof(sizeText), "%.1f / %.1f KB", writtenKB, totalKB);
+            } else {
+                // 字节格式
+                snprintf(sizeText, sizeof(sizeText), "%u / %u bytes", writtenSize, totalSize);
+            }
+        } else {
+            // 动态大小模式
+            if (writtenSize >= 1024 * 1024) {
+                float writtenMB = (float)writtenSize / (1024.0f * 1024.0f);
+                snprintf(sizeText, sizeof(sizeText), "%.2f MB (dynamic)", writtenMB);
+            } else if (writtenSize >= 1024) {
+                float writtenKB = (float)writtenSize / 1024.0f;
+                snprintf(sizeText, sizeof(sizeText), "%.1f KB (dynamic)", writtenKB);
+            } else {
+                snprintf(sizeText, sizeof(sizeText), "%u bytes (dynamic)", writtenSize);
+            }
+        }
+        
+        lv_label_set_text(m_otaSizeLabel, sizeText);
+    }
+}
+
+ /**
+  * @brief 显示OTA错误信息
+  */
+ void DisplayManager::showOTAError(const char* errorMessage) {
+     if (m_otaErrorLabel && errorMessage && strlen(errorMessage) > 0) {
+         lv_label_set_text(m_otaErrorLabel, errorMessage);
+         lv_obj_clear_flag(m_otaErrorLabel, LV_OBJ_FLAG_HIDDEN);  // 显示错误标签
+     }
+ }
+ 
+ /**
+  * @brief 重新布局OTA进度页面（适应屏幕旋转）
+  */
+ void DisplayManager::relayoutOTAProgressPage() {
+     if (!m_otaScreen || !m_otaDisplayActive) {
+         return;  // OTA页面未激活
+     }
+     
+     // 获取当前屏幕尺寸
+     lv_coord_t screen_width = lv_obj_get_width(lv_scr_act());
+     lv_coord_t screen_height = lv_obj_get_height(lv_scr_act());
+     
+     printf("[DisplayManager] Screen orientation changed: %dx%d, relayouting OTA page\n", 
+            screen_width, screen_height);
+     
+     // 由于使用了flex布局和百分比尺寸，LVGL会自动重新布局
+     // 这里我们可以做一些额外的调整，比如根据屏幕方向调整字体大小
+     
+     if (screen_width > screen_height) {
+         // 横屏模式 - 可以使用较大的字体和进度条
+         if (m_otaProgressBar) {
+             lv_obj_set_height(m_otaProgressBar, 30);  // 更厚的进度条
+         }
+     } else {
+         // 竖屏模式 - 使用标准尺寸
+         if (m_otaProgressBar) {
+             lv_obj_set_height(m_otaProgressBar, 25);  // 标准进度条
+         }
+     }
+     
+     // 强制重新计算布局
+     lv_obj_invalidate(m_otaScreen);
+     lv_refr_now(NULL);
+ }
 
 /**
  * @brief 检查是否为端口页面

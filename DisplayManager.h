@@ -55,6 +55,7 @@ enum DisplayPage {
     PAGE_SYSTEM_INFO,   ///< 系统信息页面
     PAGE_SETTINGS,      ///< 设置页面
     PAGE_ABOUT,         ///< 关于页面
+    PAGE_OTA_PROGRESS,  ///< OTA进度页面
     PAGE_COUNT          ///< 页面总数
 };
 
@@ -84,7 +85,10 @@ struct DisplayMessage {
         MSG_TOUCH_ACTIVITY,         ///< 触摸活动
         MSG_SCREEN_ON,              ///< 屏幕开启
         MSG_SCREEN_OFF,             ///< 屏幕关闭
-        MSG_AUTO_SWITCH_PORT        ///< 自动切换到端口屏幕
+        MSG_AUTO_SWITCH_PORT,       ///< 自动切换到端口屏幕
+        MSG_UPDATE_OTA_STATUS,      ///< 更新OTA状态
+        MSG_OTA_START,              ///< OTA开始
+        MSG_OTA_COMPLETE            ///< OTA完成
     } type;
     
     union {
@@ -141,6 +145,16 @@ struct DisplayMessage {
             int port_index;         ///< 端口索引（0-3）
             uint32_t duration_ms;   ///< 显示时长（毫秒）
         } auto_switch_port;
+        
+        struct {
+            int status;             ///< OTA状态 (0=idle, 1=uploading, 2=downloading, 3=writing, 4=success, 5=failed)
+            float progress;         ///< 进度百分比 (0.0-100.0)
+            uint32_t totalSize;     ///< 总文件大小
+            uint32_t writtenSize;   ///< 已写入大小
+            char statusText[64];    ///< 状态文本描述
+            char errorMessage[128]; ///< 错误信息
+            bool isServerOTA;       ///< 是否为服务器OTA
+        } ota_status;
     } data;
 };
 
@@ -376,6 +390,36 @@ public:
      * @return true 应该开启，false 应该关闭
      */
     bool shouldScreenBeOn() const;
+    
+    // === OTA升级进度显示功能 ===
+    
+    /**
+     * @brief 开始OTA升级显示
+     * 
+     * @param isServerOTA 是否为服务器OTA升级
+     */
+    void startOTADisplay(bool isServerOTA = false);
+    
+    /**
+     * @brief 更新OTA升级状态
+     * 
+     * @param status OTA状态 (0=idle, 1=uploading, 2=downloading, 3=writing, 4=success, 5=failed)
+     * @param progress 进度百分比 (0.0-100.0)
+     * @param totalSize 总文件大小
+     * @param writtenSize 已写入大小
+     * @param statusText 状态文本描述
+     * @param errorMessage 错误信息（可选）
+     */
+    void updateOTAStatus(int status, float progress, uint32_t totalSize, uint32_t writtenSize, 
+                        const char* statusText, const char* errorMessage = nullptr);
+    
+    /**
+     * @brief 完成OTA升级显示
+     * 
+     * @param success 是否成功
+     * @param message 完成消息
+     */
+    void completeOTADisplay(bool success, const char* message);
     
     // === 功率控制屏幕功能 ===
     
@@ -710,6 +754,52 @@ private:
      */
     bool shouldExecuteAutoSwitch() const;
     
+    // === OTA升级进度私有方法 ===
+    
+    /**
+     * @brief 创建OTA进度显示页面
+     */
+    void createOTAProgressPage();
+    
+    /**
+     * @brief 销毁OTA进度显示页面
+     */
+    void destroyOTAProgressPage();
+    
+    /**
+     * @brief 更新OTA进度条显示
+     * 
+     * @param progress 进度百分比 (0.0-100.0)
+     */
+    void updateOTAProgressBar(float progress);
+    
+    /**
+     * @brief 更新OTA状态文本显示
+     * 
+     * @param statusText 状态文本
+     */
+    void updateOTAStatusText(const char* statusText);
+    
+    /**
+     * @brief 更新OTA大小信息显示
+     * 
+     * @param totalSize 总文件大小
+     * @param writtenSize 已写入大小
+     */
+    void updateOTASizeInfo(uint32_t totalSize, uint32_t writtenSize);
+    
+         /**
+      * @brief 显示OTA错误信息
+      * 
+      * @param errorMessage 错误信息
+      */
+     void showOTAError(const char* errorMessage);
+     
+     /**
+      * @brief 重新布局OTA进度页面（适应屏幕旋转）
+      */
+     void relayoutOTAProgressPage();
+    
     // === 亮度渐变私有方法 ===
     
     /**
@@ -788,6 +878,16 @@ private:
     int m_powerOffThreshold;            ///< 功率关闭阈值（mW）
     int m_powerOnThreshold;             ///< 功率开启阈值（mW）
     uint32_t m_lowPowerStartTime;       ///< 低功率开始时间
+    
+    // === OTA升级进度成员变量 ===
+    lv_obj_t* m_otaScreen;              ///< OTA进度屏幕对象
+    lv_obj_t* m_otaProgressBar;         ///< OTA进度条对象
+    lv_obj_t* m_otaStatusLabel;         ///< OTA状态标签对象
+    lv_obj_t* m_otaProgressLabel;       ///< OTA进度百分比标签对象
+    lv_obj_t* m_otaSizeLabel;           ///< OTA文件大小标签对象
+    lv_obj_t* m_otaErrorLabel;          ///< OTA错误信息标签对象
+    DisplayPage m_previousPageForOTA;   ///< OTA开始前的页面，用于恢复
+    bool m_otaDisplayActive;            ///< OTA显示是否激活
     bool m_isInLowPowerMode;            ///< 是否处于低功率模式
     
     // === 自动切换端口成员变量 ===

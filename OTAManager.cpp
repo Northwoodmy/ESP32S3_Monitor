@@ -5,6 +5,13 @@
 
 #include "OTAManager.h"
 #include "Arduino.h"
+#include "TimeManager.h"
+#include "WeatherManager.h"
+#include "Monitor.h"
+#include "DisplayManager.h"
+#include "WebServerManager.h"
+#include "PSRAMManager.h"
+#include "ConfigStorage.h"
 
 OTAManager::OTAManager() :
     status(OTAStatus::IDLE),
@@ -12,7 +19,21 @@ OTAManager::OTAManager() :
     errorMessage(""),
     totalSize(0),
     writtenSize(0),
-    lastProgressTime(0) {
+    lastProgressTime(0),
+    m_timeManager(nullptr),
+    m_weatherManager(nullptr),
+    m_monitor(nullptr),
+    m_displayManager(nullptr),
+    m_webServerManager(nullptr),
+    m_psramManager(nullptr),
+    m_configStorage(nullptr),
+    m_timeManagerWasRunning(false),
+    m_weatherManagerWasRunning(false),
+    m_monitorWasRunning(false),
+    m_displayManagerWasRunning(false),
+    m_webServerManagerWasRunning(false),
+    m_psramManagerWasRunning(false),
+    m_configStorageWasRunning(false) {
 }
 
 OTAManager::~OTAManager() {
@@ -35,6 +56,24 @@ void OTAManager::init() {
     printf("OTA管理器初始化完成\n");
 }
 
+void OTAManager::setTaskManagers(TimeManager* timeManager, 
+                                WeatherManager* weatherManager, 
+                                Monitor* monitor,
+                                DisplayManager* displayManager,
+                                WebServerManager* webServerManager,
+                                PSRAMManager* psramManager,
+                                ConfigStorage* configStorage) {
+    m_timeManager = timeManager;
+    m_weatherManager = weatherManager;
+    m_monitor = monitor;
+    m_displayManager = displayManager;
+    m_webServerManager = webServerManager;
+    m_psramManager = psramManager;
+    m_configStorage = configStorage;
+    
+    printf("OTA管理器：已设置任务管理器引用\n");
+}
+
 bool OTAManager::beginOTA(size_t fileSize) {
     if (fileSize == 0) {
         printf("开始动态大小OTA升级\n");
@@ -45,6 +84,12 @@ bool OTAManager::beginOTA(size_t fileSize) {
     if (status != OTAStatus::IDLE) {
         updateStatus(OTAStatus::FAILED, "OTA正在进行中，无法开始新的升级");
         return false;
+    }
+    
+    // OTA升级前停止其他任务以释放系统资源
+    printf("OTA升级前停止其他任务以释放系统资源...\n");
+    if (!stopTasksForOTA()) {
+        printf("警告：停止任务时出现问题，但继续进行OTA升级\n");
     }
     
     // 设置为本地OTA类型
@@ -80,6 +125,11 @@ bool OTAManager::beginOTA(size_t fileSize) {
     writtenSize = 0;
     lastProgressTime = millis();
     updateStatus(OTAStatus::UPLOADING, "");
+    
+    // 启动屏幕OTA进度显示
+    if (m_displayManager) {
+        m_displayManager->startOTADisplay(otaType == OTAType::SERVER);
+    }
     
     printf("OTA升级开始成功\n");
     return true;
@@ -192,12 +242,30 @@ bool OTAManager::endOTA() {
         error += Update.errorString();
         updateStatus(OTAStatus::FAILED, error);
         printf("OTA结束失败: %s\n", Update.errorString());
+        
+        // OTA失败，通知屏幕显示失败状态
+        if (m_displayManager) {
+            m_displayManager->completeOTADisplay(false, "Update failed");
+        }
+        
+        // OTA失败，恢复之前停止的任务
+        printf("OTA升级失败，恢复之前停止的任务...\n");
+        restoreTasksAfterOTA();
+        
         return false;
     }
     
     updateStatus(OTAStatus::SUCCESS, "");
     printf("OTA升级成功完成！\n");
     printf("最终进度: %.1f%% (%u/%u 字节)\n", getProgress(), writtenSize, totalSize);
+    
+    // OTA成功，通知屏幕显示完成状态
+    if (m_displayManager) {
+        m_displayManager->completeOTADisplay(true, "Update successful, rebooting device");
+    }
+    
+    // OTA成功，通常会立即重启设备，所以不需要恢复任务
+    printf("OTA升级成功，准备重启设备（不恢复任务）\n");
     
     return true;
 }
@@ -211,6 +279,12 @@ bool OTAManager::downloadAndUpdateFromServer(const String& serverUrl, const Stri
     if (status != OTAStatus::IDLE) {
         updateStatus(OTAStatus::FAILED, "OTA正在进行中，无法开始新的升级");
         return false;
+    }
+    
+    // 服务器OTA升级前停止其他任务以释放系统资源
+    printf("服务器OTA升级前停止其他任务以释放系统资源...\n");
+    if (!stopTasksForOTA()) {
+        printf("警告：停止任务时出现问题，但继续进行OTA升级\n");
     }
     
     // 设置为服务器OTA类型
@@ -283,6 +357,10 @@ void OTAManager::abortOTA() {
         Update.abort();
         updateStatus(OTAStatus::FAILED, "OTA升级被取消");
         printf("OTA升级已取消\n");
+        
+        // OTA取消后恢复之前停止的任务
+        printf("OTA取消，恢复之前停止的任务...\n");
+        restoreTasksAfterOTA();
     }
 }
 
@@ -296,19 +374,33 @@ OTAType OTAManager::getOTAType() const {
 
 float OTAManager::getProgress() const {
     if (totalSize == 0) {
-        // 动态模式下，根据已写入的数据量估算进度
-        // 对于1MB文件，我们可以基于经验值估算进度
+        // 动态模式下，无法准确计算进度百分比
+        // 返回一个基于写入量的简单指示，但不超过99%
         if (writtenSize == 0) {
             return 0.0f;
-        } else if (writtenSize < 500000) {  // 小于500KB
-            return (float)writtenSize / 500000.0f * 50.0f;  // 0-50%
-        } else if (writtenSize < 1000000) { // 500KB-1MB
-            return 50.0f + ((float)(writtenSize - 500000) / 500000.0f * 40.0f);  // 50-90%
         } else {
-            return 90.0f + ((float)(writtenSize - 1000000) / 100000.0f * 10.0f);  // 90-100%
+            // 基于文件大小的经验值估算，但限制在99%以下
+            // 对于ESP32固件，通常在1-6MB范围内
+            float estimatedProgress;
+            if (writtenSize < 1048576) {  // 小于1MB
+                estimatedProgress = (float)writtenSize / 1048576.0f * 30.0f;  // 0-30%
+            } else if (writtenSize < 3145728) {  // 1MB-3MB
+                estimatedProgress = 30.0f + ((float)(writtenSize - 1048576) / 2097152.0f * 40.0f);  // 30-70%
+            } else if (writtenSize < 6291456) {  // 3MB-6MB
+                estimatedProgress = 70.0f + ((float)(writtenSize - 3145728) / 3145728.0f * 25.0f);  // 70-95%
+            } else {
+                estimatedProgress = 95.0f;  // 超过6MB，固定在95%
+            }
+            
+            // 确保进度不超过99%，为设置实际大小后的100%留出空间
+            return (estimatedProgress > 99.0f) ? 99.0f : estimatedProgress;
         }
     }
-    return (float)writtenSize / (float)totalSize * 100.0f;
+    
+    // 已知总大小，计算实际进度百分比
+    float actualProgress = (float)writtenSize / (float)totalSize * 100.0f;
+    // 确保进度不超过100%
+    return (actualProgress > 100.0f) ? 100.0f : actualProgress;
 }
 
 String OTAManager::getError() const {
@@ -405,6 +497,9 @@ void OTAManager::updateStatus(OTAStatus newStatus, const String& error) {
     if (newStatus == OTAStatus::FAILED && error.length() > 0) {
         printf("OTA错误: %s\n", error.c_str());
     }
+    
+    // 更新屏幕显示
+    updateScreenDisplay();
 }
 
 // 服务器OTA相关私有方法实现
@@ -422,6 +517,11 @@ bool OTAManager::downloadAndWriteFirmware(const String& downloadUrl) {
         error += httpCode;
         updateStatus(OTAStatus::FAILED, error);
         httpClient.end();
+        
+        // HTTP请求失败，恢复之前停止的任务
+        printf("HTTP请求失败，恢复之前停止的任务...\n");
+        restoreTasksAfterOTA();
+        
         return false;
     }
     
@@ -431,6 +531,11 @@ bool OTAManager::downloadAndWriteFirmware(const String& downloadUrl) {
     if (contentLength <= 0) {
         updateStatus(OTAStatus::FAILED, "无法获取固件大小");
         httpClient.end();
+        
+        // 无法获取固件大小，恢复之前停止的任务
+        printf("无法获取固件大小，恢复之前停止的任务...\n");
+        restoreTasksAfterOTA();
+        
         return false;
     }
     
@@ -438,6 +543,11 @@ bool OTAManager::downloadAndWriteFirmware(const String& downloadUrl) {
     if (!hasEnoughSpace(contentLength)) {
         updateStatus(OTAStatus::FAILED, "存储空间不足");
         httpClient.end();
+        
+        // 存储空间不足，恢复之前停止的任务
+        printf("存储空间不足，恢复之前停止的任务...\n");
+        restoreTasksAfterOTA();
+        
         return false;
     }
     
@@ -447,6 +557,11 @@ bool OTAManager::downloadAndWriteFirmware(const String& downloadUrl) {
         error += Update.errorString();
         updateStatus(OTAStatus::FAILED, error);
         httpClient.end();
+        
+        // OTA开始失败，恢复之前停止的任务
+        printf("OTA开始失败，恢复之前停止的任务...\n");
+        restoreTasksAfterOTA();
+        
         return false;
     }
     
@@ -470,6 +585,11 @@ bool OTAManager::downloadAndWriteFirmware(const String& downloadUrl) {
                 error += Update.errorString();
                 updateStatus(OTAStatus::FAILED, error);
                 httpClient.end();
+                
+                // 写入数据失败，恢复之前停止的任务
+                printf("写入数据失败，恢复之前停止的任务...\n");
+                restoreTasksAfterOTA();
+                
                 return false;
             }
             
@@ -496,12 +616,20 @@ bool OTAManager::downloadAndWriteFirmware(const String& downloadUrl) {
         String error = "OTA结束失败: ";
         error += Update.errorString();
         updateStatus(OTAStatus::FAILED, error);
+        
+        // 服务器OTA失败，恢复之前停止的任务
+        printf("服务器OTA升级失败，恢复之前停止的任务...\n");
+        restoreTasksAfterOTA();
+        
         return false;
     }
     
     updateStatus(OTAStatus::SUCCESS, "");
     printf("服务器OTA升级成功完成！\n");
     printf("最终进度: %.1f%% (%u/%u 字节)\n", getProgress(), writtenSize, totalSize);
+    
+    // 服务器OTA成功，通常会立即重启设备，所以不需要恢复任务
+    printf("服务器OTA升级成功，准备重启设备（不恢复任务）\n");
     
     return true;
 }
@@ -533,6 +661,186 @@ void OTAManager::rebootTask(void* parameter) {
     vTaskDelay(pdMS_TO_TICKS(3000));
     printf("正在重启设备...\n");
     ESP.restart();
+}
+
+bool OTAManager::stopTasksForOTA() {
+    printf("🛑 [OTA] 开始停止系统任务以释放资源...\n");
+    
+    bool allStopped = true;
+    
+    // 记录当前任务运行状态，用于后续恢复（如果需要）
+    m_timeManagerWasRunning = false;
+    m_weatherManagerWasRunning = false;
+    m_monitorWasRunning = false;
+    m_displayManagerWasRunning = false;
+    m_webServerManagerWasRunning = false;
+    m_psramManagerWasRunning = false;
+    m_configStorageWasRunning = false;
+    
+    // 停止时间管理任务
+    if (m_timeManager) {
+        printf("🕒 [OTA] 停止时间管理任务...\n");
+        // 这里需要检查任务是否在运行，但TimeManager可能没有提供isRunning()方法
+        // 直接调用stop()，它内部会检查状态
+        m_timeManager->stop();
+        m_timeManagerWasRunning = true; // 记录曾经运行过
+        printf("✅ [OTA] 时间管理任务已停止\n");
+    }
+    
+    // 停止天气管理任务
+    if (m_weatherManager) {
+        printf("🌤️ [OTA] 停止天气管理任务...\n");
+        m_weatherManager->stop();
+        m_weatherManagerWasRunning = true; // 记录曾经运行过
+        printf("✅ [OTA] 天气管理任务已停止\n");
+    }
+    
+    // 停止监控任务
+    if (m_monitor) {
+        printf("📊 [OTA] 停止监控任务...\n");
+        m_monitor->stop();
+        m_monitorWasRunning = true; // 记录曾经运行过
+        printf("✅ [OTA] 监控任务已停止\n");
+    }
+    
+    // 保留显示管理任务运行，用于显示OTA进度条
+    if (m_displayManager) {
+        printf("🖥️ [OTA] 保持显示管理任务运行以显示OTA进度\n");
+        // 不停止显示管理任务，用户需要看到OTA升级进度条
+        // m_displayManager->stop();
+        // m_displayManagerWasRunning = true;
+    }
+    
+    // Web服务器保持运行以支持OTA状态查询，但可以选择停止
+    if (m_webServerManager) {
+        printf("🌐 [OTA] 保持Web服务器运行以支持OTA状态查询\n");
+        // 可选：m_webServerManager->stop();
+        // m_webServerManagerWasRunning = true;
+    }
+    
+    // PSRAM管理器保持运行，因为OTA可能需要内存管理
+    if (m_psramManager) {
+        printf("💾 [OTA] 保持PSRAM管理器运行\n");
+        // 可选：m_psramManager->stop();
+        // m_psramManagerWasRunning = true;
+    }
+    
+    // 配置存储保持运行，可能需要保存OTA相关配置
+    if (m_configStorage) {
+        printf("⚙️ [OTA] 保持配置存储运行\n");
+        // 可选：m_configStorage->stopTask();
+        // m_configStorageWasRunning = true;
+    }
+    
+    // 等待任务完全停止
+    printf("⏳ [OTA] 等待任务完全停止...\n");
+    vTaskDelay(pdMS_TO_TICKS(2000));
+    
+    printf("✅ [OTA] 系统任务停止完成，已释放资源用于OTA升级\n");
+    
+    // 显示内存状态
+    if (m_psramManager) {
+        printf("📊 [OTA] 当前内存状态:\n");
+        printf("   - 可用堆内存: %u 字节\n", ESP.getFreeHeap());
+        printf("   - 最小堆内存: %u 字节\n", ESP.getMinFreeHeap());
+        if (m_psramManager->isPSRAMAvailable()) {
+            printf("   - 可用PSRAM: %u 字节\n", m_psramManager->getFreeSize());
+        }
+    }
+    
+    return allStopped;
+}
+
+void OTAManager::restoreTasksAfterOTA() {
+    printf("🔄 [OTA] OTA升级完成，准备恢复系统任务...\n");
+    
+    // 注意：通常OTA成功后会重启设备，所以这个方法可能不会被调用
+    // 这个方法主要用于OTA失败后的恢复
+    
+    // 恢复时间管理任务
+    if (m_timeManager && m_timeManagerWasRunning) {
+        printf("🕒 [OTA] 恢复时间管理任务...\n");
+        if (m_timeManager->start()) {
+            printf("✅ [OTA] 时间管理任务恢复成功\n");
+        } else {
+            printf("❌ [OTA] 时间管理任务恢复失败\n");
+        }
+    }
+    
+    // 恢复天气管理任务
+    if (m_weatherManager && m_weatherManagerWasRunning) {
+        printf("🌤️ [OTA] 恢复天气管理任务...\n");
+        if (m_weatherManager->start()) {
+            printf("✅ [OTA] 天气管理任务恢复成功\n");
+        } else {
+            printf("❌ [OTA] 天气管理任务恢复失败\n");
+        }
+    }
+    
+    // 恢复监控任务
+    if (m_monitor && m_monitorWasRunning) {
+        printf("📊 [OTA] 恢复监控任务...\n");
+        // Monitor类没有start方法，需要调用init来重新启动
+        printf("⚠️ [OTA] 监控任务需要手动重启\n");
+    }
+    
+    // 显示管理任务保持运行，无需恢复
+    if (m_displayManager) {
+        printf("🖥️ [OTA] 显示管理任务一直保持运行，无需恢复\n");
+        // 显示管理任务没有被停止，所以不需要恢复
+    }
+    
+    printf("✅ [OTA] 系统任务恢复完成\n");
+}
+
+void OTAManager::updateScreenDisplay() {
+    if (!m_displayManager) {
+        return;  // 没有DisplayManager引用
+    }
+    
+    // 转换OTA状态为数字形式
+    int statusNum = 0;
+    const char* statusText = "";
+    
+    switch (status) {
+        case OTAStatus::IDLE:
+            statusNum = 0;
+            statusText = "Waiting for update";
+            break;
+        case OTAStatus::UPLOADING:
+            statusNum = 1;
+            statusText = "Uploading firmware";
+            break;
+        case OTAStatus::DOWNLOADING:
+            statusNum = 2;
+            statusText = "Downloading from server";
+            break;
+        case OTAStatus::WRITING:
+            statusNum = 3;
+            statusText = "Writing firmware";
+            break;
+        case OTAStatus::SUCCESS:
+            statusNum = 4;
+            statusText = "Update successful";
+            break;
+        case OTAStatus::FAILED:
+            statusNum = 5;
+            statusText = "Update failed";
+            break;
+    }
+    
+    // 获取当前进度
+    float currentProgress = getProgress();
+    
+    // 更新屏幕显示
+    m_displayManager->updateOTAStatus(
+        statusNum,
+        currentProgress,
+        totalSize,
+        writtenSize,
+        statusText,
+        (status == OTAStatus::FAILED && errorMessage.length() > 0) ? errorMessage.c_str() : nullptr
+    );
 }
 
 void OTAManager::serverOTATask(void* parameter) {
