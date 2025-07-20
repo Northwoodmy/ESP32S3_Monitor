@@ -124,7 +124,8 @@ void setup() {
   // 初始化LVGL驱动系统
   printf("开始LVGL驱动系统初始化...\n");
   lvglDriverInstance.init();
-  
+    // 设置全局LVGL驱动指针
+    lvglDriver = &lvglDriverInstance;
   // 启动LVGL驱动任务  
   printf("启动LVGL驱动任务...\n");
   lvglDriverInstance.start();

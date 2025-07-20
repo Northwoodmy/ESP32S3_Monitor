@@ -459,6 +459,22 @@ public:
     bool isScreenOn() const;
     
     /**
+     * @brief 检查触摸唤醒功能是否可用
+     * 
+     * @return true 触摸唤醒可用，false 不可用
+     */
+    bool isTouchWakeupEnabled() const;
+    
+    /**
+     * @brief 获取触摸活动状态信息
+     * 
+     * @param lastTouchTime 最后触摸时间
+     * @param timeSinceLastTouch 距离最后触摸的时间间隔（毫秒）
+     * @param isInLowPower 是否处于低功率状态
+     */
+    void getTouchWakeupStatus(uint32_t& lastTouchTime, uint32_t& timeSinceLastTouch, bool& isInLowPower) const;
+    
+    /**
      * @brief 根据当前主题切换到对应的端口屏幕
      */
     void switchToPortScreen(int port_index);

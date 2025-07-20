@@ -753,7 +753,17 @@ void DisplayManager::processMessage(const DisplayMessage& msg) {
             
             // 如果屏幕当前关闭，触摸活动应立即开启屏幕
             if (!m_screenOn) {
+                printf("[DisplayManager] 触摸唤醒：屏幕已关闭，立即开启屏幕\n");
                 performScreenOn();
+            } else {
+                printf("[DisplayManager] 触摸活动：屏幕已开启，重置延时计时器\n");
+            }
+            
+            // 在功率控制模式或基于功率的延时模式下，触摸活动应该重置低功率状态
+            if ((m_powerControlEnabled || !m_powerData.valid) && m_isInLowPowerMode) {
+                printf("[DisplayManager] 触摸唤醒：重置低功率模式状态\n");
+                m_isInLowPowerMode = false;
+                m_lowPowerStartTime = 0;
             }
             break;
             
@@ -1687,7 +1697,12 @@ void DisplayManager::notifyTouchActivity() {
     msg.type = DisplayMessage::MSG_TOUCH_ACTIVITY;
     
     if (m_messageQueue) {
-        xQueueSend(m_messageQueue, &msg, pdMS_TO_TICKS(100));
+        BaseType_t result = xQueueSend(m_messageQueue, &msg, pdMS_TO_TICKS(100));
+        if (result != pdTRUE) {
+            printf("[DisplayManager] 警告：触摸活动消息发送失败\n");
+        }
+    } else {
+        printf("[DisplayManager] 错误：消息队列为空\n");
     }
 }
 
@@ -1815,7 +1830,7 @@ void DisplayManager::performScreenOn() {
     }
     
     m_screenOn = true;
-    printf("[DisplayManager] 屏幕已开启\n");
+    printf("[DisplayManager] 屏幕已开启，亮度已恢复至 %d%%\n", m_brightness);
 }
 
 /**
@@ -1826,22 +1841,25 @@ void DisplayManager::performScreenOff() {
         return; // 已经关闭
     }
     
-    printf("[DisplayManager] 关闭屏幕\n");
+    printf("[DisplayManager] 关闭屏幕（延时模式生效）\n");
+    printf("[DisplayManager] 💡 屏幕已进入省电模式，触摸屏幕可立即唤醒\n");
     
     // 设置屏幕亮度为0（关闭背光）
     if (m_lvglDriver) {
         m_lvglDriver->setBrightness(0);
     }
     
-    // 可以在这里添加屏幕关闭时的UI更新逻辑
-    // 例如：显示黑屏或省电模式界面
+    // 显示屏幕内容保持不变，只是关闭背光
+    // LVGL任务继续运行，触摸检测继续工作
     if (m_lvglDriver && m_lvglDriver->lock(1000)) {
-        // 可以创建一个黑屏或省电模式的界面
+        // 不对UI内容进行任何修改，保持当前界面
         m_lvglDriver->unlock();
+    } else {
+        printf("[DisplayManager] 警告：LVGL锁获取失败，可能影响触摸响应\n");
     }
     
     m_screenOn = false;
-    printf("[DisplayManager] 屏幕已关闭\n");
+    printf("[DisplayManager] 屏幕背光已关闭，触摸系统保持活跃状态\n");
 }
 
 /**
@@ -1849,7 +1867,37 @@ void DisplayManager::performScreenOff() {
  */
 void DisplayManager::resetTimeoutTimer() {
     m_lastTouchTime = xTaskGetTickCount() * portTICK_PERIOD_MS;
+    
+    // 如果当前处于低功率模式，重置低功率状态
+    if (m_isInLowPowerMode) {
+        m_isInLowPowerMode = false;
+        m_lowPowerStartTime = 0;
+    }
+    
+    // 如果屏幕关闭，立即开启
+    if (!m_screenOn) {
+        performScreenOn();
+    }
 }
+
+/**
+ * @brief 检查触摸唤醒功能是否可用
+ */
+bool DisplayManager::isTouchWakeupEnabled() const {
+    // 触摸唤醒功能在延时模式下可用
+    return (m_screenMode == SCREEN_MODE_TIMEOUT);
+}
+
+/**
+ * @brief 获取触摸活动状态信息
+ */
+void DisplayManager::getTouchWakeupStatus(uint32_t& lastTouchTime, uint32_t& timeSinceLastTouch, bool& isInLowPower) const {
+    lastTouchTime = m_lastTouchTime;
+    timeSinceLastTouch = (xTaskGetTickCount() * portTICK_PERIOD_MS) - m_lastTouchTime;
+    isInLowPower = m_isInLowPowerMode;
+}
+
+
 
 // === 功率控制屏幕功能实现 ===
 
@@ -2249,6 +2297,19 @@ void DisplayManager::processPowerControlLogic() {
     uint32_t currentTime = xTaskGetTickCount() * portTICK_PERIOD_MS;
     int currentPower = m_powerData.total_power;
     
+    // 优先检查触摸活动：如果最近有触摸活动，屏幕应该保持开启
+    uint32_t timeSinceLastTouch = currentTime - m_lastTouchTime;
+    uint32_t touchTimeoutMs = m_screenTimeoutMinutes * 60 * 1000;
+    
+    if (timeSinceLastTouch < touchTimeoutMs) {
+        // 触摸延时时间内，确保屏幕开启
+        if (!m_screenOn) {
+            printf("[DisplayManager] 功率控制：触摸延时时间内，强制开启屏幕\n");
+            performScreenOn();
+        }
+        return; // 触摸活动优先级最高，跳过功率控制逻辑
+    }
+    
     // 检查是否应该立即开启屏幕（功率大于开启阈值）
     if (currentPower > m_powerOnThreshold) {
         if (!m_screenOn) {
@@ -2359,6 +2420,25 @@ void DisplayManager::processPowerBasedTimeoutLogic() {
     
     uint32_t currentTime = xTaskGetTickCount() * portTICK_PERIOD_MS;
     int currentPower = m_powerData.total_power;
+    
+    // 优先检查触摸活动：无论功率状态如何，触摸活动都应该唤醒屏幕
+    uint32_t timeSinceLastTouch = currentTime - m_lastTouchTime;
+    uint32_t touchTimeoutMs = m_screenTimeoutMinutes * 60 * 1000;
+    
+    if (timeSinceLastTouch < touchTimeoutMs) {
+        // 触摸延时时间内，重置低功率状态并确保屏幕开启
+        if (m_isInLowPowerMode) {
+            printf("[DisplayManager] 基于功率延时：触摸活动优先，重置低功率状态\n");
+            m_isInLowPowerMode = false;
+            m_lowPowerStartTime = 0;
+        }
+        
+        if (!m_screenOn) {
+            printf("[DisplayManager] 基于功率延时：触摸延时时间内，强制开启屏幕\n");
+            performScreenOn();
+        }
+        return; // 触摸活动优先级最高
+    }
     
     // 检查功率状态并管理延时计算
     if (currentPower < 1000) { // 1W = 1000mW
