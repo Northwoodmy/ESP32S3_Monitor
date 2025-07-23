@@ -13,6 +13,10 @@ Monitor::Monitor() : monitorTaskHandle(nullptr), m_psramManager(nullptr), m_conf
     // 设置默认配置
     setDefaultConfig();
     
+    // 初始化自动扫描相关变量
+    m_consecutiveFailures = 0;
+    m_lastScanTime = 0;
+    
     // 初始化功率数据
     memset(&m_currentPowerData, 0, sizeof(m_currentPowerData));
     m_currentPowerData.port_count = 4;
@@ -111,6 +115,7 @@ void Monitor::setDefaultConfig() {
     requestInterval = 250;  // 250毫秒请求一次
     connectionTimeout = 1000;  // 1秒连接超时
     serverEnabled = true;  // 默认启用服务器监控
+    autoScanServer = false;  // 默认禁用自动扫描服务器
 }
 
 void Monitor::loadServerConfig() {
@@ -155,7 +160,9 @@ void Monitor::loadServerConfig() {
         }
         
         serverEnabled = enabled;
+        this->autoScanServer = autoScanServer;  // 使用从配置加载的autoScanServer变量
         printf("服务器监控: %s\n", serverEnabled ? "启用" : "禁用");
+        printf("自动扫描服务器: %s\n", this->autoScanServer ? "启用" : "禁用");
     } else {
         printf("服务器配置加载失败，使用默认配置\n");
     }
@@ -211,6 +218,9 @@ bool Monitor::fetchMetricsData() {
             // 解析数据（不输出调试信息）
             parseAndDisplayMetrics(payload);
             
+            // 连接成功，重置失败计数器
+            resetFailureCounter();
+            
             httpClient.end();
             return true;
         } else {
@@ -221,6 +231,23 @@ bool Monitor::fetchMetricsData() {
     }
     
     httpClient.end();
+    
+    // 连接失败，增加失败计数并检查是否需要自动扫描
+    m_consecutiveFailures++;
+    printf("连接失败次数: %d\n", m_consecutiveFailures);
+    
+    // 检查是否需要触发自动扫描
+    if (shouldTriggerAutoScan()) {
+        printf("触发自动扫描服务器...\n");
+        if (performAutoScan()) {
+            printf("自动扫描成功，将在下次请求中使用新的服务器地址\n");
+            // 重置失败计数器，因为找到了新的服务器
+            resetFailureCounter();
+        } else {
+            printf("自动扫描未找到可用的cp02服务器\n");
+        }
+    }
+    
     return false;
 }
 
@@ -396,5 +423,180 @@ void Monitor::calculateTotalPower() {
 void Monitor::triggerDataCallback() {
     if (m_powerDataCallback && m_currentPowerData.valid) {
         m_powerDataCallback(m_currentPowerData, m_callbackUserData);
+    }
+}
+
+// 自动扫描相关方法实现
+
+bool Monitor::shouldTriggerAutoScan() {
+    // 检查自动扫描开关是否启用
+    if (!autoScanServer) {
+        if (m_consecutiveFailures >= MAX_FAILURES_BEFORE_SCAN) {
+            printf("📊 连接失败次数已达 %d 次，但自动扫描功能已禁用\n", m_consecutiveFailures);
+            printf("   提示: 可在Web设置页面启用'自动扫描服务器'功能\n");
+        }
+        return false;
+    }
+    
+    // 检查是否达到失败次数阈值
+    if (m_consecutiveFailures < MAX_FAILURES_BEFORE_SCAN) {
+        printf("📊 连接失败次数: %d/%d，未达到自动扫描阈值\n", 
+               m_consecutiveFailures, MAX_FAILURES_BEFORE_SCAN);
+        return false;
+    }
+    
+    // 检查冷却时间
+    unsigned long currentTime = millis();
+    if (currentTime - m_lastScanTime < SCAN_COOLDOWN_MS) {
+        unsigned long remainingTime = (SCAN_COOLDOWN_MS - (currentTime - m_lastScanTime)) / 1000;
+        printf("⏱️ 自动扫描仍在冷却中，距离下次扫描还需 %lu 秒\n", remainingTime);
+        printf("   失败次数: %d/%d\n", m_consecutiveFailures, MAX_FAILURES_BEFORE_SCAN);
+        return false;
+    }
+    
+    printf("🚨 满足自动扫描触发条件:\n");
+    printf("   ✅ 自动扫描已启用\n");
+    printf("   ✅ 连接失败次数: %d (阈值: %d)\n", m_consecutiveFailures, MAX_FAILURES_BEFORE_SCAN);
+    printf("   ✅ 冷却时间已过 (距离上次扫描: %lu 秒)\n", (currentTime - m_lastScanTime) / 1000);
+    return true;
+}
+
+bool Monitor::performAutoScan() {
+    printf("🔍 开始执行cp02服务器自动扫描...\n");
+    
+    // 更新扫描时间
+    m_lastScanTime = millis();
+    
+    // 使用MDNSScanner扫描cp02设备
+    std::vector<String> keywords;
+    keywords.push_back("cp02");
+    keywords.push_back("CP02");
+    
+    printf("正在扫描网络中的cp02设备...\n");
+    std::vector<MDNSDeviceInfo> devices = UniversalMDNSScanner::findDevicesByKeywords(keywords, true);
+    
+    if (devices.empty()) {
+        printf("❌ 自动扫描未发现任何cp02服务器\n");
+        return false;
+    }
+    
+    printf("✅ 发现 %d 个cp02服务器，开始逐个测试连接...\n", devices.size());
+    
+    // 测试所有发现的设备，选择第一个可用的
+    for (size_t i = 0; i < devices.size(); i++) {
+        MDNSDeviceInfo& device = devices[i];
+        printf("📡 测试设备 %d/%d: %s (%s:%d)\n", 
+               (int)(i + 1), (int)devices.size(),
+               device.name.c_str(), device.ip.c_str(), device.port);
+        
+        // 构建测试URL
+        String testServerUrl = "http://" + device.ip;
+        if (device.port != 80) {
+            testServerUrl += ":" + String(device.port);
+        }
+        testServerUrl += "/metrics.json";
+        
+        // 测试连接
+        HTTPClient testClient;
+        testClient.begin(testServerUrl);
+        testClient.setTimeout(3000);  // 3秒超时，避免等待太久
+        testClient.setConnectTimeout(2000);  // 2秒连接超时
+        
+        printf("   正在测试连接: %s\n", testServerUrl.c_str());
+        int testHttpCode = testClient.GET();
+        
+        if (testHttpCode == HTTP_CODE_OK) {
+            // 额外验证响应内容是否为有效的JSON
+            String payload = testClient.getString();
+            testClient.end();
+            
+            if (payload.length() > 10 && payload.indexOf("ports") >= 0) {
+                printf("✅ 设备 %s 连接测试成功，响应数据有效\n", device.name.c_str());
+                
+                // 更新服务器URL并保存配置
+                if (updateServerUrl(testServerUrl)) {
+                    printf("🎉 自动扫描成功！新服务器已配置: %s\n", testServerUrl.c_str());
+                    printf("   设备名称: %s\n", device.name.c_str());
+                    printf("   设备IP: %s:%d\n", device.ip.c_str(), device.port);
+                    return true;
+                } else {
+                    printf("⚠️ 保存新服务器URL失败，继续测试下一个设备\n");
+                }
+            } else {
+                printf("⚠️ 设备 %s 响应数据无效，继续测试下一个设备\n", device.name.c_str());
+                testClient.end();
+            }
+        } else {
+            testClient.end();
+            printf("❌ 设备 %s 连接失败，状态码: %d\n", device.name.c_str(), testHttpCode);
+        }
+        
+        // 给每个测试之间留一点间隔
+        vTaskDelay(pdMS_TO_TICKS(500));
+    }
+    
+    printf("❌ 所有发现的cp02服务器均无法连接\n");
+    return false;
+}
+
+bool Monitor::updateServerUrl(const String& newUrl) {
+    printf("💾 正在更新服务器URL: %s\n", newUrl.c_str());
+    
+    // 验证URL格式
+    if (newUrl.length() == 0 || newUrl.indexOf("http") != 0) {
+        printf("❌ 无效的服务器URL格式: %s\n", newUrl.c_str());
+        return false;
+    }
+    
+    // 更新内存中的URL
+    String oldUrl = metricsUrl;
+    metricsUrl = newUrl;
+    printf("✅ 内存中的服务器URL已更新\n");
+    printf("   旧URL: %s\n", oldUrl.c_str());
+    printf("   新URL: %s\n", newUrl.c_str());
+    
+    // 如果有配置存储，保存新的URL
+    if (m_configStorage) {
+        printf("💾 正在保存新URL到配置存储...\n");
+        
+        // 保存服务器配置，保持其他配置不变
+        bool success = m_configStorage->saveServerConfigAsync(
+            newUrl,
+            requestInterval,
+            serverEnabled,
+            connectionTimeout,
+            true,  // autoGetData，保持启用状态
+            autoScanServer,  // 保持当前自动扫描设置
+            5000   // 超时时间5秒
+        );
+        
+        if (success) {
+            printf("✅ 新服务器URL已保存到配置存储\n");
+            printf("   URL: %s\n", newUrl.c_str());
+            printf("   请求间隔: %d ms\n", requestInterval);
+            printf("   连接超时: %d ms\n", connectionTimeout);
+            printf("   自动扫描: %s\n", autoScanServer ? "启用" : "禁用");
+            return true;
+        } else {
+            printf("❌ 保存新服务器URL到配置存储失败\n");
+            printf("   尝试回滚内存中的URL...\n");
+            metricsUrl = oldUrl;  // 回滚
+            printf("   URL已回滚到: %s\n", oldUrl.c_str());
+            return false;
+        }
+    } else {
+        printf("⚠️ 配置存储未初始化，仅更新了内存中的URL\n");
+        printf("   注意: 设备重启后将丢失此URL配置\n");
+        return true;  // 至少内存中的URL已更新
+    }
+}
+
+void Monitor::resetFailureCounter() {
+    if (m_consecutiveFailures > 0) {
+        printf("🔄 重置连接失败计数器: %d → 0\n", m_consecutiveFailures);
+        if (m_consecutiveFailures >= MAX_FAILURES_BEFORE_SCAN) {
+            printf("   ✅ 服务器连接已恢复，自动扫描状态重置\n");
+        }
+        m_consecutiveFailures = 0;
     }
 } 

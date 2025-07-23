@@ -286,7 +286,7 @@ public:
     
     // 常量定义
     static const int MAX_WIFI_CONFIGS = 3;
-    static const int CONFIG_TASK_STACK_SIZE = 4096;
+    static const int CONFIG_TASK_STACK_SIZE = 3072;
     static const int CONFIG_TASK_PRIORITY = 2;
     static const int CONFIG_QUEUE_SIZE = 10;
     

@@ -350,7 +350,7 @@ private:
 #endif
     
     // 任务配置常量
-    static const uint32_t TASK_STACK_SIZE = 12 * 1024;  ///< 任务栈大小
+    static const uint32_t TASK_STACK_SIZE = 4 * 1024;  ///< 任务栈大小
     static const UBaseType_t TASK_PRIORITY = 2;         ///< 任务优先级
     static const uint32_t TASK_CORE = 1;                ///< 任务运行核心
 };
