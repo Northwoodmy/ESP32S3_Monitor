@@ -69,7 +69,7 @@ void Monitor::init(PSRAMManager* psramManager, ConfigStorage* configStorage) {
     BaseType_t result = xTaskCreatePinnedToCore(
         monitoringTask,         // 任务函数
         "MonitoringTask",       // 任务名称
-        8192,                   // 栈大小(增大以支持HTTP和JSON处理)
+        4096,                   // 栈大小(增大以支持HTTP和JSON处理)
         this,                   // 传递给任务的参数
         3,                      // 任务优先级
         &monitorTaskHandle,     // 任务句柄
