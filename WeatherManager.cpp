@@ -682,19 +682,16 @@ bool WeatherManager::makeHttpRequest(const String& url, String& response) {
             }
             
             // 释放PSRAM缓冲区
-            trackMemoryDeallocation(bufferSize, true);
             _psramManager->deallocate(responseBuffer);
+            trackMemoryDeallocation(bufferSize, true);
         } else {
             printf("[WeatherManager] PSRAM分配失败，使用标准方法\n");
             response = http.getString();
-            // 估算字符串使用的内存
-            trackMemoryAllocation(response.length(), false);
             _statistics.httpBufferSize = response.length();
         }
     } else {
         // 小响应或无PSRAM时使用标准方法
         response = http.getString();
-        trackMemoryAllocation(response.length(), false);
         _statistics.httpBufferSize = response.length();
         printf("[WeatherManager] 使用标准方法获取响应: %d字节\n", response.length());
     }
@@ -724,27 +721,28 @@ bool WeatherManager::parseWeatherResponse(const String& response) {
     // 使用PSRAM分配JSON解析缓冲区以减少内部RAM使用
     const size_t capacity = JSON_OBJECT_SIZE(10) + JSON_ARRAY_SIZE(5) + 1024;
     DynamicJsonDocument* doc = nullptr;
+    void* docBuffer = nullptr;
     bool usedPSRAMForJSON = false;
     
     if (_psramManager && _psramManager->isPSRAMAvailable()) {
         // 使用PSRAM分配JSON文档
-        void* docBuffer = _psramManager->allocateDataBuffer(capacity, "JSON解析缓冲区");
+        docBuffer = _psramManager->allocateDataBuffer(capacity, "JSON解析缓冲区");
         if (docBuffer) {
             doc = new(docBuffer) DynamicJsonDocument(capacity);
             usedPSRAMForJSON = true;
             trackMemoryAllocation(capacity, true);
             _statistics.jsonBufferSize = capacity;
             printf("[WeatherManager] 使用PSRAM分配JSON解析缓冲区: %u字节\n", capacity);
-        } else {
-            printf("[WeatherManager] PSRAM分配失败，使用内部RAM\n");
-            doc = new DynamicJsonDocument(capacity);
-            trackMemoryAllocation(capacity, false);
-            _statistics.jsonBufferSize = capacity;
         }
-    } else {
+    }
+    
+    // 如果PSRAM分配失败，使用内部RAM
+    if (!doc) {
         doc = new DynamicJsonDocument(capacity);
+        usedPSRAMForJSON = false;
         trackMemoryAllocation(capacity, false);
         _statistics.jsonBufferSize = capacity;
+        printf("[WeatherManager] 使用内部RAM分配JSON解析缓冲区: %u字节\n", capacity);
     }
     
     if (!doc) {
@@ -756,8 +754,9 @@ bool WeatherManager::parseWeatherResponse(const String& response) {
     if (error) {
         printf("❌ [WeatherManager] JSON解析失败: %s\n", error.c_str());
         // 清理JSON文档
+        doc->~DynamicJsonDocument();  // 显式调用析构函数
         if (usedPSRAMForJSON) {
-            _psramManager->deallocate(doc);
+            _psramManager->deallocate(docBuffer);
             trackMemoryDeallocation(capacity, true);
         } else {
             delete doc;
@@ -772,8 +771,9 @@ bool WeatherManager::parseWeatherResponse(const String& response) {
         const char* info = (*doc)["info"];
         printf("❌ [WeatherManager] API响应错误: %s\n", info ? info : "未知错误");
         // 清理JSON文档
+        doc->~DynamicJsonDocument();  // 显式调用析构函数
         if (usedPSRAMForJSON) {
-            _psramManager->deallocate(doc);
+            _psramManager->deallocate(docBuffer);
             trackMemoryDeallocation(capacity, true);
         } else {
             delete doc;
@@ -786,8 +786,9 @@ bool WeatherManager::parseWeatherResponse(const String& response) {
     if (!lockWeatherData()) {
         printf("❌ [WeatherManager] 获取天气数据锁失败\n");
         // 清理JSON文档
+        doc->~DynamicJsonDocument();  // 显式调用析构函数
         if (usedPSRAMForJSON) {
-            _psramManager->deallocate(doc);
+            _psramManager->deallocate(docBuffer);
             trackMemoryDeallocation(capacity, true);
         } else {
             delete doc;
@@ -826,8 +827,9 @@ bool WeatherManager::parseWeatherResponse(const String& response) {
         printf("❌ [WeatherManager] 响应中无天气数据\n");
         unlockWeatherData();
         // 清理JSON文档
+        doc->~DynamicJsonDocument();  // 显式调用析构函数
         if (usedPSRAMForJSON) {
-            _psramManager->deallocate(doc);
+            _psramManager->deallocate(docBuffer);
             trackMemoryDeallocation(capacity, true);
         } else {
             delete doc;
@@ -839,10 +841,13 @@ bool WeatherManager::parseWeatherResponse(const String& response) {
     unlockWeatherData();
     
     // 清理JSON文档
+    doc->~DynamicJsonDocument();  // 显式调用析构函数
     if (usedPSRAMForJSON) {
-        _psramManager->deallocate(doc);
+        _psramManager->deallocate(docBuffer);
+        trackMemoryDeallocation(capacity, true);
     } else {
         delete doc;
+        trackMemoryDeallocation(capacity, false);
     }
     
     printDebugInfo("天气数据解析成功");
@@ -862,27 +867,28 @@ bool WeatherManager::parseForecastResponse(const String& response) {
     // 使用PSRAM分配JSON解析缓冲区以减少内部RAM使用
     const size_t capacity = JSON_OBJECT_SIZE(20) + JSON_ARRAY_SIZE(10) + 2048;
     DynamicJsonDocument* doc = nullptr;
+    void* docBuffer = nullptr;
     bool usedPSRAMForJSON = false;
     
     if (_psramManager && _psramManager->isPSRAMAvailable()) {
         // 使用PSRAM分配JSON文档
-        void* docBuffer = _psramManager->allocateDataBuffer(capacity, "JSON解析缓冲区");
+        docBuffer = _psramManager->allocateDataBuffer(capacity, "JSON解析缓冲区");
         if (docBuffer) {
             doc = new(docBuffer) DynamicJsonDocument(capacity);
             usedPSRAMForJSON = true;
             trackMemoryAllocation(capacity, true);
             _statistics.jsonBufferSize = capacity;
             printf("[WeatherManager] 使用PSRAM分配JSON解析缓冲区: %u字节\n", capacity);
-        } else {
-            printf("[WeatherManager] PSRAM分配失败，使用内部RAM\n");
-            doc = new DynamicJsonDocument(capacity);
-            trackMemoryAllocation(capacity, false);
-            _statistics.jsonBufferSize = capacity;
         }
-    } else {
+    }
+    
+    // 如果PSRAM分配失败，使用内部RAM
+    if (!doc) {
         doc = new DynamicJsonDocument(capacity);
+        usedPSRAMForJSON = false;
         trackMemoryAllocation(capacity, false);
         _statistics.jsonBufferSize = capacity;
+        printf("[WeatherManager] 使用内部RAM分配JSON解析缓冲区: %u字节\n", capacity);
     }
     
     if (!doc) {
@@ -894,8 +900,9 @@ bool WeatherManager::parseForecastResponse(const String& response) {
     if (error) {
         printf("❌ [WeatherManager] 预报JSON解析失败: %s\n", error.c_str());
         // 清理JSON文档
+        doc->~DynamicJsonDocument();  // 显式调用析构函数
         if (usedPSRAMForJSON) {
-            _psramManager->deallocate(doc);
+            _psramManager->deallocate(docBuffer);
             trackMemoryDeallocation(capacity, true);
         } else {
             delete doc;
@@ -910,8 +917,9 @@ bool WeatherManager::parseForecastResponse(const String& response) {
         const char* info = (*doc)["info"];
         printf("❌ [WeatherManager] 预报API响应错误: %s\n", info ? info : "未知错误");
         // 清理JSON文档
+        doc->~DynamicJsonDocument();  // 显式调用析构函数
         if (usedPSRAMForJSON) {
-            _psramManager->deallocate(doc);
+            _psramManager->deallocate(docBuffer);
             trackMemoryDeallocation(capacity, true);
         } else {
             delete doc;
@@ -924,8 +932,9 @@ bool WeatherManager::parseForecastResponse(const String& response) {
     if (!lockWeatherData()) {
         printf("❌ [WeatherManager] 获取预报数据锁失败\n");
         // 清理JSON文档
+        doc->~DynamicJsonDocument();  // 显式调用析构函数
         if (usedPSRAMForJSON) {
-            _psramManager->deallocate(doc);
+            _psramManager->deallocate(docBuffer);
             trackMemoryDeallocation(capacity, true);
         } else {
             delete doc;
@@ -1023,8 +1032,9 @@ bool WeatherManager::parseForecastResponse(const String& response) {
     unlockWeatherData();
     
     // 清理JSON文档
+    doc->~DynamicJsonDocument();  // 显式调用析构函数
     if (usedPSRAMForJSON) {
-        _psramManager->deallocate(doc);
+        _psramManager->deallocate(docBuffer);
         trackMemoryDeallocation(capacity, true);
     } else {
         delete doc;
@@ -1311,13 +1321,23 @@ void WeatherManager::freeMemory(void* ptr) {
 void WeatherManager::cleanupForecastData() {
     if (_forecastData) {
         size_t dataSize = _statistics.forecastDataSize;
-        if (_psramManager && _psramManager->isPSRAMAvailable()) {
-            _psramManager->deallocate(_forecastData);
-            trackMemoryDeallocation(dataSize, true);
-        } else {
-            free(_forecastData);  // 使用标准free释放malloc分配的内存
-            trackMemoryDeallocation(dataSize, false);
+        
+        // 检查数据的完整性
+        if (dataSize > 0) {
+            // 注意：无法确定内存是在PSRAM还是内部RAM中分配的
+            // 统一使用free释放，因为预报数据可能在两种类型的内存中
+            // TODO: 需要改进内存分配策略，记录分配类型
+            if (_psramManager && _psramManager->isPSRAMAvailable()) {
+                // 尝试PSRAM释放
+                _psramManager->deallocate(_forecastData);
+                trackMemoryDeallocation(dataSize, true);
+            } else {
+                // 使用标准free释放
+                free(_forecastData);
+                trackMemoryDeallocation(dataSize, false);
+            }
         }
+        
         _forecastData = nullptr;
         _statistics.forecastDataSize = 0;
     }
