@@ -4,6 +4,7 @@
  */
 
 #include "WebServerManager.h"
+#include "Version.h"
 #include "PSRAMManager.h"
 #include "DisplayManager.h"
 #include "WeatherManager.h"
@@ -255,7 +256,7 @@ void WebServerManager::handleSystemInfo() {
     
     DynamicJsonDocument doc(1024);
     doc["device"] = "ESP32S3 Monitor";
-            doc["version"] = "v6.0.1";
+            doc["version"] = VERSION_STRING;
     doc["chipModel"] = ESP.getChipModel();
     doc["chipRevision"] = ESP.getChipRevision();
     doc["cpuFreq"] = ESP.getCpuFreqMHz();
@@ -2631,7 +2632,7 @@ void WebServerManager::handleServerFirmwareVersion() {
             doc["success"] = true;
             doc["message"] = "固件版本查询成功";
             doc["serverUrl"] = serverUrl;
-            doc["currentVersion"] = "v5.4.0";  // 当前设备版本
+            doc["currentVersion"] = VERSION_STRING;  // 当前设备版本
             doc["serverVersion"] = serverDoc;
             
             printf("固件版本查询成功\n");

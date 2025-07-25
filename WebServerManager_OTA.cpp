@@ -4,6 +4,7 @@
  */
 
 #include "WebServerManager.h"
+#include "Version.h"
 
 String WebServerManager::getOTAPageHTML() {
     String html = "";
@@ -62,7 +63,7 @@ String WebServerManager::getOTAPageHTML() {
     html += "</div>";
     html += "<div id=\"versionInfo\" class=\"version-info hidden\">";
     html += "<h4>版本信息</h4>";
-    html += "<p><strong>当前版本:</strong> <span id=\"currentVersion\">v5.4.0</span></p>";
+    html += "<p><strong>当前版本:</strong> <span id=\"currentVersion\">" + String(VERSION_STRING) + "</span></p>";
     html += "<p><strong>服务器版本:</strong> <span id=\"serverVersion\">检查中...</span></p>";
     html += "</div>";
     html += "</div>";
@@ -358,7 +359,7 @@ String WebServerManager::getOTAJavaScript() {
     js += "        \n";
     js += "        if (data.success) {\n";
     js += "            versionInfo.classList.remove('hidden');\n";
-    js += "            currentVersion.textContent = data.currentVersion || 'v5.4.0';\n";
+    js += "            currentVersion.textContent = data.currentVersion || '" + String(VERSION_STRING) + "';\n";
     js += "            \n";
     js += "            if (data.serverVersion && data.serverVersion.version) {\n";
     js += "                serverVersion.textContent = data.serverVersion.version;\n";
