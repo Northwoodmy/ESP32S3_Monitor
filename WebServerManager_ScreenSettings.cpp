@@ -159,6 +159,48 @@ String WebServerManager::getScreenSettingsHTML() {
     html += "                    </div>\n";
     html += "                </div>\n";
     html += "            </div>\n";
+    html += "            \n";
+    html += "            <!-- 屏幕旋转配置部分 -->\n";
+    html += "            <div class=\"settings-section\">\n";
+    html += "                <h2>屏幕旋转配置</h2>\n";
+    html += "                <div class=\"rotation-config\">\n";
+    html += "                    <div class=\"rotation-selector\">\n";
+    html += "                        <h3>自动屏幕旋转</h3>\n";
+    html += "                        <div class=\"setting-description\">\n";
+    html += "                            根据设备重力感应自动调整屏幕方向，提供更好的使用体验。\n";
+    html += "                        </div>\n";
+    html += "                        <div class=\"toggle-container\">\n";
+    html += "                            <div class=\"toggle-switch\" id=\"rotationToggle\">\n";
+    html += "                                <div class=\"toggle-track\">\n";
+    html += "                                    <div class=\"toggle-thumb\" id=\"rotationThumb\"></div>\n";
+    html += "                                </div>\n";
+    html += "                            </div>\n";
+    html += "                            <div class=\"toggle-label\" id=\"rotationLabel\">\n";
+    html += "                                <span class=\"label-text\">启用</span>\n";
+    html += "                            </div>\n";
+    html += "                        </div>\n";
+    html += "                        <div class=\"static-rotation-info\" id=\"staticRotationInfo\" style=\"display: none;\">\n";
+    html += "                            <div class=\"info-label\">当前锁定方向:</div>\n";
+    html += "                            <div class=\"rotation-display\" id=\"rotationDisplay\">\n";
+    html += "                                <span id=\"rotationAngle\">0°</span>\n";
+    html += "                            </div>\n";
+    html += "                        </div>\n";
+    html += "                        <input type=\"hidden\" id=\"autoRotationEnabled\" value=\"true\">\n";
+    html += "                        <input type=\"hidden\" id=\"staticRotation\" value=\"0\">\n";
+    html += "                    </div>\n";
+    html += "                    \n";
+    html += "                    <!-- 旋转设置保存按钮 -->\n";
+    html += "                    <div class=\"settings-actions\">\n";
+    html += "                        <button onclick=\"saveRotationSettings()\" class=\"save-btn primary-btn\">\n";
+    html += "                            <span class=\"btn-text\">保存设置</span>\n";
+    html += "                            <div class=\"btn-loading hidden\">\n";
+    html += "                                <div class=\"spinner-sm\"></div>\n";
+    html += "                                <span>保存中...</span>\n";
+    html += "                            </div>\n";
+    html += "                        </button>\n";
+    html += "                    </div>\n";
+    html += "                </div>\n";
+    html += "            </div>\n";
     html += "        </div>\n";
     html += "    </div>\n";
     html += "    \n";
@@ -897,6 +939,152 @@ String WebServerManager::getScreenSettingsCSS() {
             .mode-settings {
                 padding: 16px;
             }
+            
+            .rotation-config {
+                padding: 16px;
+            }
+        }
+        
+        /* 屏幕旋转配置样式 */
+        .rotation-config {
+            background: linear-gradient(145deg, #ffffff, #f8fafc);
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+            animation: fadeInUp 0.6s ease-out forwards;
+            opacity: 0;
+            animation-delay: 0.3s;
+        }
+        
+        .rotation-config:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+        }
+        
+        .rotation-selector h3 {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        /* Toggle开关样式 */
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-top: 20px;
+        }
+        
+        .toggle-switch {
+            width: 60px;
+            height: 30px;
+            background: #e5e7eb;
+            border-radius: 15px;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        
+        .toggle-switch.active {
+            background: linear-gradient(135deg, #10b981, #059669);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+        
+        .toggle-track {
+            width: 100%;
+            height: 100%;
+            border-radius: 15px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .toggle-thumb {
+            width: 22px;
+            height: 22px;
+            background: white;
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 4px;
+            transform: translateY(-50%);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+        
+        .toggle-switch.active .toggle-thumb {
+            left: 32px;
+            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+        }
+        
+        .toggle-label {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #374151;
+            min-width: 60px;
+        }
+        
+        .toggle-switch.active + .toggle-label .label-text {
+            color: #10b981;
+        }
+        
+        /* 静态旋转信息显示样式 */
+        .static-rotation-info {
+            margin-top: 16px;
+            padding: 12px;
+            background: #f1f5f9;
+            border-radius: 8px;
+            border-left: 4px solid #f59e0b;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .info-label {
+            font-size: 0.9rem;
+            color: #374151;
+            font-weight: 500;
+        }
+        
+        .rotation-display {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        #rotationAngle {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #f59e0b;
+            padding: 4px 8px;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #e5e7eb;
+        }
+        
+        /* 响应式设计中的旋转配置样式 */
+        @media (max-width: 768px) {
+            .rotation-config {
+                padding: 20px;
+            }
+            
+            .toggle-container {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+            
+            .static-rotation-info {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
         }
     )";
 }
@@ -946,6 +1134,14 @@ String WebServerManager::getScreenSettingsJavaScript() {
     js += "            }\n";
     js += "        });\n";
     js += "    });\n\n";
+    
+    js += "    // 屏幕旋转开关事件监听器\n";
+    js += "    const rotationToggle = document.getElementById('rotationToggle');\n";
+    js += "    if (rotationToggle) {\n";
+    js += "        rotationToggle.addEventListener('click', function() {\n";
+    js += "            toggleRotation();\n";
+    js += "        });\n";
+    js += "    }\n\n";
     
     js += "    const timeoutSlider = document.getElementById('timeoutSlider');\n";
     js += "    const timeoutInput = document.getElementById('timeoutMinutes');\n";
@@ -1064,13 +1260,154 @@ String WebServerManager::getScreenSettingsJavaScript() {
     js += "                    timeoutSlider.value = Math.min(timeoutMinutes, 60);\n";
     js += "                    timeoutValue.textContent = timeoutSlider.value;\n";
     js += "                }\n";
-    js += "                console.log('屏幕设置加载成功');\n";
+    js += "                // 设置自动旋转状态\n";
+    js += "                const autoRotationEnabled = data.autoRotationEnabled !== undefined ? data.autoRotationEnabled : true;\n";
+    js += "                const staticRotation = data.staticRotation !== undefined ? data.staticRotation : 0;\n";
+    js += "                updateStaticRotationDisplay(staticRotation);\n";
+    js += "                setRotationToggle(autoRotationEnabled);\n";
+    js += "                console.log('屏幕设置加载成功，自动旋转:', autoRotationEnabled, '静态角度:', staticRotation);\n";
     js += "            } else {\n";
     js += "                console.error('加载屏幕设置失败:', data.message);\n";
     js += "                showToast('加载配置失败: ' + data.message, 'error');\n";
     js += "            }\n";
     js += "        })\n";
     js += "        .catch(error => showToast('加载配置出错', 'error'));\n";
+    js += "}\n\n";
+    
+    js += "function toggleRotation() {\n";
+    js += "    const rotationToggle = document.getElementById('rotationToggle');\n";
+    js += "    const autoRotationInput = document.getElementById('autoRotationEnabled');\n";
+    js += "    if (rotationToggle && autoRotationInput) {\n";
+    js += "        const isActive = rotationToggle.classList.contains('active');\n";
+    js += "        const newState = !isActive;\n";
+    js += "        \n";
+    js += "        // 如果要关闭自动旋转，先获取当前旋转角度\n";
+    js += "        if (!newState) {\n";
+    js += "            console.log('关闭自动旋转，获取当前角度...');\n";
+    js += "            fetch('/api/screen/rotation')\n";
+    js += "                .then(response => response.json())\n";
+    js += "                .then(data => {\n";
+    js += "                    if (data.success) {\n";
+    js += "                        console.log('当前旋转角度:', data.rotation);\n";
+    js += "                        updateStaticRotationDisplay(data.rotation);\n";
+    js += "                        setRotationToggle(newState);\n";
+    js += "                    } else {\n";
+    js += "                        console.error('获取当前旋转角度失败:', data.message);\n";
+    js += "                        setRotationToggle(newState);\n";
+    js += "                    }\n";
+    js += "                })\n";
+    js += "                .catch(error => {\n";
+    js += "                    console.error('获取当前旋转角度出错:', error);\n";
+    js += "                    setRotationToggle(newState);\n";
+    js += "                });\n";
+    js += "        } else {\n";
+    js += "            setRotationToggle(newState);\n";
+    js += "        }\n";
+    js += "        \n";
+    js += "        console.log('切换自动旋转状态:', newState);\n";
+    js += "    }\n";
+    js += "}\n\n";
+    
+    js += "function setRotationToggle(enabled) {\n";
+    js += "    const rotationToggle = document.getElementById('rotationToggle');\n";
+    js += "    const rotationThumb = document.getElementById('rotationThumb');\n";
+    js += "    const rotationLabel = document.getElementById('rotationLabel');\n";
+    js += "    const autoRotationInput = document.getElementById('autoRotationEnabled');\n";
+    js += "    const staticRotationInfo = document.getElementById('staticRotationInfo');\n";
+    js += "    \n";
+    js += "    if (rotationToggle && rotationThumb && rotationLabel && autoRotationInput) {\n";
+    js += "        if (enabled) {\n";
+    js += "            rotationToggle.classList.add('active');\n";
+    js += "            rotationLabel.querySelector('.label-text').textContent = '启用';\n";
+    js += "            if (staticRotationInfo) staticRotationInfo.style.display = 'none';\n";
+    js += "        } else {\n";
+    js += "            rotationToggle.classList.remove('active');\n";
+    js += "            rotationLabel.querySelector('.label-text').textContent = '禁用';\n";
+    js += "            if (staticRotationInfo) staticRotationInfo.style.display = 'flex';\n";
+    js += "        }\n";
+    js += "        autoRotationInput.value = enabled ? 'true' : 'false';\n";
+    js += "    }\n";
+    js += "}\n\n";
+    
+    js += "function updateStaticRotationDisplay(rotation) {\n";
+    js += "    const staticRotationInput = document.getElementById('staticRotation');\n";
+    js += "    const rotationAngle = document.getElementById('rotationAngle');\n";
+    js += "    \n";
+    js += "    if (staticRotationInput && rotationAngle) {\n";
+    js += "        staticRotationInput.value = rotation;\n";
+    js += "        rotationAngle.textContent = (rotation * 90) + '°';\n";
+    js += "    }\n";
+    js += "}\n\n";
+    
+    js += "function saveRotationSettings() {\n";
+    js += "    const saveBtn = document.querySelector('.rotation-config .save-btn');\n";
+    js += "    const btnText = saveBtn.querySelector('.btn-text');\n";
+    js += "    const btnLoading = saveBtn.querySelector('.btn-loading');\n";
+    js += "    if (btnText && btnLoading) {\n";
+    js += "        btnText.style.display = 'none';\n";
+    js += "        btnLoading.style.display = 'flex';\n";
+    js += "        saveBtn.disabled = true;\n";
+    js += "    }\n";
+    js += "    \n";
+    js += "    const autoRotationInput = document.getElementById('autoRotationEnabled');\n";
+    js += "    if (!autoRotationInput) {\n";
+    js += "        showToast('获取旋转设置失败', 'error');\n";
+    js += "        resetRotationSaveButton();\n";
+    js += "        return;\n";
+    js += "    }\n";
+    js += "    \n";
+    js += "    const autoRotationEnabled = autoRotationInput.value === 'true';\n";
+    js += "    \n";
+    js += "    // 如果要关闭自动旋转，先获取当前真实的旋转角度\n";
+    js += "    const getRotationPromise = !autoRotationEnabled ? \n";
+    js += "        fetch('/api/screen/rotation')\n";
+    js += "            .then(response => response.json())\n";
+    js += "            .then(data => data.success ? data.rotation : 0)\n";
+    js += "            .catch(() => 0)\n";
+    js += "        : Promise.resolve(0);\n";
+    js += "    \n";
+    js += "    getRotationPromise.then(currentRotation => {\n";
+    js += "        const staticRotation = !autoRotationEnabled ? currentRotation : 0;\n";
+    js += "        console.log('使用的静态旋转角度:', staticRotation);\n";
+    js += "        \n";
+    js += "        // 获取当前屏幕设置，然后更新自动旋转配置\n";
+    js += "    fetch('/api/screen/settings')\n";
+    js += "        .then(response => response.json())\n";
+    js += "        .then(currentData => {\n";
+    js += "            const formData = new FormData();\n";
+    js += "            formData.append('mode', currentData.mode || 0);\n";
+    js += "            formData.append('startHour', currentData.startHour || 8);\n";
+    js += "            formData.append('startMinute', currentData.startMinute || 0);\n";
+    js += "            formData.append('endHour', currentData.endHour || 22);\n";
+    js += "            formData.append('endMinute', currentData.endMinute || 0);\n";
+    js += "            formData.append('timeoutMinutes', currentData.timeoutMinutes || 10);\n";
+    js += "            formData.append('autoRotationEnabled', autoRotationEnabled ? 'true' : 'false');\n";
+    js += "            formData.append('staticRotation', staticRotation.toString());\n";
+    js += "            \n";
+    js += "            return fetch('/api/screen/settings', { method: 'POST', body: formData });\n";
+    js += "        })\n";
+    js += "        .then(response => response.json())\n";
+    js += "        .then(data => {\n";
+    js += "            if (data.success) {\n";
+    js += "                showToast('屏幕旋转设置保存成功', 'success');\n";
+    js += "            } else {\n";
+    js += "                showToast('保存失败: ' + data.message, 'error');\n";
+    js += "            }\n";
+    js += "        })\n";
+    js += "        .catch(error => showToast('保存出错', 'error'))\n";
+    js += "        .finally(() => resetRotationSaveButton());\n";
+    js += "    });\n";
+    js += "}\n\n";
+    
+    js += "function resetRotationSaveButton() {\n";
+    js += "    const saveBtn = document.querySelector('.rotation-config .save-btn');\n";
+    js += "    const btnText = saveBtn.querySelector('.btn-text');\n";
+    js += "    const btnLoading = saveBtn.querySelector('.btn-loading');\n";
+    js += "    if (btnText && btnLoading) {\n";
+    js += "        btnText.style.display = 'inline';\n";
+    js += "        btnLoading.style.display = 'none';\n";
+    js += "        saveBtn.disabled = false;\n";
+    js += "    }\n";
     js += "}\n\n";
     
     js += "function saveScreenSettings() {\n";
@@ -1094,13 +1431,31 @@ String WebServerManager::getScreenSettingsJavaScript() {
     js += "    const endHour = parseInt(document.getElementById('endHour')?.value) || 22;\n";
     js += "    const endMinute = parseInt(document.getElementById('endMinute')?.value) || 0;\n";
     js += "    const timeoutMinutes = parseInt(document.getElementById('timeoutMinutes')?.value) || 10;\n";
-    js += "    const formData = new FormData();\n";
+    js += "    const autoRotationEnabled = document.getElementById('autoRotationEnabled')?.value === 'true';\n";
+    js += "    \n";
+    js += "    // 如果要关闭自动旋转，先获取当前真实的旋转角度\n";
+    js += "    const getRotationPromise = !autoRotationEnabled ? \n";
+    js += "        fetch('/api/screen/rotation')\n";
+    js += "            .then(response => response.json())\n";
+    js += "            .then(data => data.success ? data.rotation : 0)\n";
+    js += "            .catch(() => {\n";
+    js += "                const staticRotationEl = document.getElementById('staticRotation');\n";
+    js += "                return staticRotationEl ? parseInt(staticRotationEl.value) : 0;\n";
+    js += "            })\n";
+    js += "        : Promise.resolve(parseInt(document.getElementById('staticRotation')?.value) || 0);\n";
+    js += "    \n";
+    js += "    getRotationPromise.then(staticRotation => {\n";
+    js += "        console.log('保存屏幕设置时使用的静态旋转角度:', staticRotation);\n";
+    js += "        \n";
+    js += "        const formData = new FormData();\n";
     js += "    formData.append('mode', mode.toString());\n";
     js += "    formData.append('startHour', startHour.toString());\n";
     js += "    formData.append('startMinute', startMinute.toString());\n";
     js += "    formData.append('endHour', endHour.toString());\n";
     js += "    formData.append('endMinute', endMinute.toString());\n";
     js += "    formData.append('timeoutMinutes', timeoutMinutes.toString());\n";
+    js += "    formData.append('autoRotationEnabled', autoRotationEnabled ? 'true' : 'false');\n";
+    js += "    formData.append('staticRotation', staticRotation.toString());\n";
     js += "    fetch('/api/screen/settings', { method: 'POST', body: formData })\n";
     js += "        .then(response => response.json())\n";
     js += "        .then(data => {\n";
@@ -1109,6 +1464,7 @@ String WebServerManager::getScreenSettingsJavaScript() {
     js += "        })\n";
     js += "        .catch(error => showToast('保存出错', 'error'))\n";
     js += "        .finally(() => resetSaveButton());\n";
+    js += "    });\n";
     js += "}\n\n";
     
     js += "function resetSaveButton() {\n";

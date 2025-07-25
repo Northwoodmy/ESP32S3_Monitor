@@ -770,9 +770,22 @@ void DisplayManager::processMessage(const DisplayMessage& msg) {
             m_screenEndMinute = msg.data.screen_mode.endMinute;
             m_screenTimeoutMinutes = msg.data.screen_mode.timeoutMinutes;
             
-            printf("[DisplayManager] 屏幕模式已更改: 模式=%d, 时间=%02d:%02d-%02d:%02d, 延时=%d分钟\n",
+            // 设置自动旋转
+            if (m_lvglDriver) {
+                m_lvglDriver->setAutoRotationEnabled(msg.data.screen_mode.autoRotationEnabled);
+                // 如果自动旋转被禁用，应用静态旋转角度
+                if (!msg.data.screen_mode.autoRotationEnabled) {
+                    m_lvglDriver->setScreenRotation((screen_rotation_t)msg.data.screen_mode.staticRotation);
+                    printf("[DisplayManager] 应用静态旋转角度: %d度\n", msg.data.screen_mode.staticRotation * 90);
+                }
+                printf("[DisplayManager] 自动旋转已设置为: %s\n", 
+                       msg.data.screen_mode.autoRotationEnabled ? "启用" : "禁用");
+            }
+            
+            printf("[DisplayManager] 屏幕模式已更改: 模式=%d, 时间=%02d:%02d-%02d:%02d, 延时=%d分钟, 自动旋转=%s, 静态旋转=%d度\n",
                    m_screenMode, m_screenStartHour, m_screenStartMinute,
-                   m_screenEndHour, m_screenEndMinute, m_screenTimeoutMinutes);
+                   m_screenEndHour, m_screenEndMinute, m_screenTimeoutMinutes,
+                   msg.data.screen_mode.autoRotationEnabled ? "启用" : "禁用", msg.data.screen_mode.staticRotation * 90);
             
             // 重新评估屏幕状态
             processScreenModeLogic();
@@ -1668,9 +1681,11 @@ bool DisplayManager::loadScreenModeConfig() {
     
     ScreenMode mode;
     int startHour, startMinute, endHour, endMinute, timeoutMinutes;
+    bool autoRotationEnabled;
+    int staticRotation;
     
     if (m_configStorage->loadScreenConfigAsync(mode, startHour, startMinute, 
-                                             endHour, endMinute, timeoutMinutes, 3000)) {
+                                             endHour, endMinute, timeoutMinutes, autoRotationEnabled, staticRotation, 3000)) {
         m_screenMode = mode;
         m_screenStartHour = startHour;
         m_screenStartMinute = startMinute;
@@ -1678,9 +1693,22 @@ bool DisplayManager::loadScreenModeConfig() {
         m_screenEndMinute = endMinute;
         m_screenTimeoutMinutes = timeoutMinutes;
         
-        printf("[DisplayManager] 屏幕模式配置加载成功：模式=%d, 时间=%02d:%02d-%02d:%02d, 延时=%d分钟\n",
+        // 设置自动旋转功能
+        if (m_lvglDriver) {
+            m_lvglDriver->setAutoRotationEnabled(autoRotationEnabled);
+            // 如果自动旋转被禁用，应用静态旋转角度
+            if (!autoRotationEnabled) {
+                m_lvglDriver->setScreenRotation((screen_rotation_t)staticRotation);
+                printf("[DisplayManager] 应用静态旋转角度: %d度\n", staticRotation * 90);
+            }
+            printf("[DisplayManager] 自动旋转配置已加载并应用: %s\n", 
+                   autoRotationEnabled ? "启用" : "禁用");
+        }
+        
+        printf("[DisplayManager] 屏幕模式配置加载成功：模式=%d, 时间=%02d:%02d-%02d:%02d, 延时=%d分钟, 自动旋转=%s, 静态旋转=%d度\n",
                m_screenMode, m_screenStartHour, m_screenStartMinute,
-               m_screenEndHour, m_screenEndMinute, m_screenTimeoutMinutes);
+               m_screenEndHour, m_screenEndMinute, m_screenTimeoutMinutes,
+               autoRotationEnabled ? "启用" : "禁用", staticRotation * 90);
         
         return true;
     } else {
@@ -1693,7 +1721,7 @@ bool DisplayManager::loadScreenModeConfig() {
  * @brief 设置屏幕模式
  */
 void DisplayManager::setScreenMode(ScreenMode mode, int startHour, int startMinute, 
-                                 int endHour, int endMinute, int timeoutMinutes) {
+                                 int endHour, int endMinute, int timeoutMinutes, bool autoRotationEnabled) {
     DisplayMessage msg;
     msg.type = DisplayMessage::MSG_SCREEN_MODE_CHANGED;
     msg.data.screen_mode.mode = mode;
@@ -1702,6 +1730,15 @@ void DisplayManager::setScreenMode(ScreenMode mode, int startHour, int startMinu
     msg.data.screen_mode.endHour = endHour;
     msg.data.screen_mode.endMinute = endMinute;
     msg.data.screen_mode.timeoutMinutes = timeoutMinutes;
+    msg.data.screen_mode.autoRotationEnabled = autoRotationEnabled;
+    
+    // 如果自动旋转被禁用，需要获取当前旋转角度并保存
+    if (!autoRotationEnabled && m_lvglDriver) {
+        msg.data.screen_mode.staticRotation = (int)m_lvglDriver->getScreenRotation();
+        printf("[DisplayManager] 保存当前旋转角度: %d度\n", msg.data.screen_mode.staticRotation * 90);
+    } else {
+        msg.data.screen_mode.staticRotation = 0; // 默认为0度
+    }
     
     if (m_messageQueue) {
         xQueueSend(m_messageQueue, &msg, pdMS_TO_TICKS(100));
@@ -3459,4 +3496,11 @@ bool DisplayManager::shouldExecuteAutoSwitch() const {
     }
     
     return true;
+}
+
+/**
+ * @brief 获取LVGL驱动实例
+ */
+LVGLDriver* DisplayManager::getLVGLDriver() const {
+    return m_lvglDriver;
 }

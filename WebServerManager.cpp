@@ -113,6 +113,7 @@ void WebServerManager::init() {
     server->on("/screen-settings", [this]() { handleScreenSettings(); });
     server->on("/api/screen/settings", HTTP_GET, [this]() { handleGetScreenSettings(); });
     server->on("/api/screen/settings", HTTP_POST, [this]() { handleSetScreenSettings(); });
+    server->on("/api/screen/rotation", HTTP_GET, [this]() { handleGetCurrentRotation(); });
     
     // 主题设置路由
     server->on("/api/theme/settings", HTTP_GET, [this]() { handleGetThemeSettings(); });
@@ -2062,11 +2063,13 @@ void WebServerManager::handleGetScreenSettings() {
     if (configStorage) {
         ScreenMode mode;
         int startHour, startMinute, endHour, endMinute, timeoutMinutes;
+        bool autoRotationEnabled;
+        int staticRotation;
         
         bool hasConfig = configStorage->hasScreenConfigAsync(3000);
         if (hasConfig) {
             bool success = configStorage->loadScreenConfigAsync(mode, startHour, startMinute, 
-                                                              endHour, endMinute, timeoutMinutes, 3000);
+                                                              endHour, endMinute, timeoutMinutes, autoRotationEnabled, staticRotation, 3000);
             if (success) {
                 doc["success"] = true;
                 doc["mode"] = (int)mode;
@@ -2075,10 +2078,12 @@ void WebServerManager::handleGetScreenSettings() {
                 doc["endHour"] = endHour;
                 doc["endMinute"] = endMinute;
                 doc["timeoutMinutes"] = timeoutMinutes;
+                doc["autoRotationEnabled"] = autoRotationEnabled;
+                doc["staticRotation"] = staticRotation;
                 doc["message"] = "屏幕设置配置获取成功";
                 
-                printf("屏幕设置配置获取成功：模式=%d, 开始时间=%02d:%02d, 结束时间=%02d:%02d, 延时=%d分钟\n",
-                       (int)mode, startHour, startMinute, endHour, endMinute, timeoutMinutes);
+                printf("屏幕设置配置获取成功：模式=%d, 开始时间=%02d:%02d, 结束时间=%02d:%02d, 延时=%d分钟, 自动旋转=%s, 静态旋转=%d度\n",
+                       (int)mode, startHour, startMinute, endHour, endMinute, timeoutMinutes, autoRotationEnabled ? "启用" : "禁用", staticRotation * 90);
             } else {
                 doc["success"] = false;
                 doc["message"] = "屏幕设置配置加载失败";
@@ -2093,6 +2098,8 @@ void WebServerManager::handleGetScreenSettings() {
             doc["endHour"] = 22;
             doc["endMinute"] = 0;
             doc["timeoutMinutes"] = 10;
+            doc["autoRotationEnabled"] = true;
+            doc["staticRotation"] = 0;
             doc["message"] = "返回默认屏幕设置配置";
             
             printf("返回默认屏幕设置配置\n");
@@ -2140,9 +2147,11 @@ void WebServerManager::handleSetScreenSettings() {
     int endHour = server->hasArg("endHour") ? server->arg("endHour").toInt() : 22;
     int endMinute = server->hasArg("endMinute") ? server->arg("endMinute").toInt() : 0;
     int timeoutMinutes = server->hasArg("timeoutMinutes") ? server->arg("timeoutMinutes").toInt() : 10;
+    bool autoRotationEnabled = server->hasArg("autoRotationEnabled") ? (server->arg("autoRotationEnabled") == "true") : true;
+    int staticRotation = server->hasArg("staticRotation") ? server->arg("staticRotation").toInt() : 0;
     
-    printf("接收到屏幕设置配置：模式=%d, 开始时间=%02d:%02d, 结束时间=%02d:%02d, 延时=%d分钟\n",
-           mode, startHour, startMinute, endHour, endMinute, timeoutMinutes);
+    printf("接收到屏幕设置配置：模式=%d, 开始时间=%02d:%02d, 结束时间=%02d:%02d, 延时=%d分钟, 自动旋转=%s, 静态旋转=%d度\n",
+           mode, startHour, startMinute, endHour, endMinute, timeoutMinutes, autoRotationEnabled ? "启用" : "禁用", staticRotation * 90);
     
     // 参数验证
     if (mode < 0 || mode > 3) {
@@ -2176,9 +2185,19 @@ void WebServerManager::handleSetScreenSettings() {
         return;
     }
     
+    if (staticRotation < 0 || staticRotation > 3) {
+        doc["success"] = false;
+        doc["message"] = "静态旋转角度必须在0-3之间";
+        printf("无效的静态旋转角度: %d\n", staticRotation);
+        String response;
+        serializeJson(doc, response);
+        server->send(400, "application/json", response);
+        return;
+    }
+    
     // 保存配置
     bool success = configStorage->saveScreenConfigAsync((ScreenMode)mode, startHour, startMinute,
-                                                       endHour, endMinute, timeoutMinutes, 3000);
+                                                       endHour, endMinute, timeoutMinutes, autoRotationEnabled, staticRotation, 3000);
     
     doc["success"] = success;
     if (success) {
@@ -2187,14 +2206,45 @@ void WebServerManager::handleSetScreenSettings() {
         
         // 通知DisplayManager屏幕模式已改变
         if (m_displayManager) {
+            // 注意：这里不传递staticRotation，因为setScreenMode会自动获取当前角度
             m_displayManager->setScreenMode((ScreenMode)mode, startHour, startMinute, 
-                                          endHour, endMinute, timeoutMinutes);
+                                          endHour, endMinute, timeoutMinutes, autoRotationEnabled);
             printf("已通知DisplayManager屏幕模式变更\n");
         }
     } else {
         doc["message"] = "屏幕设置配置保存失败";
         printf("屏幕设置配置保存失败\n");
     }
+    
+    String response;
+    serializeJson(doc, response);
+    server->send(200, "application/json", response);
+}
+
+void WebServerManager::handleGetCurrentRotation() {
+    printf("处理获取当前屏幕旋转角度请求\n");
+    
+    DynamicJsonDocument doc(256);
+    
+    if (!m_displayManager || !m_displayManager->getLVGLDriver()) {
+        doc["success"] = false;
+        doc["message"] = "显示管理器未初始化";
+        printf("显示管理器未初始化\n");
+        String response;
+        serializeJson(doc, response);
+        server->send(400, "application/json", response);
+        return;
+    }
+    
+    // 获取当前屏幕旋转角度
+    int currentRotation = (int)m_displayManager->getLVGLDriver()->getScreenRotation();
+    
+    doc["success"] = true;
+    doc["rotation"] = currentRotation;
+    doc["angle"] = currentRotation * 90;
+    doc["message"] = "当前屏幕旋转角度获取成功";
+    
+    printf("当前屏幕旋转角度: %d (%d度)\n", currentRotation, currentRotation * 90);
     
     String response;
     serializeJson(doc, response);

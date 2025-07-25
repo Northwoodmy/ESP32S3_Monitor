@@ -139,6 +139,8 @@ struct DisplayMessage {
             int endHour;
             int endMinute;
             int timeoutMinutes;
+            bool autoRotationEnabled;
+            int staticRotation;
         } screen_mode;
         
         struct {
@@ -373,9 +375,10 @@ public:
      * @param endHour 结束小时（定时模式）
      * @param endMinute 结束分钟（定时模式）
      * @param timeoutMinutes 延时分钟（延时模式）
+     * @param autoRotationEnabled 自动旋转是否启用
      */
     void setScreenMode(ScreenMode mode, int startHour = 8, int startMinute = 0, 
-                       int endHour = 22, int endMinute = 0, int timeoutMinutes = 10);
+                       int endHour = 22, int endMinute = 0, int timeoutMinutes = 10, bool autoRotationEnabled = true);
     
     /**
      * @brief 获取当前屏幕模式
@@ -588,6 +591,13 @@ public:
      * @brief 根据屏幕对象更新当前页面状态
      */
     void updateCurrentPageByScreen(lv_obj_t* screen);
+    
+    /**
+     * @brief 获取LVGL驱动实例
+     * 
+     * @return LVGL驱动指针
+     */
+    LVGLDriver* getLVGLDriver() const;
 
 private:
     /**
@@ -921,7 +931,7 @@ private:
     FadeDirection m_fadeDirection;      ///< 渐变方向
     
     // 任务配置
-    static const uint32_t TASK_STACK_SIZE = 8 * 1024;    ///< 任务栈大小
+    static const uint32_t TASK_STACK_SIZE = 9 * 1024;    ///< 任务栈大小
     static const UBaseType_t TASK_PRIORITY = 3;          ///< 任务优先级
     static const BaseType_t TASK_CORE = 0;               ///< 任务运行核心
     static const uint32_t MESSAGE_QUEUE_SIZE = 10;       ///< 消息队列大小

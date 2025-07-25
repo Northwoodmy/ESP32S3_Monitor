@@ -140,6 +140,7 @@ private:
     void handleScreenSettings();
     void handleGetScreenSettings();
     void handleSetScreenSettings();
+    void handleGetCurrentRotation();
     
     // 主题设置相关API
     void handleGetThemeSettings();

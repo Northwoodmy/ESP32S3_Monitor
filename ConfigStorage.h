@@ -162,12 +162,14 @@ struct ScreenConfigData {
     int endHour;              // 定时模式结束时间（小时）
     int endMinute;            // 定时模式结束时间（分钟）
     int timeoutMinutes;       // 延时模式延时时间（分钟）
+    bool autoRotationEnabled; // 自动旋转功能是否启用
+    int staticRotation;       // 静态旋转角度（0=0°, 1=90°, 2=180°, 3=270°，对应screen_rotation_t）
     
     ScreenConfigData() : mode(SCREEN_MODE_ALWAYS_ON), startHour(8), startMinute(0), 
-                        endHour(22), endMinute(0), timeoutMinutes(10) {}
-    ScreenConfigData(ScreenMode m, int sh, int sm, int eh, int em, int timeout) 
+                        endHour(22), endMinute(0), timeoutMinutes(10), autoRotationEnabled(true), staticRotation(0) {}
+    ScreenConfigData(ScreenMode m, int sh, int sm, int eh, int em, int timeout, bool autoRotation = true, int staticRot = 0) 
         : mode(m), startHour(sh), startMinute(sm), endHour(eh), endMinute(em), 
-          timeoutMinutes(timeout) {}
+          timeoutMinutes(timeout), autoRotationEnabled(autoRotation), staticRotation(staticRot) {}
 };
 
 // 服务器配置请求数据结构
@@ -258,9 +260,9 @@ public:
     
     // 异步屏幕设置配置操作接口
     bool saveScreenConfigAsync(ScreenMode mode, int startHour, int startMinute, 
-                              int endHour, int endMinute, int timeoutMinutes, uint32_t timeoutMs = 5000);
+                              int endHour, int endMinute, int timeoutMinutes, bool autoRotationEnabled, int staticRotation, uint32_t timeoutMs = 5000);
     bool loadScreenConfigAsync(ScreenMode& mode, int& startHour, int& startMinute, 
-                              int& endHour, int& endMinute, int& timeoutMinutes, uint32_t timeoutMs = 5000);
+                              int& endHour, int& endMinute, int& timeoutMinutes, bool& autoRotationEnabled, int& staticRotation, uint32_t timeoutMs = 5000);
     bool hasScreenConfigAsync(uint32_t timeoutMs = 5000);
     
     // 异步服务器配置操作接口
@@ -338,6 +340,8 @@ private:
     static const char* SCREEN_END_HOUR_KEY;
     static const char* SCREEN_END_MINUTE_KEY;
     static const char* SCREEN_TIMEOUT_MINUTES_KEY;
+    static const char* SCREEN_AUTO_ROTATION_KEY;
+    static const char* SCREEN_STATIC_ROTATION_KEY;
     
     // 服务器配置键名
     static const char* SERVER_URL_KEY;
@@ -384,9 +388,9 @@ private:
                        String& timezone, int& syncInterval);
     
     bool saveScreenConfig(ScreenMode mode, int startHour, int startMinute, 
-                         int endHour, int endMinute, int timeoutMinutes);
+                         int endHour, int endMinute, int timeoutMinutes, bool autoRotationEnabled, int staticRotation);
     bool loadScreenConfig(ScreenMode& mode, int& startHour, int& startMinute, 
-                         int& endHour, int& endMinute, int& timeoutMinutes);
+                         int& endHour, int& endMinute, int& timeoutMinutes, bool& autoRotationEnabled, int& staticRotation);
     bool hasScreenConfig();
     
     bool saveServerConfig(const String& serverUrl, int requestInterval, 

@@ -38,6 +38,8 @@ const char* ConfigStorage::SCREEN_START_MINUTE_KEY = "scr_start_m";
 const char* ConfigStorage::SCREEN_END_HOUR_KEY = "scr_end_h";
 const char* ConfigStorage::SCREEN_END_MINUTE_KEY = "scr_end_m";
 const char* ConfigStorage::SCREEN_TIMEOUT_MINUTES_KEY = "scr_timeout";
+const char* ConfigStorage::SCREEN_AUTO_ROTATION_KEY = "scr_auto_rot";
+const char* ConfigStorage::SCREEN_STATIC_ROTATION_KEY = "scr_static_rot";
 
 const char* ConfigStorage::SERVER_URL_KEY = "srv_url";
 const char* ConfigStorage::REQUEST_INTERVAL_KEY = "srv_interval";
@@ -359,7 +361,7 @@ void ConfigStorage::processConfigRequest(ConfigRequest* request) {
             ScreenConfigData* data = static_cast<ScreenConfigData*>(request->data);
             if (data != nullptr) {
                 request->success = saveScreenConfig(data->mode, data->startHour, data->startMinute, 
-                                                   data->endHour, data->endMinute, data->timeoutMinutes);
+                                                   data->endHour, data->endMinute, data->timeoutMinutes, data->autoRotationEnabled, data->staticRotation);
             }
             break;
         }
@@ -368,7 +370,7 @@ void ConfigStorage::processConfigRequest(ConfigRequest* request) {
             ScreenConfigData* result = static_cast<ScreenConfigData*>(request->result);
             if (result != nullptr) {
                 request->success = loadScreenConfig(result->mode, result->startHour, result->startMinute, 
-                                                   result->endHour, result->endMinute, result->timeoutMinutes);
+                                                   result->endHour, result->endMinute, result->timeoutMinutes, result->autoRotationEnabled, result->staticRotation);
             }
             break;
         }
@@ -761,8 +763,8 @@ bool ConfigStorage::loadTimeConfigAsync(String& primaryServer, String& secondary
 // 异步屏幕设置配置操作接口实现
 
 bool ConfigStorage::saveScreenConfigAsync(ScreenMode mode, int startHour, int startMinute, 
-                                         int endHour, int endMinute, int timeoutMinutes, uint32_t timeoutMs) {
-    ScreenConfigData data(mode, startHour, startMinute, endHour, endMinute, timeoutMinutes);
+                                         int endHour, int endMinute, int timeoutMinutes, bool autoRotationEnabled, int staticRotation, uint32_t timeoutMs) {
+    ScreenConfigData data(mode, startHour, startMinute, endHour, endMinute, timeoutMinutes, autoRotationEnabled, staticRotation);
     ConfigRequest request;
     request.operation = CONFIG_OP_SAVE_SCREEN_CONFIG;
     request.data = &data;
@@ -771,7 +773,7 @@ bool ConfigStorage::saveScreenConfigAsync(ScreenMode mode, int startHour, int st
 }
 
 bool ConfigStorage::loadScreenConfigAsync(ScreenMode& mode, int& startHour, int& startMinute, 
-                                         int& endHour, int& endMinute, int& timeoutMinutes, uint32_t timeoutMs) {
+                                         int& endHour, int& endMinute, int& timeoutMinutes, bool& autoRotationEnabled, int& staticRotation, uint32_t timeoutMs) {
     ScreenConfigData result;
     ConfigRequest request;
     request.operation = CONFIG_OP_LOAD_SCREEN_CONFIG;
@@ -785,6 +787,8 @@ bool ConfigStorage::loadScreenConfigAsync(ScreenMode& mode, int& startHour, int&
         endHour = result.endHour;
         endMinute = result.endMinute;
         timeoutMinutes = result.timeoutMinutes;
+        autoRotationEnabled = result.autoRotationEnabled;
+        staticRotation = result.staticRotation;
     }
     
     return success;
@@ -1621,12 +1625,14 @@ bool ConfigStorage::loadTimeConfig(String& primaryServer, String& secondaryServe
 // 屏幕设置配置方法实现
 
 bool ConfigStorage::saveScreenConfig(ScreenMode mode, int startHour, int startMinute, 
-                                    int endHour, int endMinute, int timeoutMinutes) {
+                                    int endHour, int endMinute, int timeoutMinutes, bool autoRotationEnabled, int staticRotation) {
     printf("💾 [ConfigStorage] 保存屏幕设置配置\n");
     printf("  屏幕模式: %d\n", mode);
     printf("  定时开始: %02d:%02d\n", startHour, startMinute);
     printf("  定时结束: %02d:%02d\n", endHour, endMinute);
     printf("  延时时间: %d分钟\n", timeoutMinutes);
+    printf("  自动旋转: %s\n", autoRotationEnabled ? "启用" : "禁用");
+    printf("  静态旋转: %d度\n", staticRotation * 90);
     
     if (!preferences.begin(SYSTEM_NAMESPACE, false)) {
         printf("❌ [ConfigStorage] 打开系统配置命名空间失败\n");
@@ -1682,6 +1688,20 @@ bool ConfigStorage::saveScreenConfig(ScreenMode mode, int startHour, int startMi
     success &= timeoutSuccess;
     printf("  延时时间保存: 键='%s', 值=%d, 结果=%zu字节, %s\n", SCREEN_TIMEOUT_MINUTES_KEY, timeoutMinutes, result, timeoutSuccess ? "成功" : "失败");
     
+    vTaskDelay(pdMS_TO_TICKS(10));
+    
+    result = preferences.putBool(SCREEN_AUTO_ROTATION_KEY, autoRotationEnabled);
+    bool autoRotationSuccess = (result == 1);
+    success &= autoRotationSuccess;
+    printf("  自动旋转保存: 键='%s', 值=%s, 结果=%zu字节, %s\n", SCREEN_AUTO_ROTATION_KEY, autoRotationEnabled ? "true" : "false", result, autoRotationSuccess ? "成功" : "失败");
+    
+    vTaskDelay(pdMS_TO_TICKS(10));
+    
+    result = preferences.putInt(SCREEN_STATIC_ROTATION_KEY, staticRotation);
+    bool staticRotationSuccess = (result == sizeof(int));
+    success &= staticRotationSuccess;
+    printf("  静态旋转保存: 键='%s', 值=%d, 结果=%zu字节, %s\n", SCREEN_STATIC_ROTATION_KEY, staticRotation, result, staticRotationSuccess ? "成功" : "失败");
+    
     // 强制提交更改
     if (success) {
         printf("  强制提交NVS更改...\n");
@@ -1700,7 +1720,7 @@ bool ConfigStorage::saveScreenConfig(ScreenMode mode, int startHour, int startMi
 }
 
 bool ConfigStorage::loadScreenConfig(ScreenMode& mode, int& startHour, int& startMinute, 
-                                    int& endHour, int& endMinute, int& timeoutMinutes) {
+                                    int& endHour, int& endMinute, int& timeoutMinutes, bool& autoRotationEnabled, int& staticRotation) {
     printf("📖 [ConfigStorage] 加载屏幕设置配置\n");
     
     if (!preferences.begin(SYSTEM_NAMESPACE, true)) {
@@ -1711,6 +1731,8 @@ bool ConfigStorage::loadScreenConfig(ScreenMode& mode, int& startHour, int& star
         endHour = 22;
         endMinute = 0;
         timeoutMinutes = 10;
+        autoRotationEnabled = true;
+        staticRotation = 0;
         return false;
     }
     
@@ -1721,6 +1743,8 @@ bool ConfigStorage::loadScreenConfig(ScreenMode& mode, int& startHour, int& star
     endHour = preferences.getInt(SCREEN_END_HOUR_KEY, 22);
     endMinute = preferences.getInt(SCREEN_END_MINUTE_KEY, 0);
     timeoutMinutes = preferences.getInt(SCREEN_TIMEOUT_MINUTES_KEY, 10);
+    autoRotationEnabled = preferences.getBool(SCREEN_AUTO_ROTATION_KEY, true);
+    staticRotation = preferences.getInt(SCREEN_STATIC_ROTATION_KEY, 0);
     
     preferences.end();
     
@@ -1755,11 +1779,18 @@ bool ConfigStorage::loadScreenConfig(ScreenMode& mode, int& startHour, int& star
         timeoutMinutes = 10;
     }
     
+    if (staticRotation < 0 || staticRotation > 3) {
+        printf("⚠️ [ConfigStorage] 静态旋转角度超出范围(%d)，使用默认值0\n", staticRotation);
+        staticRotation = 0;
+    }
+    
     printf("📖 [ConfigStorage] 屏幕设置配置加载完成\n");
     printf("  屏幕模式: %d\n", mode);
     printf("  定时开始: %02d:%02d\n", startHour, startMinute);
     printf("  定时结束: %02d:%02d\n", endHour, endMinute);
     printf("  延时时间: %d分钟\n", timeoutMinutes);
+    printf("  自动旋转: %s\n", autoRotationEnabled ? "启用" : "禁用");
+    printf("  静态旋转: %d度\n", staticRotation * 90);
     
     return true;
 }
