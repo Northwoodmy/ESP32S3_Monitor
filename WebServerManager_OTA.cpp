@@ -400,7 +400,7 @@ String WebServerManager::getOTAJavaScript() {
     js += "    \n";
     js += "    try {\n";
     js += "        const formData = new FormData();\n";
-    js += "        formData.append('serverUrl', 'http://egota.yingdl.com');\n";
+    js += "        formData.append('serverUrl', 'http://ota.dlcv.com.cn');\n";
     js += "        formData.append('firmwareFile', 'firmware.bin');\n";
     js += "        \n";
     js += "        const response = await fetch('/api/ota/server-start', {\n";

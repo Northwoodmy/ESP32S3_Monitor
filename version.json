@@ -1,16 +1,16 @@
 {
-    "version": "v7.1.12",
+    "version": "v7.1.13",
     "build_date": "2025-01-23",
     "release_date": "2024-12-19",
-    "description": "ESP32S3 Monitor Project - 修复OTA进度条自适应布局",
+    "description": "ESP32S3 Monitor Project - 更新OTA服务器地址至ota.dlcv.com.cn",
     "size": 1048576,
-    "download_url": "http://egota.yingdl.com/firmware/esp32s3_monitor_v7.1.12.bin",
+    "download_url": "http://ota.dlcv.com.cn/firmware/esp32s3_monitor_v7.1.13.bin",
     "checksum": "sha256:abcd1234567890abcdef1234567890abcdef1234567890abcdef1234567890ac",
     "status": "stable",
     "key_features": [
+        "🌐 更新OTA服务器地址",
         "🔧 修复LVGL兼容性问题",
         "📱 自适应布局优化",
-        "🌐 国际化支持",
         "✅ 新增屏幕OTA进度条",
         "⚡ OTA任务管理优化"
     ],

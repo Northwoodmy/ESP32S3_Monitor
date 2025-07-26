@@ -2491,7 +2491,7 @@ void WebServerManager::handleServerOTAStart() {
     }
     
     // 默认服务器地址
-    String serverUrl = "http://egota.yingdl.com";
+    String serverUrl = "http://ota.dlcv.com.cn";
     String firmwareFile = "";
     
     // 检查是否有自定义参数
@@ -2555,7 +2555,7 @@ void WebServerManager::handleServerFirmwareList() {
     }
     
     // 默认服务器地址
-    String serverUrl = "http://egota.yingdl.com";
+    String serverUrl = "http://ota.dlcv.com.cn";
     
     // 检查是否有自定义服务器地址
     if (server->hasArg("serverUrl")) {
@@ -2613,7 +2613,7 @@ void WebServerManager::handleServerFirmwareVersion() {
     }
     
     // 默认服务器地址
-    String serverUrl = "http://egota.yingdl.com";
+    String serverUrl = "http://ota.dlcv.com.cn";
     
     // 检查是否有自定义服务器地址
     if (server->hasArg("serverUrl")) {
