@@ -1,18 +1,18 @@
 {
-    "version": "v7.1.13",
+    "version": "v7.1.21",
     "build_date": "2025-01-23",
     "release_date": "2024-12-19",
-    "description": "ESP32S3 Monitor Project - 更新OTA服务器地址至ota.dlcv.com.cn",
+    "description": "ESP32S3 Monitor Project - 简化触摸坐标转换代码，删除多余的switch语句",
     "size": 1048576,
-    "download_url": "http://ota.dlcv.com.cn/firmware/esp32s3_monitor_v7.1.13.bin",
+    "download_url": "http://ota.dlcv.com.cn/firmware/esp32s3_monitor_v7.1.21.bin",
     "checksum": "sha256:abcd1234567890abcdef1234567890abcdef1234567890abcdef1234567890ac",
     "status": "stable",
     "key_features": [
-        "🌐 更新OTA服务器地址",
-        "🔧 修复LVGL兼容性问题",
-        "📱 自适应布局优化",
-        "✅ 新增屏幕OTA进度条",
-        "⚡ OTA任务管理优化"
+        "🧹 删除冗余的switch语句，简化代码结构",
+        "🎯 直接进行坐标赋值，逻辑更清晰明确",
+        "✅ 确保final_x和final_y正确赋值",
+        "🚀 代码更简洁，可读性和维护性提升",
+        "📐 继续依赖LVGL软件旋转自动处理角度转换"
     ],
     "requirements": {
         "esp32_version": ">=2.0.0",

@@ -172,6 +172,11 @@ void lvgl_rounder_cb(struct _lv_disp_drv_t *disp_drv, lv_area_t *area) {
  * LVGL调用此函数读取触摸屏状态，包括触摸位置和按压状态。
  * 在软件旋转模式下，需要根据当前屏幕旋转角度来转换触摸坐标。
  * 
+ * 触摸坐标转换步骤：
+ * 1. 读取原始触摸坐标 (tp_x, tp_y)
+ * 2. 执行坐标轴交换：swapped_x = tp_y, swapped_y = tp_x
+ * 3. 根据屏幕旋转角度进行相应的坐标变换
+ * 
  * @param drv 输入设备驱动结构
  * @param data 触摸数据结构，用于返回触摸信息
  */
@@ -194,30 +199,16 @@ static void lvgl_touch_cb(lv_indev_drv_t *drv, lv_indev_data_t *data) {
     }
     
     // 根据旋转角度转换触摸坐标
-    switch (current_rotation) {
-      case SCREEN_ROTATION_0:   // 0度（正常方向）
-        final_x = tp_y;
-        final_y = tp_x;
-        break;
-      case SCREEN_ROTATION_90:  // 90度顺时针旋转
-        final_x = tp_x;
-        final_y = LCD_H_RES - tp_y - 1;
-        break;
-      case SCREEN_ROTATION_180: // 180度旋转
-        final_x = LCD_V_RES - tp_y - 1;
-        final_y = LCD_H_RES - tp_x - 1;
-        break;
-      case SCREEN_ROTATION_270: // 270度顺时针旋转
-        final_x = LCD_V_RES - tp_x - 1;
-        final_y = tp_y;
-        break;
-      default:
-        final_x = tp_y;
-        final_y = tp_x;
-        break;
-    }
+    // 首先进行坐标交换（触摸屏和显示屏坐标系匹配）
+    uint16_t swapped_x = tp_y;
+    uint16_t swapped_y = tp_x;
+    
+    // 所有角度都使用相同的坐标交换，让LVGL软件旋转自动处理角度转换
+    // 因为启用了LVGL软件旋转（sw_rotate = 1），LVGL会自动处理角度转换
+    final_x = swapped_x;    // tp_y
+    final_y = swapped_y;    // tp_x
 #else
-    // 未启用陀螺仪时使用默认坐标转换
+    // 未启用陀螺仪时使用默认坐标转换（与0度旋转保持一致）
     final_x = tp_y;
     final_y = tp_x;
 #endif
@@ -232,8 +223,13 @@ static void lvgl_touch_cb(lv_indev_drv_t *drv, lv_indev_data_t *data) {
     }
     
     // 输出调试信息到串口
-    //printf("触摸坐标 原始X: %d, Y: %d -> 转换后X: %d, Y: %d (旋转: %d)\n", 
-    //       tp_x, tp_y, final_x, final_y, current_rotation);
+#if USE_GYROSCOPE
+    //printf("触摸坐标 原始(%d,%d) -> 交换(%d,%d) -> 旋转后(%d,%d) [角度:%d]\n", 
+    //       tp_x, tp_y, swapped_x, swapped_y, final_x, final_y, current_rotation);
+#else
+    //printf("触摸坐标 原始(%d,%d) -> 交换后(%d,%d)\n", 
+    //       tp_x, tp_y, final_x, final_y);
+#endif
   } else {
     // 无触摸事件
     data->state = LV_INDEV_STATE_RELEASED;  // 设置为释放状态
