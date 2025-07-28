@@ -3240,6 +3240,11 @@ DisplayPage DisplayManager::getTargetPageByPower() const {
  * @brief 开始OTA升级显示
  */
 void DisplayManager::startOTADisplay(bool isServerOTA) {
+    // 强制唤醒屏幕以显示OTA进度
+    printf("[DisplayManager] OTA升级开始，强制唤醒屏幕\n");
+    forceScreenOn();
+    
+    // 发送OTA开始消息
     DisplayMessage msg;
     msg.type = DisplayMessage::MSG_OTA_START;
     msg.data.ota_status.isServerOTA = isServerOTA;
