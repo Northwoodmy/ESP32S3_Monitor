@@ -242,6 +242,10 @@ DisplayManager::DisplayManager()
     , m_lastPowerCheckTime(0)
     , m_powerCheckInterval(2000)
     , m_lastTotalPower(0)
+    , m_lastPageSwitchTime(0)
+    , m_pendingTargetPage(PAGE_HOME)
+    , m_pageChangeStartTime(0)
+    , m_isPageChangePending(false)
     , m_fadingEnabled(true)
     , m_currentFadingBrightness(80)
     , m_targetFadingBrightness(80)
@@ -2589,9 +2593,9 @@ void DisplayManager::checkPortPowerChange() {
             bool currentState = m_powerData.ports[i].state;
             int currentPower = m_powerData.ports[i].power;
             
-            // 检查端口状态从无功率变为有功率，并且距离上次自动切换至少5秒
+            // 检查端口状态从无功率变为有功率，并且距离上次自动切换至少10秒
             uint32_t currentTime = xTaskGetTickCount() * portTICK_PERIOD_MS;
-            uint32_t cooldownTime = 5000; // 5秒冷却时间
+            uint32_t cooldownTime = 10000; // 10秒冷却时间
             
             if (currentState && currentPower > 0 && 
                 (!m_previousPortState[i] || m_previousPortPower[i] == 0) &&
@@ -2609,7 +2613,7 @@ void DisplayManager::checkPortPowerChange() {
                 DisplayMessage msg;
                 msg.type = DisplayMessage::MSG_AUTO_SWITCH_PORT;
                 msg.data.auto_switch_port.port_index = i;
-                msg.data.auto_switch_port.duration_ms = 10000; // 10秒
+                msg.data.auto_switch_port.duration_ms = 20000; // 20秒
                 
                 if (m_messageQueue) {
                     xQueueSend(m_messageQueue, &msg, pdMS_TO_TICKS(100));
@@ -3102,12 +3106,22 @@ void DisplayManager::manualSwitchPage(DisplayPage page) {
     m_isManualSwitch = true;
     m_lastManualPage = page;
     
+    // 更新最后切换时间，启动冷却保护
+    uint32_t currentTime = xTaskGetTickCount() * portTICK_PERIOD_MS;
+    m_lastPageSwitchTime = currentTime;
+    
+    // 清除待处理的页面变化
+    if (m_isPageChangePending) {
+        m_isPageChangePending = false;
+        printf("[DisplayManager] 手动切换页面，清除待处理的页面变化\n");
+    }
+    
     // 执行页面切换
     switchPage(page);
 }
 
 /**
- * @brief 检查总功率变化并执行自动页面切换
+ * @brief 检查总功率变化并执行自动页面切换（带冷却时间和持续时间检查）
  */
 void DisplayManager::checkPowerBasedPageSwitch() {
     if (!m_powerBasedAutoSwitchEnabled || !m_powerData.valid) {
@@ -3123,6 +3137,13 @@ void DisplayManager::checkPowerBasedPageSwitch() {
     
     m_lastPowerCheckTime = currentTime;
     
+    // 检查10秒冷却时间：如果距离上次页面切换不足10秒，直接返回
+    if (currentTime - m_lastPageSwitchTime < 10000) {
+        // printf("[DisplayManager] 页面切换冷却中，距离上次切换%.1f秒\n", 
+        //        (currentTime - m_lastPageSwitchTime) / 1000.0f);
+        return;
+    }
+    
     // 如果当前是手动切换且是端口页面，不执行自动切换
     if (m_isManualSwitch && isPortPage(m_currentPage)) {
         printf("[DisplayManager] 当前为手动切换的端口页面，跳过自动切换\n");
@@ -3137,7 +3158,11 @@ void DisplayManager::checkPowerBasedPageSwitch() {
     
     // 如果当前是端口页面（无论是手动还是自动切换的），不执行基于功率的自动切换
     if (isPortPage(m_currentPage)) {
-        //printf("[DisplayManager] 当前为端口页面，跳过基于功率的自动切换\n");
+        // 清除待处理的页面变化
+        if (m_isPageChangePending) {
+            m_isPageChangePending = false;
+            printf("[DisplayManager] 当前为端口页面，清除待处理的页面变化\n");
+        }
         return;
     }
     
@@ -3149,12 +3174,41 @@ void DisplayManager::checkPowerBasedPageSwitch() {
     // 根据总功率决定目标页面
     DisplayPage targetPage = getTargetPageByPower();
     
-    // 如果目标页面与当前页面不同，执行切换
+    // 检查目标页面是否与当前页面不同
     if (targetPage != m_currentPage) {
-        printf("[DisplayManager] 基于总功率%.1fW自动切换页面：%d -> %d\n", 
-               m_powerData.total_power / 1000.0f, m_currentPage, targetPage);
-        
-        switchPage(targetPage);
+        // 页面需要变化
+        if (!m_isPageChangePending || m_pendingTargetPage != targetPage) {
+            // 这是第一次检测到这个变化，开始计时
+            m_isPageChangePending = true;
+            m_pendingTargetPage = targetPage;
+            m_pageChangeStartTime = currentTime;
+            
+            printf("[DisplayManager] 检测到页面变化需求：%d -> %d (功率%.1fW)，开始5秒持续时间检查\n", 
+                   m_currentPage, targetPage, m_powerData.total_power / 1000.0f);
+        } else {
+            // 已经在检测这个变化，检查是否持续超过5秒
+            uint32_t changeDuration = currentTime - m_pageChangeStartTime;
+            if (changeDuration >= 5000) {
+                // 变化持续超过5秒，执行切换
+                printf("[DisplayManager] 功率变化持续 %.1f秒，基于总功率%.1fW自动切换页面：%d -> %d\n", 
+                       changeDuration / 1000.0f, m_powerData.total_power / 1000.0f, m_currentPage, targetPage);
+                
+                switchPage(targetPage);
+                m_lastPageSwitchTime = currentTime;
+                
+                // 清除待处理状态
+                m_isPageChangePending = false;
+            } else {
+                // printf("[DisplayManager] 功率变化持续 %.1f秒，等待达到5秒阈值\n", changeDuration / 1000.0f);
+            }
+        }
+    } else {
+        // 目标页面与当前页面相同，清除待处理的变化
+        if (m_isPageChangePending) {
+            m_isPageChangePending = false;
+            printf("[DisplayManager] 功率恢复，取消页面变化 (功率%.1fW)\n", 
+                   m_powerData.total_power / 1000.0f);
+        }
     }
 }
 

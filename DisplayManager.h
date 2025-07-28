@@ -920,6 +920,10 @@ private:
     uint32_t m_lastPowerCheckTime;      ///< 最后一次功率检查时间
     uint32_t m_powerCheckInterval;      ///< 功率检查间隔（毫秒）
     int m_lastTotalPower;               ///< 上一次总功率值（mW）
+    uint32_t m_lastPageSwitchTime;      ///< 最后一次页面切换时间，用于10秒冷却
+    DisplayPage m_pendingTargetPage;    ///< 待切换的目标页面
+    uint32_t m_pageChangeStartTime;     ///< 页面变化开始时间，用于5秒持续检查
+    bool m_isPageChangePending;         ///< 是否有待处理的页面变化
     
     // === 亮度渐变成员变量 ===
     bool m_fadingEnabled;               ///< 是否启用亮度渐变
