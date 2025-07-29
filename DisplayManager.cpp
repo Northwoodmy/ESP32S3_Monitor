@@ -273,7 +273,7 @@ DisplayManager::DisplayManager()
     // 初始化端口功率和状态历史
     for (int i = 0; i < 4; i++) {
         m_previousPortPower[i] = 0;
-        m_previousPortState[i] = false;
+        strcpy(m_previousPortState[i], "UNKNOWN");
         m_lastAutoSwitchTime[i] = 0;
     }
     
@@ -1547,7 +1547,14 @@ void DisplayManager::updatePortDetailDisplay(int port_index) {
     
     // 更新状态显示
     if (state_label) {
-        const char* state_text = portData.state ? "已连接" : "未连接";
+        const char* state_text;
+        if (strcmp(portData.state, "ATTACHED") == 0) {
+            state_text = "已开启\n已连接";
+        } else if (strcmp(portData.state, "ACTIVE") == 0) {
+            state_text = "已开启\n未连接";
+        } else {
+            state_text = "未知状态";
+        }
         lv_label_set_text(state_label, state_text);
     }
     
@@ -2590,24 +2597,24 @@ void DisplayManager::checkPortPowerChange() {
     
     for (int i = 0; i < 4; i++) {
         if (m_powerData.ports[i].valid) {
-            bool currentState = m_powerData.ports[i].state;
+            const char* currentState = m_powerData.ports[i].state;
             int currentPower = m_powerData.ports[i].power;
             
-            // 检查端口状态从无功率变为有功率，并且距离上次自动切换至少10秒
-            uint32_t currentTime = xTaskGetTickCount() * portTICK_PERIOD_MS;
-            uint32_t cooldownTime = 10000; // 10秒冷却时间
+            // 检查端口功率从0变为非0（简化逻辑）
+            // 触发条件：当前功率 > 0 且 历史功率 == 0
+            bool currentHasPower = currentPower > 0;
+            bool previousNoPower = m_previousPortPower[i] == 0;
             
-            if (currentState && currentPower > 0 && 
-                (!m_previousPortState[i] || m_previousPortPower[i] == 0) &&
-                (currentTime - m_lastAutoSwitchTime[i]) >= cooldownTime) {
-                
-                printf("[DisplayManager] 检测到端口%d功率变化：0W -> %.2fW，触发自动切换\n", 
+            bool conditionMet = currentHasPower && previousNoPower;
+            
+            if (conditionMet) {
+                printf("[DisplayManager] 检测到端口%d功率变化：0W -> %.1fW，立即触发自动切换\n", 
                        i + 1, currentPower / 1000.0f);
                 
-                // 立即更新历史数据和冷却时间，防止重复触发
-                m_previousPortState[i] = currentState;
+                // 立即更新历史数据，防止重复触发
+                strncpy(m_previousPortState[i], currentState, 15);
+                m_previousPortState[i][15] = '\0';
                 m_previousPortPower[i] = currentPower;
-                m_lastAutoSwitchTime[i] = currentTime;
                 
                 // 发送自动切换消息
                 DisplayMessage msg;
@@ -2621,8 +2628,9 @@ void DisplayManager::checkPortPowerChange() {
                 
                 break; // 只处理第一个检测到的端口变化
             } else {
-                // 只有在没有触发自动切换时才更新历史数据
-                m_previousPortState[i] = currentState;
+                // 更新历史数据
+                strncpy(m_previousPortState[i], currentState, 15);
+                m_previousPortState[i][15] = '\0';
                 m_previousPortPower[i] = currentPower;
             }
         }
@@ -2670,21 +2678,33 @@ void DisplayManager::checkAutoSwitchTimeout() {
 }
 
 /**
- * @brief 恢复到切换前的页面
+ * @brief 恢复到切换前的页面（根据总功率条件智能决定）
  */
 void DisplayManager::restorePreviousPage() {
     if (!m_isInAutoSwitchMode) {
         return;
     }
     
-    printf("[DisplayManager] 开始恢复到页面%d\n", m_previousPage);
-    
     // 重置自动切换状态
     m_isInAutoSwitchMode = false;
     m_currentAutoSwitchPort = -1;
     
-    // 使用switchPage方法恢复到之前的页面
-    switchPage(m_previousPage);
+    // 根据当前总功率条件决定切换到哪个页面
+    DisplayPage targetPage;
+    if (m_powerData.valid && m_powerData.total_power > 2000) {
+        // 总功率大于2W，切换到总功率页面
+        targetPage = PAGE_POWER_TOTAL;
+        printf("[DisplayManager] 端口自动切换结束，总功率%.1fW > 2W，切换到总功率页面\n", 
+               m_powerData.total_power / 1000.0f);
+    } else {
+        // 总功率小于等于2W，切换到待机页面
+        targetPage = PAGE_HOME;
+        printf("[DisplayManager] 端口自动切换结束，总功率%.1fW ≤ 2W，切换到待机页面\n", 
+               m_powerData.valid ? m_powerData.total_power / 1000.0f : 0.0f);
+    }
+    
+    // 执行页面切换
+    switchPage(targetPage);
     
     printf("[DisplayManager] 已请求恢复到页面%d\n", m_previousPage);
 }
@@ -2697,11 +2717,11 @@ void DisplayManager::switchToPortScreen(int port_index) {
         return;
     }
     
-    // 使用手动切换方法，这会通过消息队列处理实际的屏幕切换
+    // 使用普通切换方法，不标记为手动切换（因为这是自动切换触发的）
     DisplayPage targetPage = (DisplayPage)(PAGE_POWER_PORT1 + port_index);
-    manualSwitchPage(targetPage);
+    switchPage(targetPage);
     
-    printf("[DisplayManager] 请求切换到端口%d屏幕\n", port_index + 1);
+    printf("[DisplayManager] 自动切换到端口%d屏幕\n", port_index + 1);
 }
 
 /**
@@ -3121,7 +3141,7 @@ void DisplayManager::manualSwitchPage(DisplayPage page) {
 }
 
 /**
- * @brief 检查总功率变化并执行自动页面切换（带冷却时间和持续时间检查）
+ * @brief 检查总功率变化并执行自动页面切换
  */
 void DisplayManager::checkPowerBasedPageSwitch() {
     if (!m_powerBasedAutoSwitchEnabled || !m_powerData.valid) {
@@ -3137,13 +3157,6 @@ void DisplayManager::checkPowerBasedPageSwitch() {
     
     m_lastPowerCheckTime = currentTime;
     
-    // 检查10秒冷却时间：如果距离上次页面切换不足10秒，直接返回
-    if (currentTime - m_lastPageSwitchTime < 10000) {
-        // printf("[DisplayManager] 页面切换冷却中，距离上次切换%.1f秒\n", 
-        //        (currentTime - m_lastPageSwitchTime) / 1000.0f);
-        return;
-    }
-    
     // 如果当前是手动切换且是端口页面，不执行自动切换
     if (m_isManualSwitch && isPortPage(m_currentPage)) {
         printf("[DisplayManager] 当前为手动切换的端口页面，跳过自动切换\n");
@@ -3156,12 +3169,12 @@ void DisplayManager::checkPowerBasedPageSwitch() {
         m_isManualSwitch = false;
     }
     
-    // 如果当前是端口页面（无论是手动还是自动切换的），不执行基于功率的自动切换
-    if (isPortPage(m_currentPage)) {
+    // 如果当前是端口页面或在端口自动切换模式中，不执行基于功率的自动切换
+    if (isPortPage(m_currentPage) || m_isInAutoSwitchMode) {
         // 清除待处理的页面变化
         if (m_isPageChangePending) {
             m_isPageChangePending = false;
-            printf("[DisplayManager] 当前为端口页面，清除待处理的页面变化\n");
+            printf("[DisplayManager] 当前为端口页面或端口自动切换模式，清除待处理的页面变化\n");
         }
         return;
     }
@@ -3171,67 +3184,84 @@ void DisplayManager::checkPowerBasedPageSwitch() {
         return;
     }
     
-    // 根据总功率决定目标页面
-    DisplayPage targetPage = getTargetPageByPower();
+    int totalPower = m_powerData.total_power;
     
-    // 检查目标页面是否与当前页面不同
-    if (targetPage != m_currentPage) {
-        // 页面需要变化
-        if (!m_isPageChangePending || m_pendingTargetPage != targetPage) {
-            // 这是第一次检测到这个变化，开始计时
+    // 根据当前页面和功率条件决定切换逻辑
+    if (m_currentPage == PAGE_POWER_TOTAL && totalPower < 1000) {
+        // 在总功率页面，总功率小于1W，需要5秒持续检查后切换到待机页面
+        if (!m_isPageChangePending || m_pendingTargetPage != PAGE_HOME) {
+            // 开始5秒持续检查
             m_isPageChangePending = true;
-            m_pendingTargetPage = targetPage;
+            m_pendingTargetPage = PAGE_HOME;
             m_pageChangeStartTime = currentTime;
             
-            printf("[DisplayManager] 检测到页面变化需求：%d -> %d (功率%.1fW)，开始5秒持续时间检查\n", 
-                   m_currentPage, targetPage, m_powerData.total_power / 1000.0f);
+            printf("[DisplayManager] 在总功率页面检测到低功率%.1fW < 1W，开始5秒持续时间检查\n", 
+                   totalPower / 1000.0f);
         } else {
-            // 已经在检测这个变化，检查是否持续超过5秒
+            // 检查是否持续超过5秒
             uint32_t changeDuration = currentTime - m_pageChangeStartTime;
             if (changeDuration >= 5000) {
-                // 变化持续超过5秒，执行切换
-                printf("[DisplayManager] 功率变化持续 %.1f秒，基于总功率%.1fW自动切换页面：%d -> %d\n", 
-                       changeDuration / 1000.0f, m_powerData.total_power / 1000.0f, m_currentPage, targetPage);
+                printf("[DisplayManager] 低功率持续 %.1f秒，切换到待机页面\n", 
+                       changeDuration / 1000.0f);
                 
-                switchPage(targetPage);
+                switchPage(PAGE_HOME);
                 m_lastPageSwitchTime = currentTime;
-                
-                // 清除待处理状态
                 m_isPageChangePending = false;
-            } else {
-                // printf("[DisplayManager] 功率变化持续 %.1f秒，等待达到5秒阈值\n", changeDuration / 1000.0f);
             }
         }
+    } else if (m_currentPage == PAGE_HOME && totalPower > 2000) {
+        // 在待机页面，总功率大于2W，检查是否有端口功率减少（避免在用户拔掉设备时切换）
+        bool hasPortPowerDecrease = checkPortPowerDecrease();
+        
+        if (!hasPortPowerDecrease) {
+            // 没有端口功率减少，立即切换到总功率页面
+            printf("[DisplayManager] 在待机页面检测到高功率%.1fW > 2W且无端口功率减少，立即切换到总功率页面\n", 
+                   totalPower / 1000.0f);
+            
+            switchPage(PAGE_POWER_TOTAL);
+            m_lastPageSwitchTime = currentTime;
+            
+            // 清除可能存在的待处理状态
+            if (m_isPageChangePending) {
+                m_isPageChangePending = false;
+            }
+        } else {
+            printf("[DisplayManager] 检测到端口功率减少，跳过切换到总功率页面（可能是用户拔掉设备）\n");
+        }
     } else {
-        // 目标页面与当前页面相同，清除待处理的变化
+        // 其他情况，清除待处理的页面变化
         if (m_isPageChangePending) {
             m_isPageChangePending = false;
-            printf("[DisplayManager] 功率恢复，取消页面变化 (功率%.1fW)\n", 
-                   m_powerData.total_power / 1000.0f);
+            printf("[DisplayManager] 功率条件不满足切换要求，取消页面变化 (功率%.1fW)\n", 
+                   totalPower / 1000.0f);
         }
     }
 }
 
 /**
- * @brief 根据总功率决定应该显示的页面
+ * @brief 检查是否有端口功率减少（用于判断是否用户拔掉了设备）
  */
-DisplayPage DisplayManager::getTargetPageByPower() const {
+bool DisplayManager::checkPortPowerDecrease() const {
     if (!m_powerData.valid) {
-        return PAGE_HOME; // 没有功率数据时显示待机页面
+        return false;
     }
     
-    int totalPower = m_powerData.total_power;
-    
-    if (totalPower < m_lowPowerThreshold) {
-        // 总功率小于低功率阈值，显示待机页面
-        return PAGE_HOME;
-    } else if (totalPower > m_highPowerThreshold) {
-        // 总功率大于高功率阈值，显示总功率页面
-        return PAGE_POWER_TOTAL;
-    } else {
-        // 功率在阈值之间，保持当前页面
-        return m_currentPage;
+    for (int i = 0; i < 4; i++) {
+        if (m_powerData.ports[i].valid) {
+            int currentPower = m_powerData.ports[i].power;
+            int previousPower = m_previousPortPower[i];
+            
+            // 如果当前功率比之前功率显著减少（减少超过5W），认为是功率减少
+            if (previousPower > 0 && currentPower < previousPower && 
+                (previousPower - currentPower) > 5000) {
+                printf("[DisplayManager] 检测到端口%d功率减少：%.1fW -> %.1fW\n", 
+                       i + 1, previousPower / 1000.0f, currentPower / 1000.0f);
+                return true;
+            }
+        }
     }
+    
+    return false;
 }
 
 // === OTA升级进度显示功能实现 ===

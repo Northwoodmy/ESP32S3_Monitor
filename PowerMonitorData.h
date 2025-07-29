@@ -6,7 +6,7 @@
  */
 struct PortData {
     int id;                 ///< 端口ID
-    bool state;             ///< 端口状态
+    char state[16];         ///< 端口状态字符串
     int fc_protocol;        ///< 快充协议
     int current;            ///< 电流(mA)
     int voltage;            ///< 电压(mV)

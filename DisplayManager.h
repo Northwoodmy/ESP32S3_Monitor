@@ -747,7 +747,7 @@ private:
      * 
      * @return 应该显示的页面
      */
-    DisplayPage getTargetPageByPower() const;
+    bool checkPortPowerDecrease() const;
     
     /**
      * @brief 检查是否为端口页面
@@ -903,7 +903,7 @@ private:
     // === 自动切换端口成员变量 ===
     bool m_autoSwitchEnabled;           ///< 是否启用自动切换端口功能
     int m_previousPortPower[4];         ///< 上一次端口功率值（mW）
-    bool m_previousPortState[4];        ///< 上一次端口状态
+    char m_previousPortState[4][16];    ///< 上一次端口状态字符串
     DisplayPage m_previousPage;         ///< 切换前的页面
     uint32_t m_autoSwitchStartTime;     ///< 自动切换开始时间
     uint32_t m_autoSwitchDuration;      ///< 自动切换持续时间

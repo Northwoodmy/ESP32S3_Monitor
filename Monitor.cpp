@@ -338,7 +338,16 @@ void Monitor::processPortData(JsonObject port) {
     if (id >= 1 && id <= 4) {
         int index = id - 1;
         m_currentPowerData.ports[index].id = id;
-        m_currentPowerData.ports[index].state = port["state"];
+        
+        // 处理状态字符串
+        const char* stateStr = port["state"];
+        if (stateStr) {
+            strncpy(m_currentPowerData.ports[index].state, stateStr, 15);
+            m_currentPowerData.ports[index].state[15] = '\0';
+        } else {
+            strcpy(m_currentPowerData.ports[index].state, "UNKNOWN");
+        }
+        
         m_currentPowerData.ports[index].fc_protocol = port["fc_protocol"];
         m_currentPowerData.ports[index].current = port["current"];
         m_currentPowerData.ports[index].voltage = port["voltage"];
@@ -348,9 +357,35 @@ void Monitor::processPortData(JsonObject port) {
             (m_currentPowerData.ports[index].voltage * m_currentPowerData.ports[index].current) / 1000;
         
         // 设置协议名称
-        const char* protocol_names[] = {"None", "QC2.0", "QC3.0", "PD", "AFC", "SCP", "VOOC"};
+        const char* protocol_names[] = {
+            "None",         // 0  FC_None
+            "QC2.0",        // 1  FC_QC2
+            "QC3.0",        // 2  FC_QC3
+            "QC3+",         // 3  FC_QC3P
+            "SFCP",         // 4  FC_SFCP
+            "AFC",          // 5  FC_AFC
+            "FCP",          // 6  FC_FCP
+            "SCP",          // 7  FC_SCP
+            "VOOC1.0",      // 8  FC_VOOC1P0
+            "VOOC4.0",      // 9  FC_VOOC4P0
+            "SVOOC2.0",     // 10 FC_SVOOC2P0
+            "TFCP",         // 11 FC_TFCP
+            "UFCS",         // 12 FC_UFCS
+            "PE1.0",        // 13 FC_PE1
+            "PE2.0",        // 14 FC_PE2
+            "PD Fix5V",     // 15 FC_PD_Fix5V
+            "PD FixHV",     // 16 FC_PD_FixHV
+            "PD SPR AVS",   // 17 FC_PD_SPR_AVS
+            "PD PPS",       // 18 FC_PD_PPS
+            "PD EPR HV",    // 19 FC_PD_EPR_HV
+            "PD AVS"        // 20 FC_PD_AVS
+        };
+        
         int protocol = m_currentPowerData.ports[index].fc_protocol;
-        if (protocol >= 0 && protocol < 7) {
+        if (protocol == 0xff) {
+            // 特殊值：不充电状态
+            strcpy(m_currentPowerData.ports[index].protocol_name, "Not Charging");
+        } else if (protocol >= 0 && protocol <= 20) {
             strncpy(m_currentPowerData.ports[index].protocol_name, protocol_names[protocol], 15);
             m_currentPowerData.ports[index].protocol_name[15] = '\0';
         } else {
