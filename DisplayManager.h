@@ -898,6 +898,7 @@ private:
     lv_obj_t* m_otaErrorLabel;          ///< OTA错误信息标签对象
     DisplayPage m_previousPageForOTA;   ///< OTA开始前的页面，用于恢复
     bool m_otaDisplayActive;            ///< OTA显示是否激活
+    bool m_otaInProgress;               ///< OTA是否正在进行中，用于防止屏幕被熄灭
     bool m_isInLowPowerMode;            ///< 是否处于低功率模式
     
     // === 自动切换端口成员变量 ===

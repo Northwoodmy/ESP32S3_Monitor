@@ -260,6 +260,7 @@ DisplayManager::DisplayManager()
     , m_otaSizeLabel(nullptr)
     , m_otaErrorLabel(nullptr)
     , m_otaDisplayActive(false)
+    , m_otaInProgress(false)
     , m_previousPageForOTA(PAGE_HOME)
 {
     // 设置全局实例指针
@@ -822,8 +823,12 @@ void DisplayManager::processMessage(const DisplayMessage& msg) {
             break;
             
         case DisplayMessage::MSG_SCREEN_OFF:
-            // 强制关闭屏幕
-            performScreenOff();
+            // 强制关闭屏幕（OTA期间除外）
+            if (m_otaInProgress) {
+                printf("[DisplayManager] MSG_SCREEN_OFF：OTA升级进行中，跳过屏幕关闭操作\n");
+            } else {
+                performScreenOff();
+            }
             break;
             
         case DisplayMessage::MSG_AUTO_SWITCH_PORT:
@@ -1859,7 +1864,12 @@ void DisplayManager::processScreenModeLogic() {
         if (shouldBeOn && !m_screenOn) {
             performScreenOn();
         } else if (!shouldBeOn && m_screenOn) {
-            performScreenOff();
+            // OTA进行中时不允许关闭屏幕
+            if (m_otaInProgress) {
+                printf("[DisplayManager] 屏幕模式控制：OTA升级进行中，跳过屏幕关闭操作\n");
+            } else {
+                performScreenOff();
+            }
         }
     }
 }
@@ -2446,9 +2456,14 @@ void DisplayManager::processPowerControlLogic() {
             uint32_t timeoutMs = m_screenTimeoutMinutes * 60 * 1000;
             
             if (lowPowerDuration >= timeoutMs && m_screenOn) {
-                printf("[DisplayManager] 功率控制：低功率持续 %.1f分钟，延时关闭屏幕\n", 
-                       lowPowerDuration / 60000.0f);
-                performScreenOff();
+                // OTA进行中时不允许关闭屏幕
+                if (m_otaInProgress) {
+                    printf("[DisplayManager] 功率控制：OTA升级进行中，跳过屏幕关闭操作\n");
+                } else {
+                    printf("[DisplayManager] 功率控制：低功率持续 %.1f分钟，延时关闭屏幕\n", 
+                           lowPowerDuration / 60000.0f);
+                    performScreenOff();
+                }
             }
         }
     } else {
@@ -2532,9 +2547,14 @@ void DisplayManager::processPowerBasedTimeoutLogic() {
     if (currentPower < 1000) { // 1W = 1000mW
         // 功率小于1W，检查是否应该延时关闭屏幕
         if (timeSinceLastTouch >= timeoutMs && m_screenOn) {
-            printf("[DisplayManager] 延时模式：低功率 %.1fW，距上次触摸 %.1f分钟，关闭屏幕\n", 
-                   currentPower / 1000.0f, timeSinceLastTouch / 60000.0f);
-            performScreenOff();
+            // OTA进行中时不允许关闭屏幕
+            if (m_otaInProgress) {
+                printf("[DisplayManager] 延时模式：OTA升级进行中，跳过屏幕关闭操作\n");
+            } else {
+                printf("[DisplayManager] 延时模式：低功率 %.1fW，距上次触摸 %.1f分钟，关闭屏幕\n", 
+                       currentPower / 1000.0f, timeSinceLastTouch / 60000.0f);
+                performScreenOff();
+            }
         } else if (!m_screenOn && timeSinceLastTouch < timeoutMs) {
             // 如果屏幕关闭但延时时间未到，重新开启（可能是由于其他原因关闭的）
             printf("[DisplayManager] 延时模式：低功率 %.1fW，但延时未到，开启屏幕\n", 
@@ -3270,8 +3290,11 @@ bool DisplayManager::checkPortPowerDecrease() const {
  * @brief 开始OTA升级显示
  */
 void DisplayManager::startOTADisplay(bool isServerOTA) {
+    // 设置OTA进行中标志，防止屏幕被其他流程熄灭
+    m_otaInProgress = true;
+    
     // 强制唤醒屏幕以显示OTA进度
-    printf("[DisplayManager] OTA升级开始，强制唤醒屏幕\n");
+    printf("[DisplayManager] OTA升级开始，强制唤醒屏幕并保持常亮\n");
     forceScreenOn();
     
     // 发送OTA开始消息
@@ -3313,6 +3336,10 @@ void DisplayManager::updateOTAStatus(int status, float progress, uint32_t totalS
  * @brief 完成OTA升级显示
  */
 void DisplayManager::completeOTADisplay(bool success, const char* message) {
+    // 清除OTA进行中标志，恢复正常屏幕控制
+    m_otaInProgress = false;
+    printf("[DisplayManager] OTA升级完成，恢复正常屏幕控制模式\n");
+    
     DisplayMessage msg;
     msg.type = DisplayMessage::MSG_OTA_COMPLETE;
     msg.data.ota_status.status = success ? 4 : 5;  // 4=success, 5=failed
