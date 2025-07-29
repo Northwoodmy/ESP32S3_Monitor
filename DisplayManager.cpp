@@ -675,7 +675,7 @@ void DisplayManager::processMessage(const DisplayMessage& msg) {
                     switch (newPage) {
                         case PAGE_HOME:
                             if (ui2_standbySCREEN) {
-                                _ui2_screen_change(&ui2_standbySCREEN, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 500, 0, &ui2_standbySCREEN_screen_init);
+                                _ui2_screen_change(&ui2_standbySCREEN, LV_SCR_LOAD_ANIM_OVER_BOTTOM, 500, 0, &ui2_standbySCREEN_screen_init);
                                 m_currentPage = newPage;
                                 switchSuccess = true;
                             }
