@@ -373,18 +373,18 @@ void Monitor::processPortData(JsonObject port) {
             "UFCS",         // 12 FC_UFCS
             "PE1.0",        // 13 FC_PE1
             "PE2.0",        // 14 FC_PE2
-            "PD Fix5V",     // 15 FC_PD_Fix5V
-            "PD FixHV",     // 16 FC_PD_FixHV
-            "PD SPR AVS",   // 17 FC_PD_SPR_AVS
+            "PD 3.1",     // 15 FC_PD_Fix5V
+            "PD 3.1",     // 16 FC_PD_FixHV
+            "PD SPR",   // 17 FC_PD_SPR_AVS
             "PD PPS",       // 18 FC_PD_PPS
-            "PD EPR HV",    // 19 FC_PD_EPR_HV
+            "PD EPR",    // 19 FC_PD_EPR_HV
             "PD AVS"        // 20 FC_PD_AVS
         };
         
         int protocol = m_currentPowerData.ports[index].fc_protocol;
         if (protocol == 0xff) {
             // 特殊值：不充电状态
-            strcpy(m_currentPowerData.ports[index].protocol_name, "Not Charging");
+            strcpy(m_currentPowerData.ports[index].protocol_name, "未知");
         } else if (protocol >= 0 && protocol <= 20) {
             strncpy(m_currentPowerData.ports[index].protocol_name, protocol_names[protocol], 15);
             m_currentPowerData.ports[index].protocol_name[15] = '\0';
