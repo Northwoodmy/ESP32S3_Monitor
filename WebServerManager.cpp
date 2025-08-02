@@ -2506,6 +2506,78 @@ void WebServerManager::handleServerOTAStart() {
     printf("服务器OTA升级参数 - 服务器: %s, 固件文件: %s\n", 
            serverUrl.c_str(), firmwareFile.c_str());
     
+    // 首先检查服务器版本并进行版本比较
+    printf("开始版本检查...\n");
+    String versionJson = otaManager->checkServerFirmwareVersion(serverUrl);
+    
+    if (versionJson.length() == 0) {
+        doc["success"] = false;
+        doc["message"] = "无法获取服务器版本信息，升级已取消";
+        printf("无法获取服务器版本信息，升级已取消\n");
+        String response;
+        serializeJson(doc, response);
+        server->send(400, "application/json", response);
+        return;
+    }
+    
+    // 解析服务器版本响应
+    DynamicJsonDocument serverDoc(512);
+    if (deserializeJson(serverDoc, versionJson) != DeserializationError::Ok) {
+        doc["success"] = false;
+        doc["message"] = "服务器版本信息解析失败，升级已取消";
+        printf("服务器版本信息解析失败，升级已取消\n");
+        String response;
+        serializeJson(doc, response);
+        server->send(400, "application/json", response);
+        return;
+    }
+    
+    // 获取服务器版本号
+    String serverVersion = serverDoc["version"].as<String>();
+    if (serverVersion.length() == 0) {
+        doc["success"] = false;
+        doc["message"] = "服务器版本号为空，升级已取消";
+        printf("服务器版本号为空，升级已取消\n");
+        String response;
+        serializeJson(doc, response);
+        server->send(400, "application/json", response);
+        return;
+    }
+    
+    // 进行版本比较
+    printf("进行版本比较: 当前版本=%s, 服务器版本=%s\n", 
+           VERSION_STRING, serverVersion.c_str());
+    
+    if (!otaManager->needsUpdate(serverVersion)) {
+        // 检查版本比较结果
+        int compareResult = otaManager->compareVersions(VERSION_STRING, serverVersion);
+        
+        if (compareResult == 0) {
+            // 版本相同
+            doc["success"] = false;
+            doc["message"] = "当前版本已是最新版本，无需升级";
+            doc["currentVersion"] = VERSION_STRING;
+            doc["serverVersion"] = serverVersion;
+            doc["versionStatus"] = "up_to_date";
+            printf("版本相同，无需升级: %s\n", VERSION_STRING);
+        } else if (compareResult > 0) {
+            // 当前版本更高
+            doc["success"] = false;
+            doc["message"] = "当前版本比服务器版本更新，无需升级";
+            doc["currentVersion"] = VERSION_STRING;
+            doc["serverVersion"] = serverVersion;
+            doc["versionStatus"] = "newer";
+            printf("当前版本更高，无需升级: %s > %s\n", VERSION_STRING, serverVersion.c_str());
+        }
+        
+        String response;
+        serializeJson(doc, response);
+        server->send(200, "application/json", response);
+        return;
+    }
+    
+    printf("版本检查通过，开始升级: %s -> %s\n", VERSION_STRING, serverVersion.c_str());
+    
     // 启动服务器OTA升级
     if (otaManager->downloadAndUpdateFromServer(serverUrl, firmwareFile)) {
         doc["success"] = true;
@@ -2629,11 +2701,45 @@ void WebServerManager::handleServerFirmwareVersion() {
         // 解析服务器响应
         DynamicJsonDocument serverDoc(512);
         if (deserializeJson(serverDoc, versionJson) == DeserializationError::Ok) {
+            // 获取服务器版本号进行比较
+            String serverVersionStr = serverDoc["version"].as<String>();
+            
             doc["success"] = true;
             doc["message"] = "固件版本查询成功";
             doc["serverUrl"] = serverUrl;
             doc["currentVersion"] = VERSION_STRING;  // 当前设备版本
             doc["serverVersion"] = serverDoc;
+            
+            // 添加版本比较结果
+            if (serverVersionStr.length() > 0) {
+                int compareResult = otaManager->compareVersions(VERSION_STRING, serverVersionStr);
+                bool needsUpdate = otaManager->needsUpdate(serverVersionStr);
+                
+                if (compareResult == 0) {
+                    doc["versionStatus"] = "up_to_date";
+                    doc["versionMessage"] = "当前版本已是最新版本";
+                    doc["canUpdate"] = false;
+                } else if (compareResult > 0) {
+                    doc["versionStatus"] = "newer";
+                    doc["versionMessage"] = "当前版本比服务器版本更新";
+                    doc["canUpdate"] = false;
+                } else {
+                    doc["versionStatus"] = "needs_update";
+                    doc["versionMessage"] = "发现新版本，可以升级";
+                    doc["canUpdate"] = true;
+                }
+                
+                doc["needsUpdate"] = needsUpdate;
+                
+                printf("版本比较结果: 当前=%s, 服务器=%s, 状态=%s\n", 
+                       VERSION_STRING, serverVersionStr.c_str(), 
+                       doc["versionStatus"].as<String>().c_str());
+            } else {
+                doc["versionStatus"] = "unknown";
+                doc["versionMessage"] = "无法获取服务器版本号";
+                doc["canUpdate"] = false;
+                doc["needsUpdate"] = false;
+            }
             
             printf("固件版本查询成功\n");
         } else {

@@ -5,6 +5,7 @@
 
 #include "OTAManager.h"
 #include "Arduino.h"
+#include "Version.h"
 #include "TimeManager.h"
 #include "WeatherManager.h"
 #include "Monitor.h"
@@ -348,6 +349,110 @@ String OTAManager::getServerFirmwareList(const String& serverUrl) {
     
     httpClient.end();
     return response;
+}
+
+// 版本比较相关方法实现
+bool OTAManager::parseVersion(const String& version, int& major, int& minor, int& patch) {
+    printf("解析版本号: %s\n", version.c_str());
+    
+    // 初始化版本号组件
+    major = 0;
+    minor = 0;
+    patch = 0;
+    
+    String cleanVersion = version;
+    
+    // 移除 'v' 前缀（如果存在）
+    if (cleanVersion.startsWith("v") || cleanVersion.startsWith("V")) {
+        cleanVersion = cleanVersion.substring(1);
+    }
+    
+    // 按点分割版本号
+    int firstDot = cleanVersion.indexOf('.');
+    if (firstDot == -1) {
+        // 没有找到点，尝试解析为单个主版本号
+        major = cleanVersion.toInt();
+        printf("解析结果: %d.0.0\n", major);
+        return true;
+    }
+    
+    int secondDot = cleanVersion.indexOf('.', firstDot + 1);
+    
+    // 解析主版本号
+    major = cleanVersion.substring(0, firstDot).toInt();
+    
+    if (secondDot == -1) {
+        // 只有主版本号和次版本号
+        minor = cleanVersion.substring(firstDot + 1).toInt();
+        patch = 0;
+    } else {
+        // 有完整的三段版本号
+        minor = cleanVersion.substring(firstDot + 1, secondDot).toInt();
+        patch = cleanVersion.substring(secondDot + 1).toInt();
+    }
+    
+    printf("解析结果: %d.%d.%d\n", major, minor, patch);
+    return true;
+}
+
+int OTAManager::compareVersions(const String& version1, const String& version2) {
+    printf("比较版本: %s vs %s\n", version1.c_str(), version2.c_str());
+    
+    int major1, minor1, patch1;
+    int major2, minor2, patch2;
+    
+    if (!parseVersion(version1, major1, minor1, patch1)) {
+        printf("版本1解析失败\n");
+        return 0;  // 解析失败，视为相等
+    }
+    
+    if (!parseVersion(version2, major2, minor2, patch2)) {
+        printf("版本2解析失败\n");
+        return 0;  // 解析失败，视为相等
+    }
+    
+    // 比较主版本号
+    if (major1 < major2) {
+        printf("比较结果: %s < %s (主版本号)\n", version1.c_str(), version2.c_str());
+        return -1;
+    } else if (major1 > major2) {
+        printf("比较结果: %s > %s (主版本号)\n", version1.c_str(), version2.c_str());
+        return 1;
+    }
+    
+    // 主版本号相同，比较次版本号
+    if (minor1 < minor2) {
+        printf("比较结果: %s < %s (次版本号)\n", version1.c_str(), version2.c_str());
+        return -1;
+    } else if (minor1 > minor2) {
+        printf("比较结果: %s > %s (次版本号)\n", version1.c_str(), version2.c_str());
+        return 1;
+    }
+    
+    // 次版本号相同，比较补丁版本号
+    if (patch1 < patch2) {
+        printf("比较结果: %s < %s (补丁版本号)\n", version1.c_str(), version2.c_str());
+        return -1;
+    } else if (patch1 > patch2) {
+        printf("比较结果: %s > %s (补丁版本号)\n", version1.c_str(), version2.c_str());
+        return 1;
+    }
+    
+    // 版本号完全相同
+    printf("比较结果: %s == %s\n", version1.c_str(), version2.c_str());
+    return 0;
+}
+
+bool OTAManager::needsUpdate(const String& serverVersion) {
+    String currentVersion = VERSION_STRING;
+    printf("检查是否需要升级: 当前版本=%s, 服务器版本=%s\n", 
+           currentVersion.c_str(), serverVersion.c_str());
+    
+    int result = compareVersions(currentVersion, serverVersion);
+    bool needs = (result < 0);  // 当前版本小于服务器版本时需要升级
+    
+    printf("升级检查结果: %s\n", needs ? "需要升级" : "无需升级");
+    return needs;
 }
 
 void OTAManager::abortOTA() {

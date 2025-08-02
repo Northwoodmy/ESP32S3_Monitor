@@ -14,11 +14,11 @@
 #define VERSION_H
 
 // 项目版本号定义 - 每次更新只需修改这里
-#define VERSION_STRING "v7.3.0"
+#define VERSION_STRING "v7.4.0"
 
 // 版本号组件分解（可选，用于版本比较等高级功能）
 #define VERSION_MAJOR 7
-#define VERSION_MINOR 3
+#define VERSION_MINOR 4
 #define VERSION_PATCH 0
 
 // 版本信息字符串（包含更多详细信息）

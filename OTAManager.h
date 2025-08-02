@@ -79,6 +79,13 @@ public:
     // 获取服务器上的固件列表
     String getServerFirmwareList(const String& serverUrl);
     
+    // 版本比较相关方法
+    // 比较两个版本号，返回：-1表示v1<v2，0表示v1==v2，1表示v1>v2
+    int compareVersions(const String& version1, const String& version2);
+    
+    // 检查是否需要升级（当前版本是否低于服务器版本）
+    bool needsUpdate(const String& serverVersion);
+    
     // 取消OTA升级
     void abortOTA();
     
@@ -155,6 +162,10 @@ private:
     
     // 验证下载的固件
     bool validateFirmware(const String& firmwareData);
+    
+    // 版本解析和比较私有方法
+    // 解析版本号字符串，提取主版本号、次版本号、补丁版本号
+    bool parseVersion(const String& version, int& major, int& minor, int& patch);
     
     // 静态任务函数
     static void rebootTask(void* parameter);
