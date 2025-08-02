@@ -88,7 +88,10 @@ struct DisplayMessage {
         MSG_AUTO_SWITCH_PORT,       ///< 自动切换到端口屏幕
         MSG_UPDATE_OTA_STATUS,      ///< 更新OTA状态
         MSG_OTA_START,              ///< OTA开始
-        MSG_OTA_COMPLETE            ///< OTA完成
+        MSG_OTA_COMPLETE,           ///< OTA完成
+        MSG_SHOW_WIFI_INFO,         ///< 显示WiFi信息页面
+        MSG_RETURN_FROM_WIFI_INFO,  ///< 从WiFi信息页面返回
+        MSG_DESTROY_WIFI_INFO       ///< 销毁WiFi信息页面
     } type;
     
     union {
@@ -424,6 +427,28 @@ public:
      */
     void completeOTADisplay(bool success, const char* message);
     
+    // === WiFi信息页面功能 ===
+    
+    /**
+     * @brief 显示WiFi信息页面
+     */
+    void showWiFiInfoPage();
+    
+    /**
+     * @brief 请求显示WiFi信息页面（通过消息队列）
+     */
+    void requestShowWiFiInfoPage();
+    
+    /**
+     * @brief 处理待机页面右滑手势（三击检测）
+     */
+    void handleStandbyRightSwipe();
+    
+    /**
+     * @brief 更新WiFi信息显示
+     */
+    void updateWiFiInfoDisplay();
+    
     // === 功率控制屏幕功能 ===
     
     /**
@@ -731,6 +756,11 @@ private:
     void checkAutoSwitchTimeout();
     
     /**
+     * @brief 检查三击手势超时
+     */
+    void checkTripleSwipeTimeout();
+    
+    /**
      * @brief 恢复到切换前的页面
      */
     void restorePreviousPage();
@@ -809,6 +839,33 @@ private:
       * @brief 重新布局OTA进度页面（适应屏幕旋转）
       */
      void relayoutOTAProgressPage();
+    
+    // === WiFi信息页面私有方法 ===
+    
+    /**
+     * @brief 创建WiFi信息显示页面
+     */
+    void createWiFiInfoPage();
+    
+    /**
+     * @brief 销毁WiFi信息显示页面
+     */
+    void destroyWiFiInfoPage();
+    
+    /**
+     * @brief 切换到WiFi信息页面
+     */
+    void switchToWiFiInfoPage();
+    
+    /**
+     * @brief WiFi信息页面事件处理函数
+     */
+    static void wifiInfoScreenEventHandler(lv_event_t* e);
+    
+    /**
+     * @brief 从WiFi信息页面返回到之前页面
+     */
+    void returnFromWiFiInfoPage();
     
     // === 亮度渐变私有方法 ===
     
@@ -901,6 +958,22 @@ private:
     bool m_otaInProgress;               ///< OTA是否正在进行中，用于防止屏幕被熄灭
     bool m_isInLowPowerMode;            ///< 是否处于低功率模式
     
+    // === WiFi信息页面成员变量 ===
+    lv_obj_t* m_wifiInfoScreen;         ///< WiFi信息屏幕对象
+    lv_obj_t* m_wifiStatusLabel;        ///< WiFi连接状态标签对象
+    lv_obj_t* m_wifiSSIDLabel;          ///< WiFi网络名称标签对象
+    lv_obj_t* m_wifiIPLabel;            ///< WiFi IP地址标签对象
+    DisplayPage m_previousPageForWiFi;  ///< WiFi信息页面开始前的页面，用于恢复
+    bool m_wifiInfoDisplayActive;       ///< WiFi信息显示是否激活
+    bool m_wifiInfoPendingDestroy;      ///< WiFi信息页面是否等待销毁
+    TickType_t m_lastWiFiSwitchTime;    ///< 上次WiFi页面切换时间，用于5秒冷却
+    
+    // === 三击手势检测成员变量 ===
+    TickType_t m_firstSwipeTime;        ///< 第一次右滑时间
+    uint8_t m_swipeCount;               ///< 当前滑动次数计数
+    static const uint32_t TRIPLE_SWIPE_TIMEOUT_MS = 2000; ///< 三击超时时间（2秒）
+    static const uint8_t REQUIRED_SWIPE_COUNT = 3;         ///< 需要的滑动次数
+    
     // === 自动切换端口成员变量 ===
     bool m_autoSwitchEnabled;           ///< 是否启用自动切换端口功能
     int m_previousPortPower[4];         ///< 上一次端口功率值（mW）
@@ -945,5 +1018,11 @@ private:
     static const uint32_t SCREEN_MODE_CHECK_INTERVAL = 1000;  ///< 屏幕模式检查间隔（毫秒）
     static const uint32_t TOUCH_TIMEOUT_MARGIN = 5000;        ///< 触摸超时边距（毫秒）
 };
+
+// C风格包装函数声明（供UI系统调用）
+extern "C" void updateDisplayManagerCurrentPage(void* screen);
+
+// UI系统调用WiFi信息页面的桥接函数声明
+extern "C" void showWiFiInfoPageFromUI();
 
 #endif // DISPLAY_MANAGER_H 

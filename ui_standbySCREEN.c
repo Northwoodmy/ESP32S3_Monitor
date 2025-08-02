@@ -26,6 +26,12 @@ void ui_event_standbySCREEN(lv_event_t * e)
         lv_indev_wait_release(lv_indev_get_act());
         _ui_screen_change(&ui_totalpowerSCREEN, LV_SCR_LOAD_ANIM_MOVE_LEFT, 500, 0, &ui_totalpowerSCREEN_screen_init);
     }
+    if(event_code == LV_EVENT_GESTURE &&  lv_indev_get_gesture_dir(lv_indev_get_act()) == LV_DIR_RIGHT) {
+        lv_indev_wait_release(lv_indev_get_act());
+        // 切换到WiFi信息页面
+        extern void showWiFiInfoPageFromUI();
+        showWiFiInfoPageFromUI();
+    }
 }
 
 // build funtions

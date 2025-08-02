@@ -262,6 +262,16 @@ DisplayManager::DisplayManager()
     , m_otaDisplayActive(false)
     , m_otaInProgress(false)
     , m_previousPageForOTA(PAGE_HOME)
+    , m_wifiInfoScreen(nullptr)
+    , m_wifiStatusLabel(nullptr)
+    , m_wifiSSIDLabel(nullptr)
+    , m_wifiIPLabel(nullptr)
+    , m_previousPageForWiFi(PAGE_HOME)
+    , m_wifiInfoDisplayActive(false)
+    , m_wifiInfoPendingDestroy(false)
+    , m_lastWiFiSwitchTime(0)
+    , m_firstSwipeTime(0)
+    , m_swipeCount(0)
 {
     // 设置全局实例指针
     s_instance = this;
@@ -289,6 +299,10 @@ DisplayManager::~DisplayManager() {
     
     // 清理OTA页面资源
     destroyOTAProgressPage();
+    
+    // 清理WiFi信息页面资源
+    m_wifiInfoPendingDestroy = false;  // 重置标志
+    destroyWiFiInfoPage();
     
     // 清理消息队列
     if (m_messageQueue) {
@@ -557,6 +571,36 @@ void DisplayManager::displayTask() {
             // 检查基于总功率的页面切换
             checkPowerBasedPageSwitch();
             
+            // 检查三击手势超时
+            checkTripleSwipeTimeout();
+            
+            // 处理WiFi信息页面的延迟销毁
+            if (m_wifiInfoPendingDestroy) {
+                printf("[DisplayManager] 执行WiFi信息页面延迟销毁检查\n");
+                
+                // 简化检查：确保WiFi信息页面对象存在且显示状态已清除
+                if (m_wifiInfoScreen && !m_wifiInfoDisplayActive) {
+                    printf("[DisplayManager] 条件满足，通过消息队列安全销毁WiFi信息页面\n");
+                    
+                    // 通过消息队列发送销毁命令，确保在LVGL锁保护下执行
+                    DisplayMessage msg;
+                    msg.type = DisplayMessage::MSG_DESTROY_WIFI_INFO;
+                    
+                    if (xQueueSend(m_messageQueue, &msg, pdMS_TO_TICKS(100)) == pdTRUE) {
+                        printf("[DisplayManager] WiFi信息页面销毁消息已发送到队列\n");
+                        m_wifiInfoPendingDestroy = false; // 清除标志，避免重复发送
+                    } else {
+                        printf("[DisplayManager] 错误：发送WiFi信息页面销毁消息失败\n");
+                    }
+                } else if (!m_wifiInfoScreen) {
+                    // 对象已经不存在，清除标志
+                    printf("[DisplayManager] WiFi信息页面对象已不存在，清除销毁标志\n");
+                    m_wifiInfoPendingDestroy = false;
+                } else {
+                    printf("[DisplayManager] WiFi信息页面显示仍处于活动状态，等待状态清除\n");
+                }
+            }
+            
             lastUpdateTime = currentTime;
         }
         
@@ -621,6 +665,23 @@ void DisplayManager::processMessage(const DisplayMessage& msg) {
             if (msg.data.page_switch.page < PAGE_COUNT) {
                 DisplayPage newPage = msg.data.page_switch.page;
                 
+                // 检查是否从WiFi信息页面切换出去，需要清理状态
+                if (m_currentPage == PAGE_WIFI_STATUS && newPage != PAGE_WIFI_STATUS && m_wifiInfoDisplayActive) {
+                    printf("[DisplayManager] 从WiFi信息页面自动切换到页面：%d，清理WiFi页面状态\n", newPage);
+                    m_wifiInfoDisplayActive = false;
+                    // 标记为等待销毁，在主循环中延迟处理
+                    m_wifiInfoPendingDestroy = true;
+                }
+                
+                // 当切换到待机页面时，重置三击手势状态，确保干净的状态
+                if (newPage == PAGE_HOME) {
+                    if (m_swipeCount > 0) {
+                        printf("[DisplayManager] 切换到待机页面，重置三击手势状态\n");
+                        m_swipeCount = 0;
+                        m_firstSwipeTime = 0;
+                    }
+                }
+                
                 // 根据当前主题和页面类型执行实际的屏幕切换
                 bool switchSuccess = false;
                 
@@ -669,6 +730,13 @@ void DisplayManager::processMessage(const DisplayMessage& msg) {
                                 switchSuccess = true;
                             }
                             break;
+                        case PAGE_WIFI_STATUS:
+                            // WiFi信息页面（统一处理，不依赖UI系统）
+                            // 注意：这里不能调用switchToWiFiInfoPage()，因为那会导致递归
+                            // WiFi信息页面应该通过showWiFiInfoPage()直接调用
+                            printf("[DisplayManager] 警告：PAGE_WIFI_STATUS应该通过showWiFiInfoPage()调用，而不是switchPage()\n");
+                            switchSuccess = false;
+                            break;
                     }
                 } else if (m_currentTheme == THEME_UI2) {
                     // UI2系统的页面切换
@@ -714,6 +782,13 @@ void DisplayManager::processMessage(const DisplayMessage& msg) {
                                 m_currentPage = newPage;
                                 switchSuccess = true;
                             }
+                            break;
+                        case PAGE_WIFI_STATUS:
+                            // WiFi信息页面（统一处理，不依赖UI系统）
+                            // 注意：这里不能调用switchToWiFiInfoPage()，因为那会导致递归
+                            // WiFi信息页面应该通过showWiFiInfoPage()直接调用
+                            printf("[DisplayManager] 警告：PAGE_WIFI_STATUS应该通过showWiFiInfoPage()调用，而不是switchPage()\n");
+                            switchSuccess = false;
                             break;
                     }
                 }
@@ -875,6 +950,97 @@ void DisplayManager::processMessage(const DisplayMessage& msg) {
                  }
                 // 成功状态通常会重启设备，不需要恢复页面
             }
+            break;
+            
+        case DisplayMessage::MSG_SHOW_WIFI_INFO:
+            // 显示WiFi信息页面
+            printf("[DisplayManager] 处理显示WiFi信息页面消息\n");
+            printf("[DisplayManager] 当前页面：%d，将保存为返回页面\n", m_currentPage);
+            
+            // 保存当前页面，用于返回（在修改m_currentPage之前保存）
+            m_previousPageForWiFi = m_currentPage;
+            m_wifiInfoDisplayActive = true;
+            
+            // 直接创建WiFi信息页面（此时已在正确的LVGL上下文中）
+            createWiFiInfoPage();
+            updateWiFiInfoDisplay();
+            
+            // 最后设置当前页面
+            m_currentPage = PAGE_WIFI_STATUS;
+            
+            printf("[DisplayManager] WiFi信息页面已显示，保存的返回页面：%d\n", m_previousPageForWiFi);
+            break;
+            
+        case DisplayMessage::MSG_RETURN_FROM_WIFI_INFO:
+            // 从WiFi信息页面返回
+            printf("[DisplayManager] 处理从WiFi信息页面返回消息\n");
+            
+            if (m_wifiInfoDisplayActive) {
+                m_wifiInfoDisplayActive = false;
+                
+                // 先切换到目标页面，再销毁WiFi信息页面
+                printf("[DisplayManager] 恢复到WiFi信息页面前的页面：%d\n", m_previousPageForWiFi);
+                
+                bool switchSuccess = false;
+                
+                // 根据目标页面和当前UI主题直接切换
+                switch (m_previousPageForWiFi) {
+                    case PAGE_HOME:
+                        if (m_currentTheme == THEME_UI1 && ui_standbySCREEN) {
+                            _ui_screen_change(&ui_standbySCREEN, LV_SCR_LOAD_ANIM_MOVE_LEFT, 300, 0, &ui_standbySCREEN_screen_init);
+                            switchSuccess = true;
+                        } else if (m_currentTheme == THEME_UI2 && ui2_standbySCREEN) {
+                            _ui2_screen_change(&ui2_standbySCREEN, LV_SCR_LOAD_ANIM_MOVE_LEFT, 300, 0, &ui2_standbySCREEN_screen_init);
+                            switchSuccess = true;
+                        }
+                        break;
+                        
+                    case PAGE_POWER_TOTAL:
+                        if (m_currentTheme == THEME_UI1 && ui_totalpowerSCREEN) {
+                            _ui_screen_change(&ui_totalpowerSCREEN, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 300, 0, &ui_totalpowerSCREEN_screen_init);
+                            switchSuccess = true;
+                        } else if (m_currentTheme == THEME_UI2 && ui2_totalpowerSCREEN) {
+                            _ui2_screen_change(&ui2_totalpowerSCREEN, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 300, 0, &ui2_totalpowerSCREEN_screen_init);
+                            switchSuccess = true;
+                        }
+                        break;
+                        
+                    // 其他页面可以根据需要扩展
+                    default:
+                        printf("[DisplayManager] 暂不支持返回到页面：%d，默认返回待机页面\n", m_previousPageForWiFi);
+                        if (m_currentTheme == THEME_UI1 && ui_standbySCREEN) {
+                            _ui_screen_change(&ui_standbySCREEN, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 300, 0, &ui_standbySCREEN_screen_init);
+                            m_previousPageForWiFi = PAGE_HOME;
+                            switchSuccess = true;
+                        } else if (m_currentTheme == THEME_UI2 && ui2_standbySCREEN) {
+                            _ui2_screen_change(&ui2_standbySCREEN, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 300, 0, &ui2_standbySCREEN_screen_init);
+                            m_previousPageForWiFi = PAGE_HOME;
+                            switchSuccess = true;
+                        }
+                        break;
+                }
+                
+                if (switchSuccess) {
+                    m_currentPage = m_previousPageForWiFi;
+                    printf("[DisplayManager] 成功切换到页面：%d\n", m_currentPage);
+                    
+                    // 标记为等待销毁，在主循环中延迟处理
+                    m_wifiInfoPendingDestroy = true;
+                } else {
+                    printf("[DisplayManager] 错误：页面切换失败\n");
+                    // 即使切换失败，也尝试销毁（可能会有警告但不会崩溃）
+                    m_wifiInfoPendingDestroy = true;
+                }
+                
+                printf("[DisplayManager] WiFi信息页面返回操作完成\n");
+            }
+            break;
+            
+        case DisplayMessage::MSG_DESTROY_WIFI_INFO:
+            // 安全销毁WiFi信息页面（已在LVGL锁保护下）
+            printf("[DisplayManager] 处理WiFi信息页面销毁消息\n");
+            destroyWiFiInfoPage();
+            printf("[DisplayManager] WiFi信息页面销毁消息处理完成\n");
             break;
     }
     
@@ -2698,6 +2864,26 @@ void DisplayManager::checkAutoSwitchTimeout() {
 }
 
 /**
+ * @brief 检查三击手势超时
+ */
+void DisplayManager::checkTripleSwipeTimeout() {
+    if (m_swipeCount == 0) {
+        return;
+    }
+    
+    TickType_t currentTime = xTaskGetTickCount();
+    TickType_t timeSinceFirstSwipe = currentTime - m_firstSwipeTime;
+    uint32_t timeSinceFirstSwipeMs = pdTICKS_TO_MS(timeSinceFirstSwipe);
+    
+    if (timeSinceFirstSwipeMs > TRIPLE_SWIPE_TIMEOUT_MS) {
+        // 三击超时，重置状态
+        printf("[DisplayManager] 三击手势超时（%lu毫秒），重置状态\n", timeSinceFirstSwipeMs);
+        m_swipeCount = 0;
+        m_firstSwipeTime = 0;
+    }
+}
+
+/**
  * @brief 恢复到切换前的页面（根据总功率条件智能决定）
  */
 void DisplayManager::restorePreviousPage() {
@@ -2811,6 +2997,17 @@ extern "C" void updateDisplayManagerCurrentPage(void* screen) {
     DisplayManager* instance = DisplayManager::getInstance();
     if (instance) {
         instance->updateCurrentPageByScreen((lv_obj_t*)screen);
+    }
+}
+
+// UI系统调用WiFi信息页面的桥接函数（三击检测）
+extern "C" void showWiFiInfoPageFromUI() {
+    DisplayManager* instance = DisplayManager::getInstance();
+    if (instance) {
+        printf("[DisplayManager] UI待机页面右滑手势，当前页面：%d\n", instance->getCurrentPage());
+        instance->handleStandbyRightSwipe();
+    } else {
+        printf("[DisplayManager] 错误：DisplayManager实例未找到\n");
     }
 }
 
@@ -3619,4 +3816,410 @@ bool DisplayManager::shouldExecuteAutoSwitch() const {
  */
 LVGLDriver* DisplayManager::getLVGLDriver() const {
     return m_lvglDriver;
+}
+
+// === WiFi信息页面功能实现 ===
+
+/**
+ * @brief 显示WiFi信息页面
+ * 现在通过消息队列方式处理，避免死锁
+ */
+void DisplayManager::showWiFiInfoPage() {
+    printf("[DisplayManager] showWiFiInfoPage() 已更新为消息队列方式\n");
+    printf("[DisplayManager] 建议直接使用showWiFiInfoPageFromUI()函数\n");
+    
+    // 现在改为通过消息队列处理
+    DisplayMessage msg;
+    msg.type = DisplayMessage::MSG_SHOW_WIFI_INFO;
+    
+    if (m_messageQueue) {
+        if (xQueueSend(m_messageQueue, &msg, pdMS_TO_TICKS(100)) == pdTRUE) {
+            printf("[DisplayManager] WiFi信息页面显示消息已发送到队列\n");
+        } else {
+            printf("[DisplayManager] 错误：发送WiFi信息页面显示消息失败\n");
+        }
+    } else {
+        printf("[DisplayManager] 错误：消息队列未初始化\n");
+    }
+}
+
+/**
+ * @brief 处理待机页面右滑手势（三击检测）
+ */
+void DisplayManager::handleStandbyRightSwipe() {
+    TickType_t currentTime = xTaskGetTickCount();
+    
+    printf("[DisplayManager] 检测到待机页面右滑手势\n");
+    
+    if (m_swipeCount == 0) {
+        // 第一次右滑
+        m_swipeCount = 1;
+        m_firstSwipeTime = currentTime;
+        printf("[DisplayManager] 第1次右滑已记录，请在2秒内再滑动2次以打开WiFi信息页面（1/%d）\n", REQUIRED_SWIPE_COUNT);
+        return;
+    }
+    
+    // 检查是否在2秒内进行后续右滑
+    TickType_t timeSinceFirstSwipe = currentTime - m_firstSwipeTime;
+    uint32_t timeSinceFirstSwipeMs = pdTICKS_TO_MS(timeSinceFirstSwipe);
+    
+    if (timeSinceFirstSwipeMs <= TRIPLE_SWIPE_TIMEOUT_MS) {
+        // 在时间窗口内，增加滑动计数
+        m_swipeCount++;
+        printf("[DisplayManager] 第%d次右滑已记录（%d/%d）\n", m_swipeCount, m_swipeCount, REQUIRED_SWIPE_COUNT);
+        
+        if (m_swipeCount >= REQUIRED_SWIPE_COUNT) {
+            // 三击成功，执行WiFi页面切换
+            printf("[DisplayManager] 三击手势成功，总间隔时间：%lu毫秒\n", timeSinceFirstSwipeMs);
+            m_swipeCount = 0; // 重置状态
+            m_firstSwipeTime = 0;
+            requestShowWiFiInfoPage();
+        } else {
+            // 还需要更多滑动
+            uint8_t remaining = REQUIRED_SWIPE_COUNT - m_swipeCount;
+            printf("[DisplayManager] 还需要%d次滑动，剩余时间：%lu毫秒\n", remaining, TRIPLE_SWIPE_TIMEOUT_MS - timeSinceFirstSwipeMs);
+        }
+    } else {
+        // 超时，重新开始计时
+        printf("[DisplayManager] 三击超时（间隔%lu毫秒），重新开始计时\n", timeSinceFirstSwipeMs);
+        m_swipeCount = 1;
+        m_firstSwipeTime = currentTime;
+        printf("[DisplayManager] 第1次右滑已记录，请在2秒内再滑动2次以打开WiFi信息页面（1/%d）\n", REQUIRED_SWIPE_COUNT);
+    }
+}
+
+/**
+ * @brief 请求显示WiFi信息页面（通过消息队列）
+ */
+void DisplayManager::requestShowWiFiInfoPage() {
+    printf("[DisplayManager] 请求显示WiFi信息页面\n");
+    
+    // 检查5秒冷却时间
+    TickType_t currentTime = xTaskGetTickCount();
+    TickType_t timeSinceLastSwitch = currentTime - m_lastWiFiSwitchTime;
+    const TickType_t cooldownTime = pdMS_TO_TICKS(5000); // 5秒冷却时间
+    
+    if (timeSinceLastSwitch < cooldownTime) {
+        uint32_t remainingTime = pdTICKS_TO_MS(cooldownTime - timeSinceLastSwitch);
+        printf("[DisplayManager] WiFi页面切换冷却中，剩余 %lu 毫秒\n", remainingTime);
+        return;
+    }
+    
+    // 如果已经在WiFi信息页面，不需要重复切换
+    if (m_wifiInfoDisplayActive) {
+        printf("[DisplayManager] WiFi信息页面已经激活，跳过切换\n");
+        return;
+    }
+    
+    // 通过消息队列发送显示WiFi信息页面的消息，避免死锁
+    DisplayMessage msg;
+    msg.type = DisplayMessage::MSG_SHOW_WIFI_INFO;
+    
+    if (m_messageQueue) {
+        if (xQueueSend(m_messageQueue, &msg, pdMS_TO_TICKS(100)) == pdTRUE) {
+            printf("[DisplayManager] WiFi信息页面显示消息已发送到队列\n");
+            // 更新切换时间
+            m_lastWiFiSwitchTime = currentTime;
+        } else {
+            printf("[DisplayManager] 错误：发送WiFi信息页面显示消息失败\n");
+        }
+    } else {
+        printf("[DisplayManager] 错误：消息队列未初始化\n");
+    }
+}
+
+/**
+ * @brief 创建或重用WiFi信息显示页面
+ */
+void DisplayManager::createWiFiInfoPage() {
+    printf("[DisplayManager] createWiFiInfoPage() 开始执行\n");
+    
+    // 检查是否可以重用现有对象
+    if (m_wifiInfoScreen) {
+        printf("[DisplayManager] 重用现有的WiFi信息页面对象\n");
+        
+        // 恢复对象的可见性
+        lv_obj_clear_flag(m_wifiInfoScreen, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_style_opa(m_wifiInfoScreen, LV_OPA_COVER, LV_PART_MAIN);
+        lv_obj_set_pos(m_wifiInfoScreen, 0, 0);
+        
+        // 子对象引用已保留，无需重新获取
+        printf("[DisplayManager] 子对象引用已保留，直接重用\n");
+        
+        // 重新添加事件处理器
+        lv_obj_add_event_cb(m_wifiInfoScreen, wifiInfoScreenEventHandler, LV_EVENT_ALL, NULL);
+        
+        // 显示页面
+        lv_scr_load_anim(m_wifiInfoScreen, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 500, 0, false);
+        
+        printf("[DisplayManager] WiFi信息页面已从隐藏状态恢复\n");
+        return;
+    }
+    
+    // 检查是否正在等待销毁
+    if (m_wifiInfoPendingDestroy) {
+        printf("[DisplayManager] 警告：WiFi信息页面正在等待销毁，取消创建\n");
+        return;
+    }
+    
+    printf("[DisplayManager] 开始创建WiFi信息屏幕对象\n");
+    // 创建WiFi信息屏幕
+    m_wifiInfoScreen = lv_obj_create(NULL);
+    if (!m_wifiInfoScreen) {
+        printf("[DisplayManager] 错误：创建WiFi信息屏幕失败\n");
+        return;
+    }
+    printf("[DisplayManager] WiFi信息屏幕对象创建成功\n");
+    lv_obj_set_style_bg_color(m_wifiInfoScreen, lv_color_hex(0x000000), LV_PART_MAIN);  // 黑色背景
+    lv_obj_set_style_pad_all(m_wifiInfoScreen, 20, LV_PART_MAIN);  // 设置内边距
+    
+    // 创建主容器，使用flex布局
+    lv_obj_t* mainContainer = lv_obj_create(m_wifiInfoScreen);
+    lv_obj_set_size(mainContainer, lv_pct(100), lv_pct(100));
+    lv_obj_set_style_bg_opa(mainContainer, LV_OPA_TRANSP, LV_PART_MAIN);
+    lv_obj_set_style_border_width(mainContainer, 0, LV_PART_MAIN);
+    lv_obj_set_style_pad_all(mainContainer, 0, LV_PART_MAIN);
+    lv_obj_set_flex_flow(mainContainer, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(mainContainer, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_center(mainContainer);
+    
+    // 创建主标题
+    lv_obj_t* titleLabel = lv_label_create(mainContainer);
+    lv_label_set_text(titleLabel, "WiFi Information");
+    lv_obj_set_style_text_font(titleLabel, &lv_font_montserrat_26, LV_PART_MAIN);
+    lv_obj_set_style_text_color(titleLabel, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+    lv_obj_set_style_text_align(titleLabel, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    lv_obj_set_style_pad_bottom(titleLabel, 40, LV_PART_MAIN);
+    
+    // 创建信息容器
+    lv_obj_t* infoContainer = lv_obj_create(mainContainer);
+    lv_obj_set_size(infoContainer, lv_pct(90), LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_opa(infoContainer, LV_OPA_TRANSP, LV_PART_MAIN);
+    lv_obj_set_style_border_width(infoContainer, 0, LV_PART_MAIN);
+    lv_obj_set_style_pad_all(infoContainer, 20, LV_PART_MAIN);
+    lv_obj_set_flex_flow(infoContainer, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(infoContainer, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    
+    // 创建连接状态标签
+    m_wifiStatusLabel = lv_label_create(infoContainer);
+    lv_label_set_text(m_wifiStatusLabel, "WiFi Status: Checking...");
+    lv_obj_set_style_text_font(m_wifiStatusLabel, &lv_font_montserrat_20, LV_PART_MAIN);
+    lv_obj_set_style_text_color(m_wifiStatusLabel, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+    lv_obj_set_style_text_align(m_wifiStatusLabel, LV_TEXT_ALIGN_LEFT, LV_PART_MAIN);
+    lv_obj_set_style_pad_bottom(m_wifiStatusLabel, 20, LV_PART_MAIN);
+    lv_obj_set_width(m_wifiStatusLabel, lv_pct(100));
+    
+    // 创建网络名称标签
+    m_wifiSSIDLabel = lv_label_create(infoContainer);
+    lv_label_set_text(m_wifiSSIDLabel, "WiFi Name: N/A");
+    lv_obj_set_style_text_font(m_wifiSSIDLabel, &lv_font_montserrat_20, LV_PART_MAIN);
+    lv_obj_set_style_text_color(m_wifiSSIDLabel, lv_color_hex(0xCCCCCC), LV_PART_MAIN);
+    lv_obj_set_style_text_align(m_wifiSSIDLabel, LV_TEXT_ALIGN_LEFT, LV_PART_MAIN);
+    lv_obj_set_style_pad_bottom(m_wifiSSIDLabel, 15, LV_PART_MAIN);
+    lv_obj_set_width(m_wifiSSIDLabel, lv_pct(100));
+    lv_label_set_long_mode(m_wifiSSIDLabel, LV_LABEL_LONG_WRAP);
+    
+    // 创建IP地址标签
+    m_wifiIPLabel = lv_label_create(infoContainer);
+    lv_label_set_text(m_wifiIPLabel, "IP Address: N/A");
+    lv_obj_set_style_text_font(m_wifiIPLabel, &lv_font_montserrat_20, LV_PART_MAIN);
+    lv_obj_set_style_text_color(m_wifiIPLabel, lv_color_hex(0xCCCCCC), LV_PART_MAIN);
+    lv_obj_set_style_text_align(m_wifiIPLabel, LV_TEXT_ALIGN_LEFT, LV_PART_MAIN);
+    lv_obj_set_width(m_wifiIPLabel, lv_pct(100));
+    lv_label_set_long_mode(m_wifiIPLabel, LV_LABEL_LONG_WRAP);
+    
+    // 为WiFi信息屏幕添加事件处理
+    lv_obj_add_event_cb(m_wifiInfoScreen, wifiInfoScreenEventHandler, LV_EVENT_ALL, NULL);
+    
+    // 切换到WiFi信息屏幕
+    lv_scr_load_anim(m_wifiInfoScreen, LV_SCR_LOAD_ANIM_MOVE_RIGHT, 500, 0, false);
+    
+    printf("[DisplayManager] WiFi information page created with simple layout and gesture support\n");
+}
+
+/**
+ * @brief 隐藏WiFi信息显示页面（改为重用而非销毁策略）
+ */
+void DisplayManager::destroyWiFiInfoPage() {
+    if (m_wifiInfoScreen) {
+        printf("[DisplayManager] 隐藏WiFi信息页面对象（重用策略）\n");
+        
+        // 检查是否是当前活动屏幕，如果是则不能操作
+        lv_obj_t* active_screen = lv_scr_act();
+        if (active_screen == m_wifiInfoScreen) {
+            printf("[DisplayManager] 警告：WiFi信息页面仍是活动屏幕，跳过隐藏\n");
+            return;
+        }
+        
+        // 强制完成当前的渲染
+        printf("[DisplayManager] 完成当前渲染\n");
+        lv_refr_now(NULL);
+        
+        // 清理事件回调函数
+        printf("[DisplayManager] 清理WiFi信息页面事件回调函数\n");
+        lv_obj_remove_event_cb(m_wifiInfoScreen, wifiInfoScreenEventHandler);
+        
+        // 隐藏对象而不删除，避免内存问题
+        printf("[DisplayManager] 隐藏WiFi信息页面\n");
+        lv_obj_add_flag(m_wifiInfoScreen, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_style_opa(m_wifiInfoScreen, LV_OPA_TRANSP, LV_PART_MAIN);
+        
+        // 将对象移到屏幕外，确保不可见
+        lv_obj_set_pos(m_wifiInfoScreen, -1000, -1000);
+        
+        // 保留子对象引用，因为对象仍然存在（注释掉之前的清空操作）
+        // m_wifiStatusLabel = nullptr;
+        // m_wifiSSIDLabel = nullptr;
+        // m_wifiIPLabel = nullptr;
+        
+        // 强制渲染确保更新
+        lv_refr_now(NULL);
+        
+        printf("[DisplayManager] WiFi信息页面已隐藏（对象保留以重用）\n");
+    } else {
+        printf("[DisplayManager] WiFi信息页面对象不存在\n");
+    }
+}
+
+/**
+ * @brief 切换到WiFi信息页面
+ * 注意：此函数现已弃用，请使用消息队列方式调用
+ */
+void DisplayManager::switchToWiFiInfoPage() {
+    printf("[DisplayManager] switchToWiFiInfoPage() 已弃用，请使用消息队列方式\n");
+    
+    // 现在通过消息队列处理，这里只保留兼容性
+    printf("[DisplayManager] 建议使用showWiFiInfoPageFromUI()触发显示\n");
+}
+
+/**
+ * @brief 更新WiFi信息显示
+ */
+void DisplayManager::updateWiFiInfoDisplay() {
+    if (!m_wifiStatusLabel || !m_wifiSSIDLabel || !m_wifiIPLabel || !m_wifiManager) {
+        return;
+    }
+    
+    // 更新连接状态
+    bool isConnected = m_wifiManager->isConnected();
+    if (isConnected) {
+        lv_label_set_text(m_wifiStatusLabel, "Status: Connected");
+        lv_obj_set_style_text_color(m_wifiStatusLabel, lv_color_hex(0x00DD00), LV_PART_MAIN);  // 绿色
+        
+        // 更新网络名称
+        String ssid = WiFi.SSID();
+        char ssidText[128];
+        snprintf(ssidText, sizeof(ssidText), "WiFi: %s", ssid.c_str());
+        lv_label_set_text(m_wifiSSIDLabel, ssidText);
+        
+        // 更新IP地址
+        String ip = m_wifiManager->getLocalIP();
+        char ipText[64];
+        snprintf(ipText, sizeof(ipText), "IP Address: %s", ip.c_str());
+        lv_label_set_text(m_wifiIPLabel, ipText);
+        
+    } else {
+        lv_label_set_text(m_wifiStatusLabel, "Connection Status: Disconnected");
+        lv_obj_set_style_text_color(m_wifiStatusLabel, lv_color_hex(0xFF4444), LV_PART_MAIN);  // 红色
+        
+        lv_label_set_text(m_wifiSSIDLabel, "Network Name: N/A");
+        lv_label_set_text(m_wifiIPLabel, "IP Address: N/A");
+    }
+    
+    printf("[DisplayManager] WiFi information display updated\n");
+}
+
+/**
+ * @brief WiFi信息页面事件处理函数
+ */
+void DisplayManager::wifiInfoScreenEventHandler(lv_event_t* e) {
+    // 首先检查事件对象的有效性
+    if (!e) {
+        printf("[DisplayManager] 警告：WiFi事件处理器收到空事件对象\n");
+        return;
+    }
+    
+    lv_event_code_t event_code = lv_event_get_code(e);
+    
+    if (event_code == LV_EVENT_GESTURE) {
+        lv_dir_t gesture_dir = lv_indev_get_gesture_dir(lv_indev_get_act());
+        
+        // 向左滑动或向下滑动返回到之前页面
+        if (gesture_dir == LV_DIR_LEFT || gesture_dir == LV_DIR_BOTTOM) {
+            lv_indev_wait_release(lv_indev_get_act());
+            
+            DisplayManager* instance = DisplayManager::getInstance();
+            
+            // 多重安全检查：实例存在、WiFi信息显示激活、对象存在、不在销毁状态
+            if (instance && 
+                instance->m_wifiInfoDisplayActive && 
+                instance->m_wifiInfoScreen && 
+                !instance->m_wifiInfoPendingDestroy) {
+                
+                // 检查5秒冷却时间
+                TickType_t currentTime = xTaskGetTickCount();
+                TickType_t timeSinceLastSwitch = currentTime - instance->m_lastWiFiSwitchTime;
+                const TickType_t cooldownTime = pdMS_TO_TICKS(5000); // 5秒冷却时间
+                
+                if (timeSinceLastSwitch < cooldownTime) {
+                    uint32_t remainingTime = pdTICKS_TO_MS(cooldownTime - timeSinceLastSwitch);
+                    printf("[DisplayManager] WiFi页面返回冷却中，剩余 %lu 毫秒\n", remainingTime);
+                    return;
+                }
+                
+                printf("[DisplayManager] WiFi信息页面手势返回\n");
+                
+                // 通过消息队列处理返回操作，避免在事件回调中直接操作屏幕
+                DisplayMessage msg;
+                msg.type = DisplayMessage::MSG_RETURN_FROM_WIFI_INFO;
+                
+                if (instance->m_messageQueue) {
+                    if (xQueueSend(instance->m_messageQueue, &msg, pdMS_TO_TICKS(100)) == pdTRUE) {
+                        printf("[DisplayManager] WiFi信息页面返回消息已发送\n");
+                        // 更新切换时间
+                        instance->m_lastWiFiSwitchTime = currentTime;
+                    } else {
+                        printf("[DisplayManager] 错误：发送WiFi信息页面返回消息失败\n");
+                    }
+                } else {
+                    printf("[DisplayManager] 错误：消息队列不可用\n");
+                }
+            } else {
+                printf("[DisplayManager] 警告：WiFi信息页面事件处理器被调用，但页面状态无效\n");
+                if (instance) {
+                    printf("[DisplayManager] 状态：displayActive=%d, screen=%p, pendingDestroy=%d\n", 
+                        instance->m_wifiInfoDisplayActive,
+                        instance->m_wifiInfoScreen,
+                        instance->m_wifiInfoPendingDestroy);
+                }
+            }
+        }
+    }
+}
+
+/**
+ * @brief 从WiFi信息页面返回到之前页面
+ */
+void DisplayManager::returnFromWiFiInfoPage() {
+    if (!m_wifiInfoDisplayActive) {
+        return;
+    }
+    
+    printf("[DisplayManager] 开始从WiFi信息页面返回\n");
+    
+    m_wifiInfoDisplayActive = false;
+    
+    // 重要：先切换到目标页面，再销毁WiFi信息页面
+    // 这样避免删除当前活动屏幕的LVGL错误
+    printf("[DisplayManager] 恢复到WiFi信息页面前的页面：%d\n", m_previousPageForWiFi);
+    switchPage(m_previousPageForWiFi);
+    
+    // 延迟一点再销毁，确保页面切换完成
+    vTaskDelay(pdMS_TO_TICKS(100));
+    
+    // 销毁WiFi信息页面
+    printf("[DisplayManager] 开始销毁WiFi信息页面\n");
+    destroyWiFiInfoPage();
+    
+    printf("[DisplayManager] WiFi信息页面返回操作完成\n");
 }
