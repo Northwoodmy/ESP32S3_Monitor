@@ -710,11 +710,14 @@ bool OTAManager::downloadAndWriteFirmware(const String& downloadUrl) {
                 contentLength -= readSize;
             }
             
-            // 每1000ms打印一次进度
+            // 每1000ms打印一次进度并更新屏幕显示
             unsigned long currentTime = millis();
             if (currentTime - lastProgressTime >= 1000) {
                 printf("下载进度: %.1f%% (%u 字节已写入)\n", getProgress(), writtenSize);
                 lastProgressTime = currentTime;
+                
+                // 更新屏幕显示进度
+                updateScreenDisplay();
             }
         }
         vTaskDelay(pdMS_TO_TICKS(1)); // 避免watchdog触发
