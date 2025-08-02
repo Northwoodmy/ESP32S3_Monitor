@@ -11,7 +11,7 @@ String WebServerManager::getServerSettingsHTML() {
     html += "<head>\n";
     html += "    <meta charset=\"UTF-8\">\n";
     html += "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n";
-    html += "    <title>服务器设置 - ESP32S3 Monitor</title>\n";
+    html += "    <title>小电拼设置 - ESP32S3 Monitor</title>\n";
     html += "    <style>\n";
     html += getCSS();
     html += getServerSettingsCSS();
@@ -21,7 +21,7 @@ String WebServerManager::getServerSettingsHTML() {
     html += "    <div class=\"container\">\n";
     html += "        <header class=\"header\">\n";
     html += "            <h1>小屏幕配置</h1>\n";
-    html += "            <div class=\"subtitle\">服务器设置</div>\n";
+    html += "            <div class=\"subtitle\">小电拼设置</div>\n";
     html += "        </header>\n";
     html += "        \n";
     html += "        <div class=\"card\">\n";
@@ -59,7 +59,7 @@ String WebServerManager::getServerSettingsHTML() {
     html += "                                <input type=\"text\" id=\"serverUrl\" class=\"setting-input\" placeholder=\"10.10.168.168\">\n";
     html += "                                <div class=\"scan-button-container\">\n";
     html += "                                    <button type=\"button\" onclick=\"startMDNSScan()\" class=\"setting-btn info-btn scan-btn\">\n";
-    html += "                                        <span class=\"btn-text\">扫描cp02服务器</span>\n";
+    html += "                                        <span class=\"btn-text\">扫描小电拼</span>\n";
     html += "                                        <div class=\"btn-loading hidden\">\n";
     html += "                                            <div class=\"spinner-sm\"></div>\n";
     html += "                                            <span>扫描中...</span>\n";
@@ -67,13 +67,13 @@ String WebServerManager::getServerSettingsHTML() {
     html += "                                    </button>\n";
     html += "                                </div>\n";
     html += "                                <div class=\"url-help\">\n";
-    html += "                                    <small>请输入服务器IP地址或点击扫描按钮自动发现cp02服务器</small>\n";
+    html += "                                    <small>请输入服务器IP地址或点击扫描按钮自动发现小电拼</small>\n";
     html += "                                </div>\n";
     html += "                            </div>\n";
     html += "                            \n";
     html += "                            <!-- mDNS扫描结果 -->\n";
     html += "                            <div class=\"mdns-scan-results\" id=\"mdnsScanResults\" style=\"display: none;\">\n";
-    html += "                                <h4>cp02服务器扫描结果</h4>\n";
+    html += "                                <h4>小电拼扫描结果</h4>\n";
     html += "                                <div class=\"device-list\" id=\"deviceList\">\n";
     html += "                                    <!-- 扫描结果将显示在这里 -->\n";
     html += "                                </div>\n";
@@ -114,7 +114,7 @@ String WebServerManager::getServerSettingsHTML() {
     html += "                                        <span class=\"switch-slider\"></span>\n";
     html += "                                        自动扫描服务器\n";
     html += "                                    </label>\n";
-    html += "                                    <small>启用后将自动扫描网络中的cp02服务器</small>\n";
+    html += "                                    <small>启用后将自动扫描网络中的小电拼</small>\n";
     html += "                                </div>\n";
     html += "                            </div>\n";
     html += "                        </div>\n";
@@ -664,7 +664,7 @@ String WebServerManager::getServerSettingsJavaScript() {
     js += "});\n\n";
     
     js += "function initServerSettings() {\n";
-    js += "    console.log('初始化服务器设置页面');\n";
+    js += "    console.log('初始化小电拼设置页面');\n";
     js += "}\n\n";
     
     js += "function loadServerConfig() {\n";
@@ -728,7 +728,7 @@ String WebServerManager::getServerSettingsJavaScript() {
     js += "    setTimeout(() => {\n";
     js += "        statusInfo.innerHTML = `\n";
     js += "            <div class=\"status-success\">\n";
-    js += "                <h3>服务器设置已就绪</h3>\n";
+    js += "                <h3>小电拼设置已就绪</h3>\n";
     js += "                <p>可以配置和测试服务器连接</p>\n";
     js += "            </div>\n";
     js += "        `;\n";
@@ -910,16 +910,16 @@ String WebServerManager::getServerSettingsJavaScript() {
     js += "            if (data.success) {\n";
     js += "                displayScanResults(data.devices);\n";
     js += "                if (data.devices.length > 0) {\n";
-    js += "                    showToast('扫描完成，发现 ' + data.devices.length + ' 个cp02服务器', 'success');\n";
+    js += "                    showToast('扫描完成，发现 ' + data.devices.length + ' 个小电拼', 'success');\n";
     js += "                } else {\n";
-    js += "                    showToast('未发现任何cp02服务器', 'info');\n";
+    js += "                    showToast('未发现任何小电拼', 'info');\n";
     js += "                }\n";
     js += "            } else {\n";
     js += "                showToast('扫描失败: ' + data.message, 'error');\n";
     js += "            }\n";
     js += "        })\n";
     js += "        .catch(error => {\n";
-    js += "            showToast('cp02服务器扫描失败', 'error');\n";
+    js += "            showToast('小电拼扫描失败', 'error');\n";
     js += "        })\n";
     js += "        .finally(() => {\n";
     js += "            resetScanButton();\n";
@@ -931,7 +931,7 @@ String WebServerManager::getServerSettingsJavaScript() {
     js += "    const deviceList = document.getElementById('deviceList');\n";
     js += "    \n";
     js += "    if (!devices || devices.length === 0) {\n";
-    js += "        deviceList.innerHTML = '<div class=\"no-devices\">未发现任何cp02服务器</div>';\n";
+    js += "        deviceList.innerHTML = '<div class=\"no-devices\">未发现任何小电拼</div>';\n";
     js += "        scanResults.style.display = 'block';\n";
     js += "        return;\n";
     js += "    }\n";
@@ -965,7 +965,7 @@ String WebServerManager::getServerSettingsJavaScript() {
     js += "    \n";
     js += "    serverUrlInput.value = ip;\n";
     js += "    scanResults.style.display = 'none';\n";
-    js += "    showToast('已选择cp02服务器: ' + name + ' (' + ip + ')', 'success');\n";
+    js += "    showToast('已选择小电拼: ' + name + ' (' + ip + ')', 'success');\n";
     js += "}\n\n";
     
     js += "function resetScanButton() {\n";

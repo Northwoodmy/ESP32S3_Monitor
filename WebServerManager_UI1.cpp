@@ -209,7 +209,7 @@ String WebServerManager::getIndexHTML() {
     html += "                        天气设置\n";
     html += "                    </button>\n";
     html += "                    <button onclick=\"window.location.href='/server-settings'\" class=\"settings-btn\">\n";
-    html += "                        服务器设置\n";
+    html += "                        小电拼设置\n";
     html += "                    </button>\n";
     html += "                    <button onclick=\"window.location.href='/screen-settings'\" class=\"settings-btn\">\n";
     html += "                        屏幕设置\n";

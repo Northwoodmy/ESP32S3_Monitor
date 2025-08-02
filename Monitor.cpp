@@ -244,7 +244,7 @@ bool Monitor::fetchMetricsData() {
             // 重置失败计数器，因为找到了新的服务器
             resetFailureCounter();
         } else {
-            printf("自动扫描未找到可用的cp02服务器\n");
+            printf("自动扫描未找到可用的小电拼\n");
         }
     }
     
@@ -497,25 +497,25 @@ bool Monitor::shouldTriggerAutoScan() {
 }
 
 bool Monitor::performAutoScan() {
-    printf("🔍 开始执行cp02服务器自动扫描...\n");
+    printf("🔍 开始执行小电拼自动扫描...\n");
     
     // 更新扫描时间
     m_lastScanTime = millis();
     
-    // 使用MDNSScanner扫描cp02设备
+    // 使用MDNSScanner扫描小电拼设备
     std::vector<String> keywords;
     keywords.push_back("cp02");
     keywords.push_back("CP02");
     
-    printf("正在扫描网络中的cp02设备...\n");
+    printf("正在扫描网络中的小电拼设备...\n");
     std::vector<MDNSDeviceInfo> devices = UniversalMDNSScanner::findDevicesByKeywords(keywords, true);
     
     if (devices.empty()) {
-        printf("❌ 自动扫描未发现任何cp02服务器\n");
+        printf("❌ 自动扫描未发现任何小电拼\n");
         return false;
     }
     
-    printf("✅ 发现 %d 个cp02服务器，开始逐个测试连接...\n", devices.size());
+    printf("✅ 发现 %d 个小电拼，开始逐个测试连接...\n", devices.size());
     
     // 测试所有发现的设备，选择第一个可用的
     for (size_t i = 0; i < devices.size(); i++) {
@@ -570,7 +570,7 @@ bool Monitor::performAutoScan() {
         vTaskDelay(pdMS_TO_TICKS(500));
     }
     
-    printf("❌ 所有发现的cp02服务器均无法连接\n");
+    printf("❌ 所有发现的小电拼均无法连接\n");
     return false;
 }
 

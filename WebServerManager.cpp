@@ -3108,9 +3108,9 @@ void WebServerManager::handleMDNSScanServers() {
         return;
     }
     
-    printf("开始mDNS扫描cp02服务器...\n");
+    printf("开始mDNS扫描小电拼...\n");
     
-    // 使用关键词搜索cp02服务器
+    // 使用关键词搜索小电拼
     std::vector<String> keywords;
     keywords.push_back("cp02");
     keywords.push_back("CP02");
@@ -3119,7 +3119,7 @@ void WebServerManager::handleMDNSScanServers() {
     std::vector<MDNSDeviceInfo> devices = UniversalMDNSScanner::findDevicesByKeywords(keywords, true);
     
     doc["success"] = true;
-    doc["message"] = "cp02服务器扫描完成";
+    doc["message"] = "小电拼扫描完成";
     doc["scanTime"] = millis();
     doc["deviceCount"] = devices.size();
     
@@ -3144,14 +3144,14 @@ void WebServerManager::handleMDNSScanServers() {
         serverUrl += "/metrics.json";
         deviceObj["serverUrl"] = serverUrl;
         
-        printf("发现cp02服务器: %s (%s:%d)\n", device.name.c_str(), device.ip.c_str(), device.port);
+        printf("发现小电拼: %s (%s:%d)\n", device.name.c_str(), device.ip.c_str(), device.port);
     }
     
     if (deviceArray.size() == 0) {
-        doc["message"] = "未发现任何cp02服务器设备";
-        printf("未发现任何cp02服务器设备\n");
+        doc["message"] = "未发现任何小电拼设备";
+        printf("未发现任何小电拼设备\n");
     } else {
-        printf("cp02服务器扫描完成，发现 %d 个设备\n", deviceArray.size());
+        printf("小电拼扫描完成，发现 %d 个设备\n", deviceArray.size());
     }
     
     String response;

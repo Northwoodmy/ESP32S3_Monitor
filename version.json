@@ -1,10 +1,10 @@
 {
-    "version": "v7.4.0",
+    "version": "v7.4.2",
     "build_date": "2025-01-23",
     "release_date": "2025-01-23",
-    "description": "ESP32S3 Monitor Project - OTA版本对比功能",
+    "description": "ESP32S3 Monitor Project - 小电拼按钮文案优化",
     "size": 1048576,
-    "download_url": "http://ota.dlcv.com.cn/firmware/esp32s3_monitor_v7.4.0.bin",
+    "download_url": "http://ota.dlcv.com.cn/firmware/esp32s3_monitor_v7.4.2.bin",
     "checksum": "sha256:abcd1234567890abcdef1234567890abcdef1234567890abcdef1234567890c0",
     "status": "stable",
     "key_features": [
