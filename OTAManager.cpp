@@ -675,6 +675,12 @@ bool OTAManager::downloadAndWriteFirmware(const String& downloadUrl) {
     lastProgressTime = millis();
     updateStatus(OTAStatus::WRITING, "");
     
+    // 启动屏幕OTA进度显示（服务器OTA）
+    if (m_displayManager) {
+        printf("[OTAManager] 启动服务器OTA页面显示\n");
+        m_displayManager->startOTADisplay(true);  // true表示服务器OTA
+    }
+    
     // 获取数据流
     WiFiClient* stream = httpClient.getStreamPtr();
     uint8_t buffer[1024];
