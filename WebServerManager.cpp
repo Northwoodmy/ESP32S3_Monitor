@@ -3269,10 +3269,6 @@ void WebServerManager::handleLocationNow() {
             
             // 自动更新天气配置的城市信息
             if (m_weatherManager && !locationData.citycode.isEmpty()) {
-                WeatherConfig config = m_weatherManager->getConfig();
-                config.cityCode = locationData.citycode;
-                config.cityName = locationData.city;
-                
                 // 构建完整的位置字符串
                 String fullLocation = locationData.province;
                 if (!locationData.city.isEmpty() && locationData.city != locationData.province) {
@@ -3282,7 +3278,8 @@ void WebServerManager::handleLocationNow() {
                     fullLocation += " " + locationData.district;
                 }
                 
-                if (m_weatherManager->setConfig(config)) {
+                // 使用新的setCityInfo方法，只保存城市信息，避免循环依赖
+                if (m_weatherManager->setCityInfo(locationData.citycode, locationData.city)) {
                     // 保存完整位置信息到配置存储
                     if (configStorage) {
                         configStorage->putStringAsync("weather_fullLocation", fullLocation);

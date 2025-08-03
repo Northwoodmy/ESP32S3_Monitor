@@ -204,7 +204,9 @@ bool WeatherManager::setApiKey(const String& apiKey) {
     }
     
     _config.apiKey = apiKey;
-    bool success = saveConfig();
+    
+    // 只保存API密钥，不保存其他配置项，避免循环依赖
+    bool success = saveApiKeyOnly();
     
     unlockWeatherData();
     
@@ -232,6 +234,29 @@ bool WeatherManager::setCityCode(const String& cityCode) {
         printf("✅ 城市代码设置成功: %s\n", cityCode.c_str());
     } else {
         printf("❌ 城市代码保存失败\n");
+    }
+    
+    return success;
+}
+
+// 设置城市信息（代码和名称）
+bool WeatherManager::setCityInfo(const String& cityCode, const String& cityName) {
+    if (!lockWeatherData()) {
+        return false;
+    }
+    
+    _config.cityCode = cityCode;
+    _config.cityName = cityName;
+    
+    // 只保存城市信息，不影响其他配置
+    bool success = saveCityConfig();
+    
+    unlockWeatherData();
+    
+    if (success) {
+        printf("✅ 城市信息设置成功: %s (%s)\n", cityName.c_str(), cityCode.c_str());
+    } else {
+        printf("❌ 城市信息保存失败\n");
     }
     
     return success;
@@ -1189,6 +1214,68 @@ bool WeatherManager::saveConfig() {
         printf("  - 更新间隔保存: %s\n", result5 ? "成功" : "失败");
         printf("  - 预报功能保存: %s\n", result6 ? "成功" : "失败");
         printDebugInfo("配置保存失败");
+    }
+    
+    return success;
+}
+
+// 只保存API密钥
+bool WeatherManager::saveApiKeyOnly() {
+    if (!_configStorage) {
+        printf("[WeatherManager] 配置存储未初始化\n");
+        return false;
+    }
+    
+    printf("[WeatherManager] 保存API密钥...\n");
+    
+    bool success = _configStorage->putStringAsync(getConfigKey("apiKey"), _config.apiKey, 10000);
+    
+    if (success) {
+        printf("[WeatherManager] API密钥保存成功\n");
+        printf("[WeatherManager] 保存的API密钥: %s\n", _config.apiKey.isEmpty() ? "未设置" : "已设置");
+        printDebugInfo("API密钥单独保存成功");
+    } else {
+        printf("[WeatherManager] API密钥保存失败\n");
+        printDebugInfo("API密钥单独保存失败");
+    }
+    
+    return success;
+}
+
+// 保存城市信息配置
+bool WeatherManager::saveCityConfig() {
+    if (!_configStorage) {
+        printf("[WeatherManager] 配置存储未初始化\n");
+        return false;
+    }
+    
+    printf("[WeatherManager] 保存城市信息配置...\n");
+    
+    bool success = true;
+    
+    // 分别保存城市代码和城市名称
+    printf("[WeatherManager] 保存城市代码: %s\n", _config.cityCode.c_str());
+    bool result1 = _configStorage->putStringAsync(getConfigKey("cityCode"), _config.cityCode, 10000);
+    success &= result1;
+    
+    vTaskDelay(pdMS_TO_TICKS(100));
+    
+    printf("[WeatherManager] 保存城市名称: %s\n", _config.cityName.c_str());
+    bool result2 = _configStorage->putStringAsync(getConfigKey("cityName"), _config.cityName, 10000);
+    success &= result2;
+    
+    if (success) {
+        printf("[WeatherManager] 城市信息配置保存成功\n");
+        printf("[WeatherManager] 保存的城市信息:\n");
+        printf("  - 城市代码: %s\n", _config.cityCode.c_str());
+        printf("  - 城市名称: %s\n", _config.cityName.c_str());
+        printDebugInfo("城市信息配置保存成功");
+    } else {
+        printf("[WeatherManager] 城市信息配置保存失败\n");
+        printf("[WeatherManager] 保存失败详情:\n");
+        printf("  - 城市代码保存: %s\n", result1 ? "成功" : "失败");
+        printf("  - 城市名称保存: %s\n", result2 ? "成功" : "失败");
+        printDebugInfo("城市信息配置保存失败");
     }
     
     return success;

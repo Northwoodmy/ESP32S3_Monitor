@@ -116,6 +116,7 @@ public:
     WeatherConfig getConfig() const;
     bool setApiKey(const String& apiKey);
     bool setCityCode(const String& cityCode);
+    bool setCityInfo(const String& cityCode, const String& cityName);  // 设置城市信息
     bool setAutoUpdate(bool enable);
     bool setUpdateInterval(int minutes);
     
@@ -186,6 +187,8 @@ private:
     // 配置管理
     bool loadConfig();
     bool saveConfig();
+    bool saveApiKeyOnly();                      // 只保存API密钥
+    bool saveCityConfig();                      // 只保存城市信息
     String getConfigKey(const String& key) const;
     
     // 工具方法
