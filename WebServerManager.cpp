@@ -1025,7 +1025,7 @@ void WebServerManager::handleGetWeatherConfig() {
 void WebServerManager::handleSetWeatherApiKey() {
     printf("处理设置天气API密钥请求\n");
     
-    DynamicJsonDocument doc(256);
+    DynamicJsonDocument doc(512);
     
     if (!server->hasArg("apiKey")) {
         doc["success"] = false;
@@ -1035,9 +1035,40 @@ void WebServerManager::handleSetWeatherApiKey() {
         doc["message"] = "天气管理器未初始化";
     } else {
         String apiKey = server->arg("apiKey");
-        bool success = m_weatherManager->setApiKey(apiKey);
-        doc["success"] = success;
-        doc["message"] = success ? "API密钥设置成功" : "API密钥设置失败";
+        
+        // 设置天气管理器的API密钥
+        bool weatherSuccess = m_weatherManager->setApiKey(apiKey);
+        
+        // 同时设置定位管理器的API密钥，确保两个管理器的API密钥保持同步
+        bool locationSuccess = true;
+        if (m_locationManager) {
+            locationSuccess = m_locationManager->setApiKey(apiKey);
+            printf("定位管理器API密钥同步: %s\n", locationSuccess ? "成功" : "失败");
+        } else {
+            printf("定位管理器未初始化，跳过API密钥同步\n");
+        }
+        
+        // 判断整体操作是否成功
+        bool overallSuccess = weatherSuccess && locationSuccess;
+        
+        doc["success"] = overallSuccess;
+        if (overallSuccess) {
+            doc["message"] = "API密钥设置成功，天气和定位功能已启用";
+            printf("✅ 高德API密钥已同步设置到天气管理器和定位管理器\n");
+        } else {
+            if (!weatherSuccess && !locationSuccess) {
+                doc["message"] = "API密钥设置失败：天气和定位管理器设置都失败";
+            } else if (!weatherSuccess) {
+                doc["message"] = "API密钥设置部分失败：天气管理器设置失败";
+            } else {
+                doc["message"] = "API密钥设置部分失败：定位管理器设置失败";
+            }
+            printf("❌ API密钥设置存在问题\n");
+        }
+        
+        // 附加详细信息
+        doc["details"]["weatherManager"] = weatherSuccess;
+        doc["details"]["locationManager"] = locationSuccess;
     }
     
     String response;
