@@ -46,6 +46,7 @@
 #include "I2CBusManager.h"
 #include "AudioManager.h"
 #include "WeatherManager.h"
+#include "LocationManager.h"
 #include "PowerMonitorData.h"
 
 // 外部变量声明
@@ -66,6 +67,7 @@ PSRAMManager psramManager;
 TimeManager timeManager;
 AudioManager audioManager;
 WeatherManager weatherManager;
+LocationManager locationManager;
 
 // 全局DisplayManager指针，供UI系统回调使用
 DisplayManager* globalDisplayManager = &displayManager;
@@ -165,6 +167,32 @@ void setup() {
   }
   printf("天气管理器初始化完成\n");
 
+  // 初始化定位管理器
+  printf("开始初始化定位管理器...\n");
+  if (locationManager.init(&psramManager, &wifiManager, &configStorage)) {
+    printf("✅ 定位管理器初始化成功\n");
+    
+    // 启动定位管理器
+    if (locationManager.start()) {
+      printf("✅ 定位管理器启动成功\n");
+      
+      // 启用调试模式查看详细信息
+      locationManager.setDebugMode(true);
+      
+      printf("🌍 定位管理器配置完成\n");
+      printf("💡 请在Web界面设置高德定位API密钥以启用定位功能\n");
+      printf("🔗 高德开发者平台: https://console.amap.com/\n");
+      
+      // 打印定位配置信息
+      locationManager.printConfig();
+    } else {
+      printf("❌ 定位管理器启动失败\n");
+    }
+  } else {
+    printf("❌ 定位管理器初始化失败\n");
+  }
+  printf("定位管理器初始化完成\n");
+
   // 初始化显示管理器（现在包含WeatherManager）
   printf("开始初始化显示管理器...\n");
   displayManager.init(&lvglDriverInstance, &wifiManager, &configStorage, &psramManager, &weatherManager);
@@ -238,6 +266,7 @@ void setup() {
   webServerManager->setPSRAMManager(&psramManager);
   webServerManager->setDisplayManager(&displayManager);
   webServerManager->setWeatherManager(&weatherManager);
+  webServerManager->setLocationManager(&locationManager);
   webServerManager->init();
   webServerManager->start();
   

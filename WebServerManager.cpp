@@ -8,6 +8,7 @@
 #include "PSRAMManager.h"
 #include "DisplayManager.h"
 #include "WeatherManager.h"
+#include "LocationManager.h"
 #include "Arduino.h"
 #include <HTTPClient.h>
 #include <WiFiClient.h>
@@ -22,6 +23,7 @@ WebServerManager::WebServerManager(WiFiManager* wifiMgr, ConfigStorage* configSt
     m_psramManager(nullptr),
     m_displayManager(nullptr),
     m_weatherManager(nullptr),
+    m_locationManager(nullptr),
     serverTaskHandle(nullptr),
     isRunning(false) {
     server = new WebServer(80);
@@ -110,6 +112,11 @@ void WebServerManager::init() {
     server->on("/api/weather/test", HTTP_POST, [this]() { handleTestWeatherApi(); });
     server->on("/api/weather/update", HTTP_POST, [this]() { handleUpdateWeatherNow(); });
     
+    // 定位相关路由
+    server->on("/api/location/data", HTTP_GET, [this]() { handleGetLocationData(); });
+    server->on("/api/location/api-key", HTTP_POST, [this]() { handleSetLocationApiKey(); });
+    server->on("/api/location/locate", HTTP_POST, [this]() { handleLocationNow(); });
+    
     // 屏幕设置路由
     server->on("/screen-settings", [this]() { handleScreenSettings(); });
     server->on("/api/screen/settings", HTTP_GET, [this]() { handleGetScreenSettings(); });
@@ -143,6 +150,10 @@ void WebServerManager::setDisplayManager(DisplayManager* displayManager) {
 
 void WebServerManager::setWeatherManager(WeatherManager* weatherManager) {
     m_weatherManager = weatherManager;
+}
+
+void WebServerManager::setLocationManager(LocationManager* locationManager) {
+    m_locationManager = locationManager;
 }
 
 void WebServerManager::start() {
@@ -991,6 +1002,15 @@ void WebServerManager::handleGetWeatherConfig() {
         doc["config"]["autoUpdate"] = config.autoUpdate;
         doc["config"]["updateInterval"] = config.updateInterval;
         doc["config"]["enableForecast"] = config.enableForecast;
+        
+        // 添加完整的位置信息
+        if (configStorage) {
+            String fullLocation = configStorage->getStringAsync("weather_fullLocation", "");
+            if (!fullLocation.isEmpty()) {
+                doc["config"]["fullLocation"] = fullLocation;
+            }
+        }
+        
         doc["message"] = "天气配置获取成功";
     } else {
         doc["success"] = false;
@@ -3157,4 +3177,136 @@ void WebServerManager::handleMDNSScanServers() {
     String response;
     serializeJson(doc, response);
     server->send(200, "application/json", response);
+}
+
+// 定位相关API处理函数
+void WebServerManager::handleGetLocationData() {
+    printf("处理获取定位数据请求\n");
+    
+    if (!m_locationManager) {
+        server->send(500, "application/json", "{\"success\":false,\"message\":\"定位管理器未初始化\"}");
+        return;
+    }
+    
+    LocationData locationData = m_locationManager->getCurrentLocation();
+    
+    DynamicJsonDocument doc(1024);
+    doc["success"] = true;
+    
+    if (locationData.isValid) {
+        doc["data"]["province"] = locationData.province;
+        doc["data"]["city"] = locationData.city;
+        doc["data"]["district"] = locationData.district;
+        doc["data"]["adcode"] = locationData.adcode;
+        doc["data"]["citycode"] = locationData.citycode;
+        doc["data"]["rectangle"] = locationData.rectangle;
+        doc["data"]["timestamp"] = locationData.timestamp;
+        doc["data"]["locationString"] = m_locationManager->getLocationString();
+        doc["data"]["weatherCityCode"] = m_locationManager->getCityCodeForWeather();
+        doc["message"] = "定位数据获取成功";
+    } else {
+        doc["data"] = nullptr;
+        doc["message"] = "暂无有效的定位数据";
+    }
+    
+    String response;
+    serializeJson(doc, response);
+    server->send(200, "application/json", response);
+}
+
+void WebServerManager::handleSetLocationApiKey() {
+    printf("处理设置定位API密钥请求\n");
+    
+    if (!m_locationManager) {
+        server->send(500, "application/json", "{\"success\":false,\"message\":\"定位管理器未初始化\"}");
+        return;
+    }
+    
+    if (!server->hasArg("apiKey")) {
+        server->send(400, "application/json", "{\"success\":false,\"message\":\"缺少API密钥参数\"}");
+        return;
+    }
+    
+    String apiKey = server->arg("apiKey");
+    
+    if (m_locationManager->setApiKey(apiKey)) {
+        printf("定位API密钥设置成功\n");
+        server->send(200, "application/json", "{\"success\":true,\"message\":\"定位API密钥设置成功\"}");
+    } else {
+        printf("定位API密钥设置失败\n");
+        server->send(500, "application/json", "{\"success\":false,\"message\":\"定位API密钥设置失败\"}");
+    }
+}
+
+void WebServerManager::handleLocationNow() {
+    printf("处理立即定位请求\n");
+    
+    if (!m_locationManager) {
+        server->send(500, "application/json", "{\"success\":false,\"message\":\"定位管理器未初始化\"}");
+        return;
+    }
+    
+    bool result = m_locationManager->locateCurrentPosition();
+    
+    if (result) {
+        // 等待一小段时间让定位完成
+        vTaskDelay(pdMS_TO_TICKS(2000));
+        
+        LocationData locationData = m_locationManager->getCurrentLocation();
+        
+        DynamicJsonDocument doc(1024);
+        doc["success"] = true;
+        
+        if (locationData.isValid) {
+            doc["location"]["province"] = locationData.province;
+            doc["location"]["city"] = locationData.city;
+            doc["location"]["district"] = locationData.district;
+            doc["location"]["adcode"] = locationData.adcode;
+            doc["location"]["citycode"] = locationData.citycode;
+            doc["location"]["locationString"] = m_locationManager->getLocationString();
+            doc["location"]["weatherCityCode"] = m_locationManager->getCityCodeForWeather();
+            doc["message"] = "定位成功";
+            
+            // 自动更新天气配置的城市信息
+            if (m_weatherManager && !locationData.citycode.isEmpty()) {
+                WeatherConfig config = m_weatherManager->getConfig();
+                config.cityCode = locationData.citycode;
+                config.cityName = locationData.city;
+                
+                // 构建完整的位置字符串
+                String fullLocation = locationData.province;
+                if (!locationData.city.isEmpty() && locationData.city != locationData.province) {
+                    fullLocation += " " + locationData.city;
+                }
+                if (!locationData.district.isEmpty() && locationData.district != locationData.city) {
+                    fullLocation += " " + locationData.district;
+                }
+                
+                if (m_weatherManager->setConfig(config)) {
+                    // 保存完整位置信息到配置存储
+                    if (configStorage) {
+                        configStorage->putStringAsync("weather_fullLocation", fullLocation);
+                    }
+                    doc["weatherUpdated"] = true;
+                    doc["message"] = "定位成功，天气配置已自动更新";
+                    printf("天气配置已自动更新: %s (%s)\n", fullLocation.c_str(), locationData.citycode.c_str());
+                } else {
+                    doc["weatherUpdated"] = false;
+                    printf("天气配置更新失败\n");
+                }
+            }
+        } else {
+            doc["location"] = nullptr;
+            doc["message"] = "定位请求已发送，请稍后查看结果";
+        }
+        
+        String response;
+        serializeJson(doc, response);
+        server->send(200, "application/json", response);
+        
+        printf("定位请求处理完成\n");
+    } else {
+        server->send(500, "application/json", "{\"success\":false,\"message\":\"定位请求失败\"}");
+        printf("定位请求失败\n");
+    }
 } 

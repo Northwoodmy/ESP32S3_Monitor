@@ -83,6 +83,15 @@ String WebServerManager::getWeatherSettingsHTML() {
     html += "                                    <span id=\"currentCityCode\" class=\"location-code\">-</span>\n";
     html += "                                </div>\n";
     html += "                            </div>\n";
+    html += "                            <div class=\"location-actions\">\n";
+    html += "                                <button onclick=\"getLocationNow()\" class=\"setting-btn location-btn\">\n";
+    html += "                                    <span class=\"btn-text\">获取定位数据</span>\n";
+    html += "                                    <div class=\"btn-loading hidden\">\n";
+    html += "                                        <div class=\"spinner-sm\"></div>\n";
+    html += "                                        <span>定位中...</span>\n";
+    html += "                                    </div>\n";
+    html += "                                </button>\n";
+    html += "                            </div>\n";
     html += "                        </div>\n";
     html += "                    </div>\n";
     html += "                    \n";
@@ -378,6 +387,61 @@ async function updateWeatherNow() {
         btn.disabled = false;
         btnText.style.display = '';
         btnLoading.classList.add('hidden');
+    }
+}
+
+// 获取定位数据
+async function getLocationNow() {
+    const btn = event.target.closest('button');
+    const btnText = btn.querySelector('.btn-text');
+    const btnLoading = btn.querySelector('.btn-loading');
+    
+    btn.disabled = true;
+    btnText.style.display = 'none';
+    btnLoading.classList.remove('hidden');
+    
+    try {
+        const response = await fetch('/api/location/locate', { method: 'POST' });
+        const data = await response.json();
+        
+        if (data.success) {
+            if (data.location) {
+                // 更新页面显示
+                updateLocationDisplay(data.location);
+                
+                if (data.weatherUpdated) {
+                    showToast('定位成功，天气配置已自动更新', 'success');
+                    // 重新加载天气配置和天气数据
+                    setTimeout(() => {
+                        loadWeatherConfig();
+                        loadCurrentWeather();
+                    }, 1000);
+                } else {
+                    showToast('定位成功', 'success');
+                }
+            } else {
+                showToast(data.message || '定位请求已发送，请稍后查看结果', 'info');
+            }
+        } else {
+            showToast('定位失败: ' + data.message, 'error');
+        }
+    } catch (error) {
+        console.error('获取定位数据失败:', error);
+        showToast('获取定位数据失败', 'error');
+    } finally {
+        btn.disabled = false;
+        btnText.style.display = '';
+        btnLoading.classList.add('hidden');
+    }
+}
+
+// 更新定位信息显示
+function updateLocationDisplay(location) {
+    if (location.locationString) {
+        document.getElementById('currentLocationText').textContent = location.locationString;
+    }
+    if (location.weatherCityCode) {
+        document.getElementById('currentCityCode').textContent = location.weatherCityCode;
     }
 }
 
@@ -814,6 +878,62 @@ String WebServerManager::getWeatherSettingsCSS() {
             padding: 4px 8px;
             border-radius: 6px;
             font-size: 0.95rem;
+        }
+        
+        /* 定位操作按钮样式 */
+        .location-actions {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        
+        .location-btn {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+        
+        .location-btn:hover {
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+        }
+        
+        .location-btn:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+        }
+        
+        .location-btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .location-btn .btn-text {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .location-btn .btn-loading {
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
         
         /* 响应式设计 */

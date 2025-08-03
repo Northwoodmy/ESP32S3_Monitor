@@ -19,6 +19,7 @@
 class PSRAMManager;
 class DisplayManager;
 class WeatherManager;
+class LocationManager;
 
 class WebServerManager {
 public:
@@ -36,6 +37,9 @@ public:
     
     // 设置天气管理器
     void setWeatherManager(WeatherManager* weatherManager);
+    
+    // 设置定位管理器
+    void setLocationManager(LocationManager* locationManager);
     
     // 启动服务器
     void start();
@@ -55,6 +59,7 @@ private:
     PSRAMManager* m_psramManager;
     DisplayManager* m_displayManager;
     WeatherManager* m_weatherManager;
+    LocationManager* m_locationManager;
     TaskHandle_t serverTaskHandle;
     bool isRunning;
     
@@ -127,6 +132,11 @@ private:
     void handleGetWeatherStats();
     void handleTestWeatherApi();
     void handleUpdateWeatherNow();
+    
+    // 定位相关API
+    void handleGetLocationData();
+    void handleSetLocationApiKey();
+    void handleLocationNow();
     
     // 服务器设置相关API
     void handleServerSettingsPage();
