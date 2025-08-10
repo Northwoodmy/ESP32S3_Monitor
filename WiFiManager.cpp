@@ -261,31 +261,82 @@ void WiFiManager::wifiManagementTask(void* parameter) {
 void WiFiManager::wifiTask() {
     printf("WiFi管理任务开始运行\n");
     
+    unsigned long lastReconnectAttempt = 0;
+    const unsigned long RECONNECT_INTERVAL = 120000; // 2分钟尝试一次重连
+    int reconnectAttempts = 0;
+    const int MAX_RECONNECT_ATTEMPTS = 10; // 最多连续尝试10次
+    
     while (isRunning) {
+        unsigned long currentTime = millis();
+        
         // 检查WiFi连接状态
-        if (!isAPMode && !isConnected()) {
-            printf("WiFi连接丢失，尝试重新连接...\n");
-            
-            // 优先尝试多WiFi配置
-            if (configStorage && configStorage->getWiFiConfigCountAsync(3000) > 0) {
-                printf("尝试多WiFi配置重连\n");
-                if (!connectToMultiWiFi()) {
-                    printf("多WiFi配置重连失败，启动AP模式\n");
+        if (!isConnected()) {
+            if (!isAPMode) {
+                // STA模式下连接丢失，立即尝试重连
+                printf("WiFi连接丢失，尝试重新连接...\n");
+                
+                if (attemptWiFiReconnection()) {
+                    printf("WiFi重连成功\n");
+                    reconnectAttempts = 0; // 重置重连计数
+                } else {
+                    printf("WiFi重连失败，启动AP模式\n");
                     startConfigMode();
+                    lastReconnectAttempt = currentTime;
+                    reconnectAttempts = 0;
                 }
             } else {
-                // 回退到单WiFi配置
-                String ssid, password;
-                if (configStorage && configStorage->loadWiFiConfigAsync(ssid, password, 3000)) {
-                    if (!connectToWiFi(ssid, password)) {
-                        printf("单WiFi配置重连失败，启动AP模式\n");
-                        startConfigMode();
+                // AP模式下，只有在保存了WiFi配置的情况下才尝试重新连接
+                if (hasStoredWiFiConfig()) {
+                    if (currentTime - lastReconnectAttempt >= RECONNECT_INTERVAL && 
+                        reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                        
+                        printf("AP模式下尝试重新连接到已知WiFi网络... (尝试 %d/%d)\n", 
+                               reconnectAttempts + 1, MAX_RECONNECT_ATTEMPTS);
+                        
+                        if (attemptWiFiReconnection()) {
+                            printf("✓ WiFi重连成功，退出AP模式\n");
+                            // 关闭AP模式，切换到STA模式
+                            WiFi.softAPdisconnect(true);
+                            isAPMode = false;
+                            reconnectAttempts = 0;
+                        } else {
+                            printf("✗ WiFi重连失败 (尝试 %d/%d)\n", 
+                                   reconnectAttempts + 1, MAX_RECONNECT_ATTEMPTS);
+                            reconnectAttempts++;
+                            
+                            // 如果达到最大重连次数，等待更长时间再重试
+                            if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+                                printf("达到最大重连次数(%d次)，将在10分钟后重新开始尝试\n", MAX_RECONNECT_ATTEMPTS);
+                                lastReconnectAttempt = currentTime + 480000; // 额外等待8分钟(总共10分钟)
+                                reconnectAttempts = 0;
+                            }
+                        }
+                        
+                        lastReconnectAttempt = currentTime;
                     }
                 } else {
-                    printf("没有存储的WiFi配置，启动AP模式\n");
-                    startConfigMode();
+                    // 没有保存WiFi配置，不进行重连尝试
+                    if (reconnectAttempts == 0) {
+                        printf("AP模式：没有保存的WiFi配置，不进行重连尝试\n");
+                        reconnectAttempts = -1; // 标记为已检查过，避免重复打印
+                    }
                 }
             }
+        } else {
+            // WiFi已连接，确保不在AP模式
+            if (isAPMode) {
+                printf("WiFi已连接，关闭AP模式\n");
+                WiFi.softAPdisconnect(true);
+                isAPMode = false;
+            }
+            reconnectAttempts = 0; // 重置重连计数
+        }
+        
+        // 如果在AP模式下且之前标记为无配置(-1)，但现在有配置了，重置计数器
+        if (isAPMode && reconnectAttempts == -1 && hasStoredWiFiConfig()) {
+            printf("检测到新的WiFi配置，重新开始重连尝试\n");
+            reconnectAttempts = 0;
+            lastReconnectAttempt = 0; // 立即开始尝试
         }
         
         // 每10秒检查一次
@@ -395,4 +446,47 @@ void WiFiManager::tryMultiWiFiConfigs() {
         printf("多WiFi配置连接失败，启动AP模式\n");
         startConfigMode();
     }
+}
+
+bool WiFiManager::attemptWiFiReconnection() {
+    printf("开始WiFi重连尝试\n");
+    
+    // 优先尝试多WiFi配置
+    if (configStorage && configStorage->getWiFiConfigCountAsync(3000) > 0) {
+        printf("尝试多WiFi配置重连\n");
+        if (connectToMultiWiFi()) {
+            return true;
+        }
+    }
+    
+    // 回退到单WiFi配置
+    String ssid, password;
+    if (configStorage && configStorage->loadWiFiConfigAsync(ssid, password, 3000)) {
+        printf("尝试单WiFi配置重连\n");
+        if (connectToWiFi(ssid, password)) {
+            return true;
+        }
+    } else {
+        printf("没有存储的WiFi配置\n");
+    }
+    
+    return false;
+}
+
+bool WiFiManager::hasStoredWiFiConfig() {
+    if (!configStorage) {
+        return false;
+    }
+    
+    // 检查是否有多WiFi配置
+    if (configStorage->getWiFiConfigCountAsync(1000) > 0) {
+        return true;
+    }
+    
+    // 检查是否有单WiFi配置
+    if (configStorage->hasWiFiConfigAsync(1000)) {
+        return true;
+    }
+    
+    return false;
 } 

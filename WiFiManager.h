@@ -64,6 +64,12 @@ private:
     
     // 多WiFi配置相关私有方法
     void tryMultiWiFiConfigs();
+    
+    // 统一的WiFi重连方法
+    bool attemptWiFiReconnection();
+    
+    // 检查是否有保存的WiFi配置
+    bool hasStoredWiFiConfig();
 };
 
 #endif // WIFIMANAGER_H 
