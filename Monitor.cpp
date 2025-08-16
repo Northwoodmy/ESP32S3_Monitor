@@ -378,7 +378,7 @@ void Monitor::processPortData(JsonObject port) {
             "PE2.0",        // 14 FC_PE2
             "PD 3.0",     // 15 FC_PD_Fix5V
             "PD 3.0",     // 16 FC_PD_FixHV
-            "PD 3.1",   // 17 FC_PD_SPR_AVS
+            "PD 3.0",   // 17 FC_PD_SPR_AVS
             "PD PPS",       // 18 FC_PD_PPS
             "PD 3.1",    // 19 FC_PD_EPR_HV
             "PD 3.1"        // 20 FC_PD_AVS
@@ -708,7 +708,7 @@ void Monitor::calculateProtocolHandshakePower(int port_index) {
                 portData.protocol_handshake_power = 15000;  // 15W
             }
             break;
-        case 17: // PD 3.1 SPR_AVS
+        case 17: // PD 3.0 SPR_AVS
             portData.protocol_handshake_power = 100000; // 100W
             break;
         case 18: // PD PPS
@@ -722,6 +722,8 @@ void Monitor::calculateProtocolHandshakePower(int port_index) {
             }
             break;
         case 19: // PD 3.1 EPR_HV
+            portData.protocol_handshake_power = 140000; // 140W
+            break;
         case 20: // PD 3.1 AVS
             portData.protocol_handshake_power = 140000; // 140W
             break;
