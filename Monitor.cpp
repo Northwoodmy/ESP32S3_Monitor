@@ -345,7 +345,7 @@ void Monitor::processPortData(JsonObject port) {
             strncpy(m_currentPowerData.ports[index].state, stateStr, 15);
             m_currentPowerData.ports[index].state[15] = '\0';
         } else {
-            strcpy(m_currentPowerData.ports[index].state, "UNKNOWN");
+            strcpy(m_currentPowerData.ports[index].state, "未知");
         }
         
         m_currentPowerData.ports[index].fc_protocol = port["fc_protocol"];
@@ -355,6 +355,9 @@ void Monitor::processPortData(JsonObject port) {
         // 计算功率 (P = V * I)
         m_currentPowerData.ports[index].power = 
             (m_currentPowerData.ports[index].voltage * m_currentPowerData.ports[index].current) / 1000;
+        
+        // 初始化协议握手功率为0
+        m_currentPowerData.ports[index].protocol_handshake_power = 0;
         
         // 设置协议名称
         const char* protocol_names[] = {
@@ -373,12 +376,12 @@ void Monitor::processPortData(JsonObject port) {
             "UFCS",         // 12 FC_UFCS
             "PE1.0",        // 13 FC_PE1
             "PE2.0",        // 14 FC_PE2
-            "PD 3.1",     // 15 FC_PD_Fix5V
-            "PD 3.1",     // 16 FC_PD_FixHV
-            "PD SPR",   // 17 FC_PD_SPR_AVS
+            "PD 3.0",     // 15 FC_PD_Fix5V
+            "PD 3.0",     // 16 FC_PD_FixHV
+            "PD 3.1",   // 17 FC_PD_SPR_AVS
             "PD PPS",       // 18 FC_PD_PPS
-            "PD EPR",    // 19 FC_PD_EPR_HV
-            "PD AVS"        // 20 FC_PD_AVS
+            "PD 3.1",    // 19 FC_PD_EPR_HV
+            "PD 3.1"        // 20 FC_PD_AVS
         };
         
         int protocol = m_currentPowerData.ports[index].fc_protocol;
@@ -389,7 +392,7 @@ void Monitor::processPortData(JsonObject port) {
             strncpy(m_currentPowerData.ports[index].protocol_name, protocol_names[protocol], 15);
             m_currentPowerData.ports[index].protocol_name[15] = '\0';
         } else {
-            strcpy(m_currentPowerData.ports[index].protocol_name, "Unknown");
+            strcpy(m_currentPowerData.ports[index].protocol_name, "未知");
         }
         
         // 解析PD状态信息
@@ -415,6 +418,9 @@ void Monitor::processPortData(JsonObject port) {
             m_currentPowerData.ports[index].has_emarker = false;
             m_currentPowerData.ports[index].pps_charging_supported = false;
         }
+        
+        // 计算协议握手功率
+        calculateProtocolHandshakePower(index);
         
         m_currentPowerData.ports[index].valid = true;
     }
@@ -633,5 +639,95 @@ void Monitor::resetFailureCounter() {
             printf("   ✅ 服务器连接已恢复，自动扫描状态重置\n");
         }
         m_consecutiveFailures = 0;
+    }
+}
+
+void Monitor::calculateProtocolHandshakePower(int port_index) {
+    if (port_index < 0 || port_index >= 4) {
+        return;
+    }
+    
+    PortData& portData = m_currentPowerData.ports[port_index];
+    
+    // 优先使用PD协议的operating参数
+    if (portData.operating_voltage > 0 && portData.operating_current > 0) {
+        portData.protocol_handshake_power = (portData.operating_voltage * portData.operating_current) / 1000;
+        return;
+    }
+    
+    // 根据协议类型设置典型握手功率值
+    switch (portData.fc_protocol) {
+        case 1:  // QC2.0
+            portData.protocol_handshake_power = 18000;  // 18W
+            break;
+        case 2:  // QC3.0
+            portData.protocol_handshake_power = 27000;  // 27W
+            break;
+        case 3:  // QC3+
+            portData.protocol_handshake_power = 36000;  // 36W
+            break;
+        case 5:  // AFC (Samsung)
+            portData.protocol_handshake_power = 15000;  // 15W
+            break;
+        case 6:  // FCP (Huawei)
+            portData.protocol_handshake_power = 22500;  // 22.5W
+            break;
+        case 7:  // SCP (Huawei)
+            portData.protocol_handshake_power = 40000;  // 40W
+            break;
+        case 8:  // VOOC1.0
+            portData.protocol_handshake_power = 20000;  // 20W
+            break;
+        case 9:  // VOOC4.0
+            portData.protocol_handshake_power = 65000;  // 65W
+            break;
+        case 10: // SVOOC2.0
+            portData.protocol_handshake_power = 65000;  // 65W
+            break;
+        case 12: // UFCS
+            portData.protocol_handshake_power = 40000;  // 40W
+            break;
+        case 13: // PE1.0
+            portData.protocol_handshake_power = 10000;  // 10W
+            break;
+        case 14: // PE2.0
+            portData.protocol_handshake_power = 18000;  // 18W
+            break;
+        case 15: // PD 3.0 Fix5V
+            portData.protocol_handshake_power = 15000;  // 15W (5V@3A)
+            break;
+        case 16: // PD 3.0 FixHV
+            // 根据当前电压推测握手功率
+            if (portData.voltage >= 19000) {        // 20V
+                portData.protocol_handshake_power = 65000;  // 65W
+            } else if (portData.voltage >= 14000) {  // 15V
+                portData.protocol_handshake_power = 45000;  // 45W
+            } else if (portData.voltage >= 8000) {   // 9V
+                portData.protocol_handshake_power = 27000;  // 27W
+            } else {                                // 5V
+                portData.protocol_handshake_power = 15000;  // 15W
+            }
+            break;
+        case 17: // PD 3.1 SPR_AVS
+            portData.protocol_handshake_power = 100000; // 100W
+            break;
+        case 18: // PD PPS
+            // PPS通常用于高功率，根据电压推测
+            if (portData.voltage >= 19000) {
+                portData.protocol_handshake_power = 65000;  // 65W
+            } else if (portData.voltage >= 14000) {
+                portData.protocol_handshake_power = 45000;  // 45W
+            } else {
+                portData.protocol_handshake_power = 27000;  // 27W
+            }
+            break;
+        case 19: // PD 3.1 EPR_HV
+        case 20: // PD 3.1 AVS
+            portData.protocol_handshake_power = 140000; // 140W
+            break;
+        default:
+            // 未知协议或无协议，使用当前实际功率
+            portData.protocol_handshake_power = portData.power;
+            break;
     }
 } 

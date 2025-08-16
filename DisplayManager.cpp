@@ -159,6 +159,7 @@ extern lv_obj_t * ui2_port1powerlabel;
 extern lv_obj_t * ui2_port1active;
 extern lv_obj_t * ui2_port1voltage1;
 extern lv_obj_t * ui2_port1current1;
+extern lv_obj_t * ui2_port1protocolpower;
 
 // 端口2详细信息
 extern lv_obj_t * ui2_port2state;
@@ -171,6 +172,7 @@ extern lv_obj_t * ui2_port2powerlabel;
 extern lv_obj_t * ui2_port2powerlabel1;
 extern lv_obj_t * ui2_port2voltage1;
 extern lv_obj_t * ui2_port2current1;
+extern lv_obj_t * ui2_port2protocolpower;
 
 // 端口3详细信息
 extern lv_obj_t * ui2_port3state;
@@ -183,6 +185,7 @@ extern lv_obj_t * ui2_port3powerlabel;
 extern lv_obj_t * ui2_port3powerlabel1;
 extern lv_obj_t * ui2_port3voltage1;
 extern lv_obj_t * ui2_port3current1;
+extern lv_obj_t * ui2_port3protocolpower;
 
 // 端口4详细信息
 extern lv_obj_t * ui2_port4state;
@@ -195,6 +198,7 @@ extern lv_obj_t * ui2_port4powerlabel;
 extern lv_obj_t * ui2_port4powerlabel1;
 extern lv_obj_t * ui2_port4voltage1;
 extern lv_obj_t * ui2_port4current1;
+extern lv_obj_t * ui2_port4protocolpower;
 
 /**
  * @brief 构造函数
@@ -427,10 +431,8 @@ bool DisplayManager::init(LVGLDriver* lvgl_driver, WiFiManager* wifi_manager, Co
         m_brightness = m_configStorage->loadBrightnessAsync(3000);
         printf("[DisplayManager] 加载保存的亮度: %d%%\n", m_brightness);
         
-        // 立即应用加载的亮度到硬件
-        if (m_lvglDriver) {
-            m_lvglDriver->setBrightness(m_brightness);
-        }
+        // 立即应用加载的亮度到硬件（初始化时不需要通过消息队列）
+        setBrightnessImmediate(m_brightness);
     } else {
         printf("[DisplayManager] 使用默认亮度: %d%%\n", m_brightness);
     }
@@ -624,6 +626,12 @@ void DisplayManager::displayTask() {
  * @brief 处理显示消息
  */
 void DisplayManager::processMessage(const DisplayMessage& msg) {
+    // 特殊处理：亮度调整不需要LVGL锁，直接处理避免死锁
+    if (msg.type == DisplayMessage::MSG_SET_BRIGHTNESS) {
+        processBrightnessMessage(msg);
+        return;
+    }
+    
     if (!m_lvglDriver->lock(1000)) {
         printf("[DisplayManager] 警告：处理消息时获取LVGL锁失败\n");
         return;
@@ -810,25 +818,7 @@ void DisplayManager::processMessage(const DisplayMessage& msg) {
             }
             break;
             
-        case DisplayMessage::MSG_SET_BRIGHTNESS:
-            // 设置亮度
-            m_brightness = msg.data.brightness.brightness;
-            
-            // 异步保存亮度到NVS
-            if (m_configStorage) {
-                bool saveSuccess = m_configStorage->saveBrightnessAsync(m_brightness, 3000);
-                if (saveSuccess) {
-                    printf("[DisplayManager] 亮度设置已保存: %d%%\n", m_brightness);
-                } else {
-                    printf("[DisplayManager] 亮度设置保存失败\n");
-                }
-            }
-            
-            // 应用亮度到硬件
-            if (m_lvglDriver) {
-                m_lvglDriver->setBrightness(m_brightness);
-            }
-            break;
+
             
         case DisplayMessage::MSG_SET_THEME:
             // 主题切换改为重启系统的方式，此消息类型保留为兼容性
@@ -1045,6 +1035,57 @@ void DisplayManager::processMessage(const DisplayMessage& msg) {
     }
     
     m_lvglDriver->unlock();
+}
+
+/**
+ * @brief 处理亮度调整消息（无锁版本）
+ * 
+ * 亮度调整不需要LVGL锁保护，因为它直接操作硬件寄存器，
+ * 将其独立处理可以避免与屏幕切换等需要长时间持有LVGL锁的操作产生死锁。
+ */
+void DisplayManager::processBrightnessMessage(const DisplayMessage& msg) {
+    printf("[DisplayManager] 处理亮度调整消息（无锁模式）\n");
+    
+    // 更新内部亮度值
+    m_brightness = msg.data.brightness.brightness;
+    
+    // 异步保存亮度到NVS
+    if (m_configStorage) {
+        bool saveSuccess = m_configStorage->saveBrightnessAsync(m_brightness, 3000);
+        if (saveSuccess) {
+            printf("[DisplayManager] 亮度设置已保存: %d%%\n", m_brightness);
+        } else {
+            printf("[DisplayManager] 亮度设置保存失败\n");
+        }
+    }
+    
+    // 直接应用亮度到硬件（不需要LVGL锁）
+    if (m_lvglDriver) {
+        m_lvglDriver->setBrightness(m_brightness);
+        printf("[DisplayManager] 亮度已直接应用到硬件: %d%%\n", m_brightness);
+    } else {
+        printf("[DisplayManager] 错误：LVGL驱动未初始化，无法设置亮度\n");
+    }
+}
+
+/**
+ * @brief 立即设置亮度（不通过消息队列，用于内部调用）
+ * 
+ * 这个函数直接设置硬件亮度，不经过消息队列，用于在可能持有LVGL锁的情况下
+ * 安全地调整亮度，避免死锁。主要用于屏幕开关等内部操作。
+ * 
+ * @param brightness 亮度值 (0-100)
+ */
+void DisplayManager::setBrightnessImmediate(uint8_t brightness) {
+    printf("[DisplayManager] 立即设置亮度: %d%%（绕过消息队列）\n", brightness);
+    
+    // 直接应用亮度到硬件（不需要LVGL锁）
+    if (m_lvglDriver) {
+        m_lvglDriver->setBrightness(brightness);
+        printf("[DisplayManager] 亮度已直接应用到硬件: %d%%\n", brightness);
+    } else {
+        printf("[DisplayManager] 错误：LVGL驱动未初始化，无法设置亮度\n");
+    }
 }
 
 // === 旧款手动UI创建函数已全部删除，现使用SquareLine Studio生成的UI1和UI2系统 ===
@@ -2289,6 +2330,17 @@ void DisplayManager::updateUI2PortDetailPages() {
             }
         }
         
+        // 协议握手功率显示
+        if (ui2_port1protocolpower) {
+            if (m_powerData.ports[0].protocol_handshake_power > 0) {
+                char protocol_power_str[16];
+                snprintf(protocol_power_str, sizeof(protocol_power_str), "%.1fW", m_powerData.ports[0].protocol_handshake_power / 1000.0f);
+                lv_label_set_text(ui2_port1protocolpower, protocol_power_str);
+            } else {
+                lv_label_set_text(ui2_port1protocolpower, "--W");
+            }
+        }
+        
         // 最大电压
         if (ui2_port1maxvbusvoltage) {
             if (m_powerData.ports[0].cable_max_vbus_voltage > 0) {
@@ -2369,6 +2421,17 @@ void DisplayManager::updateUI2PortDetailPages() {
                 lv_label_set_text(ui2_port2cablevid, vid_str);
             } else {
                 lv_label_set_text(ui2_port2cablevid, "未知");
+            }
+        }
+        
+        // 协议握手功率显示
+        if (ui2_port2protocolpower) {
+            if (m_powerData.ports[1].protocol_handshake_power > 0) {
+                char protocol_power_str[16];
+                snprintf(protocol_power_str, sizeof(protocol_power_str), "%.1fW", m_powerData.ports[1].protocol_handshake_power / 1000.0f);
+                lv_label_set_text(ui2_port2protocolpower, protocol_power_str);
+            } else {
+                lv_label_set_text(ui2_port2protocolpower, "--W");
             }
         }
         
@@ -2455,6 +2518,17 @@ void DisplayManager::updateUI2PortDetailPages() {
             }
         }
         
+        // 协议握手功率显示
+        if (ui2_port3protocolpower) {
+            if (m_powerData.ports[2].protocol_handshake_power > 0) {
+                char protocol_power_str[16];
+                snprintf(protocol_power_str, sizeof(protocol_power_str), "%.1fW", m_powerData.ports[2].protocol_handshake_power / 1000.0f);
+                lv_label_set_text(ui2_port3protocolpower, protocol_power_str);
+            } else {
+                lv_label_set_text(ui2_port3protocolpower, "--W");
+            }
+        }
+        
         // 最大电压
         if (ui2_port3maxvbusvoltage) {
             if (m_powerData.ports[2].cable_max_vbus_voltage > 0) {
@@ -2535,6 +2609,17 @@ void DisplayManager::updateUI2PortDetailPages() {
                 lv_label_set_text(ui2_port4cablevid, vid_str);
             } else {
                 lv_label_set_text(ui2_port4cablevid, "未知");
+            }
+        }
+        
+        // 协议握手功率显示
+        if (ui2_port4protocolpower) {
+            if (m_powerData.ports[3].protocol_handshake_power > 0) {
+                char protocol_power_str[16];
+                snprintf(protocol_power_str, sizeof(protocol_power_str), "%.1fW", m_powerData.ports[3].protocol_handshake_power / 1000.0f);
+                lv_label_set_text(ui2_port4protocolpower, protocol_power_str);
+            } else {
+                lv_label_set_text(ui2_port4protocolpower, "--W");
             }
         }
         
@@ -3081,9 +3166,7 @@ void DisplayManager::startFading(uint8_t targetBrightness, FadeDirection directi
     if (direction == FADE_TO_ON) {
         // 开启时从0开始渐变
         m_currentFadingBrightness = 0;
-        if (m_lvglDriver) {
-            m_lvglDriver->setBrightness(0);
-        }
+        setBrightnessImmediate(0);
         // 立即标记屏幕为开启状态，但亮度从0开始
         m_screenOn = true;
     } else {
@@ -3119,10 +3202,7 @@ void DisplayManager::processFading() {
     if (elapsedTime >= m_fadeDuration) {
         // 渐变完成，设置最终亮度
         m_currentFadingBrightness = m_targetFadingBrightness;
-        
-        if (m_lvglDriver) {
-            m_lvglDriver->setBrightness(m_currentFadingBrightness);
-        }
+        setBrightnessImmediate(m_currentFadingBrightness);
         
         // 更新屏幕状态
         if (m_fadeDirection == FADE_TO_OFF) {
@@ -3211,10 +3291,7 @@ void DisplayManager::processFading() {
     // 更新硬件亮度
     if (shouldUpdate) {
         m_currentFadingBrightness = newBrightness;
-        
-        if (m_lvglDriver) {
-            m_lvglDriver->setBrightness(m_currentFadingBrightness);
-        }
+        setBrightnessImmediate(m_currentFadingBrightness);
         
         // 可选：输出详细渐变进度（调试用，正常使用时可注释掉）
         // printf("[DisplayManager] 渐变进度: %.1f%%, 平滑进度: %.2f, 当前亮度: %d%%, 精确值: %.1f%%\n", 
@@ -3235,10 +3312,7 @@ void DisplayManager::stopFading() {
     
     // 设置为目标亮度（完成渐变）
     m_currentFadingBrightness = m_targetFadingBrightness;
-    
-    if (m_lvglDriver) {
-        m_lvglDriver->setBrightness(m_currentFadingBrightness);
-    }
+    setBrightnessImmediate(m_currentFadingBrightness);
     
     // 更新屏幕状态
     if (m_fadeDirection == FADE_TO_OFF) {
@@ -3258,10 +3332,8 @@ void DisplayManager::performScreenOnImmediate() {
     
     printf("[DisplayManager] 即时开启屏幕（无渐变）\n");
     
-    // 恢复屏幕亮度
-    if (m_lvglDriver) {
-        m_lvglDriver->setBrightness(m_brightness);
-    }
+    // 恢复屏幕亮度（使用安全的亮度设置方法）
+    setBrightnessImmediate(m_brightness);
     
     // 更新当前渐变亮度值
     m_currentFadingBrightness = m_brightness;
@@ -3287,10 +3359,8 @@ void DisplayManager::performScreenOffImmediate() {
     
     printf("[DisplayManager] 即时关闭屏幕（无渐变）\n");
     
-    // 设置屏幕亮度为0（关闭背光）
-    if (m_lvglDriver) {
-        m_lvglDriver->setBrightness(0);
-    }
+    // 设置屏幕亮度为0（关闭背光）（使用安全的亮度设置方法）
+    setBrightnessImmediate(0);
     
     // 更新当前渐变亮度值
     m_currentFadingBrightness = 0;

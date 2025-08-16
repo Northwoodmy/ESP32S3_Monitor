@@ -12,6 +12,7 @@ struct PortData {
     int voltage;            ///< 电压(mV)
     int power;              ///< 功率(mW)
     char protocol_name[16]; ///< 协议名称
+    int protocol_handshake_power; ///< 协议握手功率(mW)
     
     // PD状态相关字段
     int manufacturer_vid;   ///< 制造商VID

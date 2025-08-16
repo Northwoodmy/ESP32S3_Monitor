@@ -644,6 +644,24 @@ private:
      */
     void processMessage(const DisplayMessage& msg);
     
+    /**
+     * @brief 处理亮度调整消息（无锁版本）
+     * 
+     * 专门处理亮度调整消息，不需要LVGL锁保护，避免死锁
+     * 
+     * @param msg 亮度调整消息
+     */
+    void processBrightnessMessage(const DisplayMessage& msg);
+    
+    /**
+     * @brief 立即设置亮度（不通过消息队列，用于内部调用）
+     * 
+     * 直接设置硬件亮度，用于在可能持有LVGL锁的情况下安全地调整亮度
+     * 
+     * @param brightness 亮度值 (0-100)
+     */
+    void setBrightnessImmediate(uint8_t brightness);
+    
     // 旧款手动UI创建和回调函数已删除 - 现在使用SquareLine Studio生成的UI1和UI2系统
     
     /**

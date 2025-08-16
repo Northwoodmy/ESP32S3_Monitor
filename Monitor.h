@@ -100,6 +100,7 @@ private:
     void calculateTotalPower();
     void updatePowerData();
     void triggerDataCallback();
+    void calculateProtocolHandshakePower(int port_index);
 };
 
 #endif // MONITOR_H 
